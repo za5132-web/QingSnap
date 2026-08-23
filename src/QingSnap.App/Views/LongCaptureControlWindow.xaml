@@ -1,0 +1,150 @@
+<Window x:Class="QingSnap.App.Views.LongCaptureControlWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="QingSnap 长截图"
+        Width="530"
+        Height="194"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Background="#FF0B1118"
+        Foreground="#FFF3F7F9"
+        PreviewKeyDown="OnPreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="ControlButton" TargetType="Button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FFF3F7F9" />
+            <Setter Property="Background" Value="#FF22313D" />
+            <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF2B3E4C" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9976DFEE" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.38" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ControlButton}">
+            <Setter Property="Foreground" Value="#FF071116" />
+            <Setter Property="Background" Value="#FF76DFEE" />
+            <Setter Property="BorderBrush" Value="#FF9EEAF4" />
+        </Style>
+    </Window.Resources>
+
+    <Border BorderBrush="#6676DFEE" BorderThickness="1" Background="#FF0E171F">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border Background="#FF76DFEE" />
+            <Grid Grid.Column="1" Margin="16,12,14,13">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid MouseLeftButtonDown="OnDragAreaMouseLeftButtonDown">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="ModeText"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource DataFont}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Foreground="#FF76DFEE"
+                               Text="AUTO SCROLL" />
+                    <TextBlock x:Name="StatsText"
+                               Grid.Column="2"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource DataFont}"
+                               FontSize="10"
+                               Foreground="#FF8D9AA5"
+                               Text="正在记录首屏" />
+                </Grid>
+
+                <TextBlock x:Name="StatusText"
+                           Grid.Row="1"
+                           Margin="0,10,0,0"
+                           FontFamily="{StaticResource UiFont}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           Foreground="#FFF3F7F9"
+                           Text="正在记录首屏…" />
+
+                <ProgressBar x:Name="ScrollProgress"
+                             Grid.Row="2"
+                             Height="3"
+                             Margin="0,8,0,0"
+                             IsIndeterminate="True"
+                             Foreground="#FF76DFEE"
+                             Background="#FF22313D" />
+
+                <TextBlock x:Name="HintText"
+                           Grid.Row="3"
+                           Margin="0,5,0,0"
+                           FontFamily="{StaticResource UiFont}"
+                           FontSize="10.5"
+                           Foreground="#FF7F8D97"
+                           Text="程序会自动滚动并检测页面底部；Enter 停止，Esc 取消。" />
+
+                <StackPanel Grid.Row="4" Margin="0,11,0,0" Orientation="Horizontal">
+                    <Button x:Name="NextButton"
+                            Style="{StaticResource PrimaryButton}"
+                            Content="截取下一屏"
+                            IsEnabled="False"
+                            Click="OnNextClick" />
+                    <Button x:Name="BackButton"
+                            Style="{StaticResource ControlButton}"
+                            Content="回退一屏"
+                            IsEnabled="False"
+                            Click="OnBackClick" />
+                    <Button x:Name="FinishButton"
+                            Style="{StaticResource ControlButton}"
+                            Content="完成拼接"
+                            IsEnabled="False"
+                            Click="OnFinishClick" />
+                    <Button x:Name="CancelButton"
+                            Style="{StaticResource ControlButton}"
+                            Margin="0"
+                            Content="取消"
+                            Click="OnCancelClick" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

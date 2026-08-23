@@ -1,0 +1,14 @@
+<Window x:Class="QingSnap.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="QingSnap"
+        Width="1"
+        Height="1"
+        Left="-10000"
+        Top="-10000"
+        ShowInTaskbar="False"
+        WindowStyle="ToolWindow"
+        ResizeMode="NoResize"
+        Opacity="0">
+    <Grid />
+</Window>

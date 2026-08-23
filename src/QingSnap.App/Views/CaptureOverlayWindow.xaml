@@ -1,0 +1,648 @@
+<Window x:Class="QingSnap.App.Views.CaptureOverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:QingSnap.App.Controls"
+        Title="QingSnap Capture"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Background="#090E14"
+        Cursor="Cross"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        PreviewKeyDown="OnPreviewKeyDown"
+        PreviewMouseWheel="OnPreviewMouseWheel"
+        PreviewMouseRightButtonDown="OnPreviewMouseRightButtonDown">
+    <Window.Resources>
+        <Style x:Key="CaptureToolButton" TargetType="Button">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="34" />
+            <Setter Property="Padding" Value="7,0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FFDCE7EC" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF25343F" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF314754" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.34" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="CaptureFeatureButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
+            <Setter Property="Foreground" Value="#FF76DFEE" />
+        </Style>
+        <Style x:Key="CaptureAnnotationButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="Foreground" Value="#FFFF8A93" />
+        </Style>
+        <Style x:Key="CaptureConfirmButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
+            <Setter Property="Foreground" Value="#FF071116" />
+            <Setter Property="Background" Value="#FF76DFEE" />
+            <Setter Property="MinWidth" Value="40" />
+        </Style>
+        <Style x:Key="ColorSwatchButton" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="3" />
+            <Setter Property="Padding" Value="3" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SwatchChrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="Transparent"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="2" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwatchChrome" Property="BorderBrush" Value="#FFF5FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="SwatchChrome" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="RegionModeButton" TargetType="Button" BasedOn="{StaticResource CaptureAnnotationButton}">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="MinWidth" Value="40" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Padding" Value="8,0" />
+        </Style>
+        <Style x:Key="AnnotationMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#FFE7F0F4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="MenuChrome"
+                                Margin="3,1"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter ContentSource="Header" />
+                                <TextBlock Grid.Column="1" Margin="24,0,0,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{StaticResource DataFont}"
+                                           FontSize="10" Foreground="#FF7F929D"
+                                           Text="{TemplateBinding InputGestureText}" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="MenuChrome" Property="Background" Value="#FF23333E" />
+                                <Setter Property="Foreground" Value="#FF76DFEE" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <ContextMenu x:Key="AnnotationContextMenu"
+                     MinWidth="188" Padding="3"
+                     Background="#FC0E171F"
+                     BorderBrush="#6676DFEE"
+                     BorderThickness="1"
+                     HasDropShadow="True">
+            <MenuItem Header="编辑文字" InputGestureText="双击 / F2"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnEditAnnotationTextClick" />
+            <Separator Margin="8,3" Background="#334F616B" />
+            <MenuItem Header="置于顶层" InputGestureText="Ctrl+Shift+]"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnBringAnnotationToFrontClick" />
+            <MenuItem Header="上移一层" InputGestureText="Ctrl+]"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnBringAnnotationForwardClick" />
+            <MenuItem Header="下移一层" InputGestureText="Ctrl+["
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnSendAnnotationBackwardClick" />
+            <MenuItem Header="置于底层" InputGestureText="Ctrl+Shift+["
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnSendAnnotationToBackClick" />
+            <Separator Margin="8,3" Background="#334F616B" />
+            <MenuItem Header="复制标注" InputGestureText="Ctrl+C / Ctrl+V"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnCopyAnnotationClick" />
+            <MenuItem Header="删除标注" InputGestureText="Delete"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnDeleteAnnotationClick" />
+        </ContextMenu>
+    </Window.Resources>
+    <Grid x:Name="Root">
+        <Image x:Name="BackgroundImage"
+               Stretch="Fill"
+               SnapsToDevicePixels="True" />
+
+        <Canvas x:Name="Surface"
+                Background="Transparent"
+                MouseLeftButtonDown="OnMouseLeftButtonDown"
+                MouseMove="OnMouseMove"
+                MouseLeftButtonUp="OnMouseLeftButtonUp">
+            <Rectangle x:Name="TopShade" Fill="#A8090E14" IsHitTestVisible="False" />
+            <Rectangle x:Name="LeftShade" Fill="#A8090E14" IsHitTestVisible="False" />
+            <Rectangle x:Name="RightShade" Fill="#A8090E14" IsHitTestVisible="False" />
+            <Rectangle x:Name="BottomShade" Fill="#A8090E14" IsHitTestVisible="False" />
+
+            <Canvas x:Name="AnnotationLayer"
+                    Visibility="Collapsed"
+                    Background="Transparent"
+                    ClipToBounds="True"
+                    IsHitTestVisible="False" />
+
+            <Border x:Name="SelectionBorder"
+                    Visibility="Collapsed"
+                    BorderBrush="#FF76DFEE"
+                    BorderThickness="2"
+                    Background="#08FFFFFF"
+                    CornerRadius="1"
+                    IsHitTestVisible="False">
+                <Border.Effect>
+                    <DropShadowEffect Color="#FF76DFEE" BlurRadius="8" ShadowDepth="0" Opacity="0.55" />
+                </Border.Effect>
+            </Border>
+
+            <Rectangle x:Name="TopLeftHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="TopLeftVertical" Width="3" Height="16" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="TopRightHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="TopRightVertical" Width="3" Height="16" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="BottomLeftHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="BottomLeftVertical" Width="3" Height="16" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="BottomRightHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+            <Rectangle x:Name="BottomRightVertical" Width="3" Height="16" Fill="#FFF5FAFC" IsHitTestVisible="False" />
+
+            <Border x:Name="SizeBadge"
+                    Visibility="Collapsed"
+                    Padding="9,5"
+                    Background="#EE111A22"
+                    BorderBrush="#6676DFEE"
+                    BorderThickness="1"
+                    CornerRadius="5"
+                    IsHitTestVisible="False">
+                <TextBlock x:Name="SizeText"
+                           FontFamily="{StaticResource DataFont}"
+                           FontSize="12"
+                           FontWeight="SemiBold"
+                           Foreground="#FFF5FAFC" />
+            </Border>
+
+            <Border x:Name="HintBadge"
+                    Padding="13,8"
+                    Background="#E6111A22"
+                    BorderBrush="#3DFFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="7"
+                    IsHitTestVisible="False">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock FontFamily="{StaticResource UiFont}"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#FFF5FAFC"
+                               Text="拖动选择" />
+                    <TextBlock x:Name="HintActionText"
+                               Margin="9,0,0,0"
+                               FontFamily="{StaticResource DataFont}"
+                               FontSize="11"
+                               Foreground="#FF76DFEE"
+                               Text="R 上次选区  ·  双击 / ENTER 复制  ·  ESC 取消" />
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="CaptureToolbar"
+                    Visibility="Collapsed"
+                    Background="#F20E171F"
+                    BorderBrush="#6676DFEE"
+                    BorderThickness="1"
+                    CornerRadius="7">
+                <Border.Effect>
+                    <DropShadowEffect Color="#FF000000" BlurRadius="18" ShadowDepth="4" Opacity="0.5" />
+                </Border.Effect>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border Background="#FF76DFEE" CornerRadius="6,0,0,6" />
+                    <Border Grid.Column="1" Width="84" Margin="6,5,4,5" Padding="6,0"
+                            Background="#B314222C" CornerRadius="4"
+                            Cursor="Hand" ToolTip="点击输入坐标和尺寸"
+                            MouseLeftButtonDown="OnToolbarSizeMouseLeftButtonDown">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <icons:QingSnapIcon Kind="Geometry" Width="17" Height="17" Foreground="#FF76DFEE" />
+                            <TextBlock x:Name="ToolbarSizeText"
+                                       Margin="7,0,0,0"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{StaticResource DataFont}"
+                                       FontSize="10"
+                                       Foreground="#FFC5D2D8"
+                                       Text="0 × 0" />
+                        </StackPanel>
+                    </Border>
+                    <StackPanel Grid.Column="2" Margin="0,5,6,5" Orientation="Horizontal">
+                        <Button x:Name="PenButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="自由画笔"
+                                AutomationProperties.Name="自由画笔"
+                                Click="OnPenClick">
+                            <icons:QingSnapIcon Kind="Pen" />
+                        </Button>
+                        <Button x:Name="LineButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="线型工具：直线"
+                                AutomationProperties.Name="线型工具"
+                                Click="OnLineClick">
+                            <icons:QingSnapIcon x:Name="LineToolIcon" Kind="Line" />
+                        </Button>
+                        <Button x:Name="RectangleButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="区域工具：矩形"
+                                AutomationProperties.Name="区域工具"
+                                Click="OnRectangleClick">
+                            <icons:QingSnapIcon x:Name="RegionToolIcon" Kind="Rectangle" />
+                        </Button>
+                        <Button x:Name="EllipseButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="绘制椭圆"
+                                AutomationProperties.Name="绘制椭圆"
+                                Click="OnEllipseClick">
+                            <icons:QingSnapIcon Kind="Ellipse" />
+                        </Button>
+                        <Button x:Name="TextButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="添加文字"
+                                AutomationProperties.Name="添加文字"
+                                Click="OnTextClick">
+                            <icons:QingSnapIcon Kind="Text" />
+                        </Button>
+                        <Button x:Name="NumberButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="添加序号标记"
+                                AutomationProperties.Name="添加序号标记"
+                                Click="OnNumberClick">
+                            <icons:QingSnapIcon Kind="Number" />
+                        </Button>
+                        <Button x:Name="SelectButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="选择、缩放标注；双击编辑文字；右键调整图层"
+                                AutomationProperties.Name="选择并编辑标注"
+                                Click="OnSelectClick">
+                            <icons:QingSnapIcon Kind="Select" />
+                        </Button>
+                        <Button x:Name="ColorButton"
+                                Visibility="Collapsed"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="36" MinWidth="36" Padding="7,0"
+                                ToolTip="切换标注颜色"
+                                AutomationProperties.Name="切换标注颜色"
+                                Click="OnColorClick">
+                            <icons:QingSnapIcon Kind="Color" />
+                        </Button>
+                        <Button x:Name="ThicknessButton"
+                                Visibility="Collapsed"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="36" MinWidth="36" Padding="7,0"
+                                ToolTip="切换线条粗细"
+                                AutomationProperties.Name="切换线条粗细"
+                                Click="OnThicknessClick">
+                            <icons:QingSnapIcon Kind="Thickness" />
+                        </Button>
+                        <Button x:Name="FontSizeButton"
+                                Visibility="Collapsed"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="36" MinWidth="36" Padding="7,0"
+                                ToolTip="切换文字大小"
+                                AutomationProperties.Name="切换文字大小"
+                                Click="OnFontSizeClick">
+                            <icons:QingSnapIcon Kind="FontSize" />
+                        </Button>
+                        <Button x:Name="UndoButton"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="32" MinWidth="32"
+                                Padding="7,0"
+                                ToolTip="撤销上一个标注  Ctrl+Z"
+                                AutomationProperties.Name="撤销上一个标注"
+                                IsEnabled="False"
+                                Click="OnUndoClick">
+                            <icons:QingSnapIcon Kind="Undo" />
+                        </Button>
+                        <Button x:Name="ClearButton"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="32" MinWidth="32"
+                                Padding="7,0"
+                                ToolTip="清空全部标注"
+                                AutomationProperties.Name="清空全部标注"
+                                IsEnabled="False"
+                                Click="OnClearClick">
+                            <icons:QingSnapIcon Kind="Clear" />
+                        </Button>
+                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Button Style="{StaticResource CaptureFeatureButton}"
+                                Width="34"
+                                ToolTip="自动滚动长截图"
+                                AutomationProperties.Name="自动滚动长截图"
+                                Click="OnAutomaticLongCaptureClick">
+                            <icons:QingSnapIcon Kind="LongCapture" />
+                        </Button>
+                        <Button Style="{StaticResource CaptureFeatureButton}"
+                                Width="34"
+                                ToolTip="识别选区文字"
+                                AutomationProperties.Name="识别选区文字"
+                                Click="OnOcrClick">
+                            <icons:QingSnapIcon Kind="Ocr" />
+                        </Button>
+                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Button Style="{StaticResource CaptureToolButton}"
+                                Width="34"
+                                ToolTip="复制选区并关闭"
+                                AutomationProperties.Name="复制选区并关闭"
+                                Click="OnCopyClick">
+                            <icons:QingSnapIcon Kind="Copy" />
+                        </Button>
+                        <Button Style="{StaticResource CaptureToolButton}"
+                                Width="34"
+                                ToolTip="保存选区到文件"
+                                AutomationProperties.Name="保存选区到文件"
+                                Click="OnSaveClick">
+                            <icons:QingSnapIcon Kind="Save" />
+                        </Button>
+                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Button Style="{StaticResource CaptureToolButton}"
+                                Width="34"
+                                ToolTip="把选区钉到桌面"
+                                AutomationProperties.Name="把选区钉到桌面"
+                                Click="OnPinClick">
+                            <icons:QingSnapIcon Kind="Pin" />
+                        </Button>
+                        <Button Style="{StaticResource CaptureConfirmButton}"
+                                Width="40"
+                                ToolTip="复制并保存到截图记录"
+                                AutomationProperties.Name="完成截图"
+                                Click="OnConfirmClick">
+                            <icons:QingSnapIcon Kind="Confirm" Width="21" Height="21" IconStrokeThickness="2.2" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Canvas>
+
+        <Popup x:Name="AnnotationPalettePopup"
+               Placement="Bottom"
+               VerticalOffset="5"
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               StaysOpen="False">
+            <StackPanel>
+                <Path Width="14" Height="7"
+                      HorizontalAlignment="Center"
+                      Stretch="Fill"
+                      Fill="#FA111A22"
+                      Data="M 0,7 L 7,0 L 14,7 Z" />
+                <Border Margin="0,-1,0,0"
+                        Padding="5"
+                        Background="#FA111A22"
+                        BorderBrush="#6676DFEE"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel x:Name="AnnotationPalettePanel" Orientation="Horizontal">
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFFD054" Tag="#FFFFD054" ToolTip="黄色" Click="OnPaletteColorClick" />
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FF73E88B" Tag="#FF73E88B" ToolTip="绿色" Click="OnPaletteColorClick" />
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FFF5FAFC" Tag="#FFF5FAFC" ToolTip="白色" Click="OnPaletteColorClick" />
+                        <Button Style="{StaticResource ColorSwatchButton}" Background="#FF31373B" Tag="#FF31373B" ToolTip="深灰" Click="OnPaletteColorClick" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Popup>
+
+        <Popup x:Name="LineToolPopup"
+               Placement="Bottom"
+               VerticalOffset="5"
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               StaysOpen="False">
+            <StackPanel>
+                <Path Width="14" Height="7"
+                      HorizontalAlignment="Center"
+                      Stretch="Fill"
+                      Fill="#FA111A22"
+                      Data="M 0,7 L 7,0 L 14,7 Z" />
+                <Border Margin="0,-1,0,0"
+                        Padding="5"
+                        Background="#FA111A22"
+                        BorderBrush="#6676DFEE"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel>
+                        <StackPanel x:Name="LineModePanel" Orientation="Horizontal">
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Line" ToolTip="直线"
+                                    Click="OnLineModeClick">
+                                <icons:QingSnapIcon Kind="Line" />
+                            </Button>
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Arrow" ToolTip="单头箭头"
+                                    Click="OnLineModeClick">
+                                <icons:QingSnapIcon Kind="Arrow" />
+                            </Button>
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="DoubleArrow" ToolTip="双头箭头"
+                                    Click="OnLineModeClick">
+                                <icons:QingSnapIcon Kind="DoubleArrow" />
+                            </Button>
+                        </StackPanel>
+                        <Border Height="1" Margin="5,4,5,3" Background="#3DFFFFFF" />
+                        <StackPanel x:Name="LineColorPanel" Orientation="Horizontal">
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFFD054" Tag="#FFFFD054" ToolTip="黄色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF73E88B" Tag="#FF73E88B" ToolTip="绿色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFF5FAFC" Tag="#FFF5FAFC" ToolTip="白色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF31373B" Tag="#FF31373B" ToolTip="深灰" Click="OnPaletteColorClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Popup>
+
+        <Popup x:Name="RegionToolPopup"
+               Placement="Bottom"
+               VerticalOffset="5"
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               StaysOpen="False">
+            <StackPanel>
+                <Path Width="14" Height="7"
+                      HorizontalAlignment="Center"
+                      Stretch="Fill"
+                      Fill="#FA111A22"
+                      Data="M 0,7 L 7,0 L 14,7 Z" />
+                <Border Margin="0,-1,0,0"
+                        Padding="5"
+                        Background="#FA111A22"
+                        BorderBrush="#6676DFEE"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                    <StackPanel>
+                        <StackPanel x:Name="RegionModePanel" Orientation="Horizontal">
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Rectangle" ToolTip="矩形边框"
+                                    Click="OnRegionModeClick">
+                                <icons:QingSnapIcon Kind="Rectangle" />
+                            </Button>
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Mosaic" ToolTip="区域马赛克"
+                                    Click="OnRegionModeClick">
+                                <icons:QingSnapIcon Kind="Mosaic" />
+                            </Button>
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Highlight" ToolTip="区域高亮"
+                                    Click="OnRegionModeClick">
+                                <icons:QingSnapIcon Kind="Highlight" />
+                            </Button>
+                            <Button Style="{StaticResource RegionModeButton}"
+                                    Tag="Blur" ToolTip="区域模糊"
+                                    Click="OnRegionModeClick">
+                                <icons:QingSnapIcon Kind="Blur" />
+                            </Button>
+                        </StackPanel>
+                        <Border x:Name="RegionColorDivider"
+                                Height="1" Margin="5,4,5,3"
+                                Background="#3DFFFFFF" />
+                        <StackPanel x:Name="RegionColorPanel" Orientation="Horizontal">
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFFD054" Tag="#FFFFD054" ToolTip="黄色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF73E88B" Tag="#FF73E88B" ToolTip="绿色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FFF5FAFC" Tag="#FFF5FAFC" ToolTip="白色" Click="OnPaletteColorClick" />
+                            <Button Style="{StaticResource ColorSwatchButton}" Background="#FF31373B" Tag="#FF31373B" ToolTip="深灰" Click="OnPaletteColorClick" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Popup>
+
+        <Border x:Name="AdjustmentBadge"
+                Padding="9,5"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Visibility="Collapsed"
+                IsHitTestVisible="False"
+                Background="#F2111A22"
+                BorderBrush="#9976DFEE"
+                BorderThickness="1"
+                CornerRadius="5">
+            <TextBlock x:Name="AdjustmentText"
+                       FontFamily="{StaticResource DataFont}"
+                       FontSize="11"
+                       FontWeight="SemiBold"
+                       Foreground="#FFF5FAFC" />
+        </Border>
+
+        <Border x:Name="MagnifierOverlay"
+                Width="286" Height="148" Padding="6"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                Visibility="Collapsed" IsHitTestVisible="False"
+                Background="#F20B151C" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="6">
+            <Grid><Grid.RowDefinitions><RowDefinition Height="100"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid ClipToBounds="True">
+                    <Image x:Name="MagnifierImage" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
+                    <Rectangle Width="1" Fill="#FFFF5562" HorizontalAlignment="Center"/>
+                    <Rectangle Height="1" Fill="#FFFF5562" VerticalAlignment="Center"/>
+                </Grid>
+                <Grid Grid.Row="1" Margin="3,6,3,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="14" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="MagnifierCoordinateText"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource DataFont}" FontSize="10.5"
+                               Foreground="#FFEAF2F5" TextTrimming="None" />
+                    <TextBlock x:Name="MagnifierColorText" Grid.Column="2"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource DataFont}" FontSize="10.5"
+                               Foreground="#FF76DFEE" TextTrimming="None" />
+                    <TextBlock Grid.Column="4" VerticalAlignment="Center"
+                               FontFamily="{StaticResource DataFont}" FontSize="10"
+                               Foreground="#FF9EB0B9" Text="I 复制" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border x:Name="GeometryEditor" Width="420" Padding="16"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Visibility="Collapsed" Background="#FA0E171F" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="7">
+            <StackPanel>
+                <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold" Foreground="#FF76DFEE" Text="SELECTION GEOMETRY"/>
+                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="GeometryXBox" Margin="0,0,7,0" ToolTip="X"/>
+                    <TextBox x:Name="GeometryYBox" Grid.Column="1" Margin="0,0,7,0" ToolTip="Y"/>
+                    <TextBox x:Name="GeometryWidthBox" Grid.Column="2" Margin="0,0,7,0" ToolTip="宽度"/>
+                    <TextBox x:Name="GeometryHeightBox" Grid.Column="3" ToolTip="高度"/>
+                </Grid>
+                <StackPanel Margin="0,12,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource CaptureToolButton}" Content="取消" Click="OnGeometryCancelClick"/>
+                    <Button Style="{StaticResource CaptureConfirmButton}" Margin="6,0,0,0" Content="应用" Click="OnGeometryApplyClick"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
