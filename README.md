@@ -17,6 +17,36 @@ QingSnap is a lightweight screenshot utility for Windows 10/11. It brings smart 
 | OCR | PP-OCRv6 Small（离线）· Windows OCR 回退 / offline with Windows OCR fallback |
 | 发布形式 / Distribution | 免安装 ZIP / Portable ZIP |
 
+## 产品截图 / Product tour
+
+### 智能选区与截图工作台 / Smart selection and capture workspace
+
+![QingSnap 智能选区、像素放大镜与截图工具栏](docs/images/qingsnap-capture-workspace.png)
+
+自由框选后可继续精确调整范围，并直接使用像素放大镜、标注、OCR、长截图、复制、保存、贴图和完成截图等操作。
+After selecting a region, refine its bounds and continue with the magnifier, annotation, OCR, scrolling capture, copy, save, pin, or confirm actions.
+
+### 可继续编辑的标注 / Editable annotations
+
+![QingSnap 矩形标注示例](docs/images/qingsnap-annotation-tools.png)
+
+标注工具保持在选区附近，支持自由画笔、线条、箭头、形状、文字、序号、马赛克、高亮与模糊，并可继续选择和编辑对象。
+Annotation tools stay close to the selection and include pen, lines, arrows, shapes, text, numbered markers, mosaic, highlight, and blur, with continued object editing.
+
+### 桌面贴图与快捷操作 / Desktop pins and quick actions
+
+![QingSnap 桌面贴图及右键菜单](docs/images/qingsnap-pin-menu.png)
+
+贴图可缩放、复制、恢复 `1:1`、适应屏幕，或按 `M` 暂时收起；普通图片与长图均可使用同一套收纳逻辑。
+Pins can be zoomed, copied, restored to `1:1`, fitted to the screen, or stashed with `M`; the same workflow is available for normal and long images.
+
+### 屏幕边缘收纳 / Edge stash
+
+![QingSnap 贴图收纳到屏幕右侧并在悬停时展开](docs/images/qingsnap-edge-stash-hover.png)
+
+收起后的贴图只在屏幕边缘露出一个缩略标签，悬停时展开，单击即可恢复到收起前的位置。
+A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on hover, and returns to its previous position with one click.
+
 ## 为什么选择 QingSnap / Why QingSnap
 
 ### 1. 像素级精确截图 / Pixel-precise capture
