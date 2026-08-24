@@ -1,132 +1,210 @@
 # QingSnap（轻截）
 
-> 轻量、聪明、离线优先的 Windows 截图与长截图工具。  
-> A lightweight, intelligent, offline-first screenshot and scrolling-capture tool for Windows.
+> 截得准，拼得长，贴得住，文字留在本地。
+> Precise capture, reliable scrolling screenshots, flexible pins, and offline OCR.
 
-[下载最新预览版 / Download the latest preview](https://github.com/za5132-web/QingSnap/releases/latest) · [更新日志 / Changelog](CHANGELOG.md)
+QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区、自动与手动长截图、离线 OCR、专业标注、桌面贴图和截图历史整合到一套连贯的工作流中。
 
-QingSnap 面向 Windows 10/11，使用 .NET 8 与 WPF 独立开发。它把区域截图、智能选区、自动长截图、本地 OCR、专业标注、贴图和历史记录整合在一个简洁的桌面工具中。
+QingSnap is a lightweight screenshot utility for Windows 10/11. It brings smart region capture, automatic and manual scrolling capture, offline OCR, annotation, desktop pins, and screenshot history into one focused workflow.
 
-QingSnap is a Windows 10/11 desktop utility built independently with .NET 8 and WPF. It combines region capture, smart selection, automatic scrolling capture, local OCR, annotation, pinned images, and screenshot history in one focused app.
+[下载 Preview v44 ZIP / Download Preview v44](https://github.com/za5132-web/QingSnap/releases/download/preview-v44/QingSnap-preview-v44.zip) · [版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v44) · [完整更新日志 / Changelog](CHANGELOG.md)
 
-## 产品亮点 / Highlights
+| 项目 / Item | 当前状态 / Current status |
+| --- | --- |
+| 当前版本 / Current version | `Preview v44` |
+| 支持系统 / Platform | Windows 10/11 64-bit |
+| 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
+| OCR | PP-OCRv6 Small（离线）· Windows OCR 回退 / offline with Windows OCR fallback |
+| 发布形式 / Distribution | 免安装 ZIP / Portable ZIP |
 
-### 1. 智能选区，而不只是画一个框
+## 为什么选择 QingSnap / Why QingSnap
 
-鼠标悬停时自动识别底层窗口和标准控件，单击即可采用识别范围；需要精确控制时仍可自由拖动选区，并通过四边、四角或数值输入调整位置和尺寸。放大镜会实时显示像素、屏幕坐标和 HEX 颜色。
+### 1. 像素级精确截图 / Pixel-precise capture
 
-Smart selection detects windows and standard controls under the pointer. Click to use the detected region, drag freely for manual capture, resize from any edge or corner, or enter exact X/Y/width/height values. The live magnifier also shows pixel details, screen coordinates, and HEX colors.
+- 鼠标悬停即可识别窗口和标准控件，单击采用智能选区。
+- 也可自由框选，通过四边、四角或 `X / Y / 宽 / 高` 数值精确调整。
+- 像素放大镜实时显示屏幕坐标与 HEX 颜色，按 `I` 复制当前颜色。
+- 使用 `W`、`A`、`S`、`D` 将截图十字准星每次移动 1 像素。
+- 按 `R` 重新载入上次选区，或用 `Shift+F1` 直接重复上次截图范围。
 
-### 2. 更可靠的自动长截图
+- Detect windows and standard controls under the pointer, then click to use the suggested region.
+- Draw a free region or refine it from every edge and corner, including exact `X / Y / width / height` input.
+- Inspect coordinates and HEX colors in the live pixel magnifier; press `I` to copy the current color.
+- Nudge the crosshair one pixel at a time with `W`, `A`, `S`, and `D`.
+- Reload the previous region with `R`, or repeat it directly with `Shift+F1`.
 
-自动模式会模拟滚动、等待画面稳定、识别页面底部并完成拼接。匹配失败时会回到最后成功位置并缩小滚动步长；还可撤销最后一段后重新补截。对于动态页面，可随时改用手动逐屏模式。
+### 2. 自动与手动长截图 / Automatic and manual scrolling capture
 
-Automatic scrolling capture waits for visual stability, detects the end of a page, and stitches frames together. When matching fails, QingSnap returns to the last successful position and retries with a smaller scroll step. Manual capture remains available for animated or irregular pages.
+- 自动滚动、等待画面稳定、分析重叠区域并拼接长图。
+- 检测页面底部并自动停止；也可按 `Enter` 提前结束。
+- 匹配失败时返回最后成功位置，缩小滚动步长后重试。
+- 支持回退最后一屏并重新补截，动态或不规则页面可切换为手动逐屏模式。
+- 可识别稀疏页面中的固定标题栏和底部操作栏，避免在最终长图中重复出现。
+- 长图贴图自动进入阅读窗，支持滚轮浏览、阅读进度、回到顶部和完整概览。
 
-它还能识别稀疏页面中的固定标题栏和底部操作栏，让固定区域在最终长图中只保留一次。
+- Scroll automatically, wait for visual stability, analyze overlap, and stitch each frame.
+- Detect the bottom of the page and stop automatically, or finish early with `Enter`.
+- Return to the last successful position and retry with a smaller scroll step when matching fails.
+- Undo the latest frame and recapture it, or use manual frame-by-frame mode for animated and irregular pages.
+- Detect fixed headers and bottom action bars on sparse pages so they appear only once in the final image.
+- Open long pins in a dedicated reader with wheel navigation, progress, jump-to-top, and full overview.
 
-It can also detect fixed headers and bottom action bars on sparse pages, keeping those fixed regions only once in the final image.
+### 3. 真正本地的高精度 OCR / High-accuracy offline OCR
 
-### 3. 真正本地的高精度 OCR
+- 默认使用 PP-OCRv6 Small，本地完成图片与文字识别。
+- 首次使用时按需下载约 30.8 MB 模型，并可在设置中下载、校验或删除。
+- 模型不可用时自动回退到 Windows OCR。
+- OCR 引擎会在程序空闲时预热，并直接读取截图像素；同一图片的结果可复用。
+- 普通贴图和长图贴图都可直接拖选文字，按 `Ctrl+C` 复制选中内容。
+- OCR 结果窗口支持重新识别和一键复制全文。
 
-默认使用 PP-OCRv6 Small 进行离线识别，首次使用时下载约 30.8 MB 模型；模型不可用时自动回退到 Windows OCR。图片和识别内容不会上传到云端。
+- Use PP-OCRv6 Small locally for image-to-text recognition.
+- Download the approximately 30.8 MB model on demand, then verify or remove it from Settings.
+- Fall back to Windows OCR automatically when the advanced model is unavailable.
+- Preheat OCR while the app is idle, read screenshot pixels directly, and reuse results for the same image.
+- Select text directly inside both normal and long-image pins, then copy it with `Ctrl+C`.
+- Retry recognition or copy all text from the OCR result window.
 
-Offline OCR uses PP-OCRv6 Small by default. The approximately 30.8 MB model is downloaded on first use, with automatic fallback to Windows OCR when necessary. Images and recognized text are never uploaded.
+### 4. 可继续编辑的截图标注 / Editable annotation workflow
 
-OCR 会在程序空闲时后台预热，并直接读取截图像素，避免额外的 PNG 编解码。同一图片的识别结果可复用，减少等待和重复计算。
+- 提供自由画笔、直线、单头/双头箭头、矩形、椭圆、文字、序号、马赛克、高亮与区域模糊。
+- 自定义颜色、线条粗细和文字大小，并可在设置中保存默认样式。
+- 标注对象支持选择、移动、缩放、调整端点、复制粘贴和删除。
+- 文字可二次编辑，图层可前移、后移、置顶或置底。
+- 支持撤销单步操作或清空全部标注。
 
-The OCR engine preheats while the app is idle and reads screenshot pixels directly, avoiding unnecessary PNG encoding and decoding. Results for the same image are reused to reduce latency and repeated work.
+- Draw with a freehand pen, lines, single/double arrows, rectangles, ellipses, text, numbered markers, mosaic, highlight, and blur.
+- Customize colors, stroke width, and text size, with reusable defaults in Settings.
+- Select, move, resize, adjust endpoints, copy, paste, or delete annotation objects.
+- Re-edit text and move objects forward, backward, to front, or to back.
+- Undo the latest operation or clear every annotation.
 
-### 4. 贴图也能直接选中文字
+### 5. 可以收纳到屏幕边缘的贴图 / Pins that stay out of the way
 
-普通贴图和长图贴图都能使用 OCR 的逐字/逐词位置。无需进入额外模式，直接拖选图片中的文字并按 `Ctrl+C` 复制；空白区域仍可用于拖动贴图。
+- 按 `F3` 贴出剪贴板图片；剪贴板没有图片时会使用最近一次截图。
+- 普通贴图支持拖动、滚轮缩放、适应屏幕、`1:1` 原始大小和再次复制。
+- 按 `M` 将普通或长图贴图暂存为屏幕侧边缩略标签，再次按 `M` 或单击即可原位恢复。
+- 缩略标签自动靠近最近的屏幕边缘，平时仅露出提示条，鼠标悬停时展开。
+- 将展开的贴图拖到屏幕左侧或右侧松开，可通过动画直接缩成当前位置的缩略窗。
+- 完整贴图与缩略标签的位置分别记忆，不打断当前桌面布局。
 
-Pinned images, including long captures, retain word-level OCR positions. Drag directly across text and press `Ctrl+C` to copy it, while blank areas remain available for moving the pinned image.
+- Press `F3` to pin a clipboard image, or use the latest capture when the clipboard has no image.
+- Move, wheel-zoom, fit, view at `1:1`, and recopy normal pins.
+- Press `M` to stash normal or long-image pins as edge thumbnails; press `M` again or click to restore them in place.
+- Let thumbnail tabs snap to the nearest screen edge, peek while idle, and reveal on hover.
+- Drag an expanded pin to the left or right screen edge and release it to collapse with animation.
+- Keep expanded and docked positions independently so the desktop layout remains predictable.
 
-### 5. 完整的截图标注工作流
+### 6. 截图历史与桌面工作流 / History and desktop workflow
 
-支持画笔、箭头、直线、矩形、椭圆、文字、马赛克、高亮、模糊和序号。标注可移动、缩放、复制粘贴、调整端点、二次编辑文字及改变图层顺序。
+- 截图可自动复制并保存到历史记录。
+- 历史窗口提供缩略图、全部/今天/最近 7 天筛选、刷新与打开记录目录。
+- 每张历史图片都可贴图、OCR、打开、复制或删除。
+- 支持 PNG、JPG、BMP 输出，可设置 JPG 质量、记录目录和自动清理天数。
+- 系统托盘可启动区域截图、自动/手动长截图、重复上次范围、贴图、历史和设置。
+- 单实例运行，可选择登录 Windows 后自动启动。
 
-Annotation tools include pen, arrow, line, rectangle, ellipse, text, mosaic, highlight, blur, and numbered markers. Objects can be moved, resized, copied, reordered, and edited after creation.
+- Copy captures automatically and keep them in screenshot history.
+- Browse thumbnails, filter by all/today/last 7 days, refresh, or open the history directory.
+- Pin, OCR, open, copy, or delete any saved image.
+- Save as PNG, JPG, or BMP, with configurable JPG quality, history location, and retention period.
+- Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
+- Run as a single instance and optionally start with Windows.
 
-### 6. 从截图到整理的一站式体验
+## Preview v44 新功能 / What’s new in Preview v44
 
-截图可自动复制并保存到历史记录。历史窗口提供缩略图、日期筛选、复制、打开和删除；任意历史图片都可再次 OCR 或贴到桌面。长图贴图会自动使用阅读窗口，支持滚轮浏览、阅读进度和完整概览。
+- `M` 键收起贴图、屏幕边缘缩略停靠、悬停展开与动画恢复。
+- 可将展开的贴图直接拖到屏幕侧边收起，并分别记忆两种窗口位置。
+- 新增可选 `X` 关闭按钮；截图工具栏常驻显示，贴图按钮自动渐隐。
+- 新增 `WASD` 十字准星 1 像素微调。
+- 优化截图转贴图首帧、滚轮缩放、中文输入法快捷键与高 DPI 显示。
 
-Captures can be copied and saved to history automatically. The history window provides thumbnails, date filtering, copy, open, and delete actions. Any saved image can be recognized again or pinned to the desktop. Long images use a dedicated reading window with scrolling, progress indication, and overview mode.
+- Stash pins with `M`, dock them as edge thumbnails, reveal on hover, and restore with animation.
+- Collapse an expanded pin by dropping it at a screen edge while preserving both window positions.
+- Enable optional `X` close buttons on the capture toolbar and pinned images.
+- Nudge the capture crosshair one pixel at a time with `WASD`.
+- Improved capture-to-pin presentation, wheel zoom, IME-safe shortcuts, and high-DPI behavior.
 
-## 快速使用 / Quick start
+[阅读完整 Preview v44 更新说明 / Read the full Preview v44 release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v44)
+
+## 快速开始 / Quick start
+
+1. 从 [Releases](https://github.com/za5132-web/QingSnap/releases) 下载最新 ZIP，并解压到任意文件夹。
+2. 运行 `QingSnap.exe`，程序会常驻系统托盘。
+3. 按 `F1` 截图，按 `F3` 贴图；右键托盘图标可进入长截图、历史记录与设置。
+
+1. Download the latest ZIP from [Releases](https://github.com/za5132-web/QingSnap/releases) and extract it anywhere.
+2. Run `QingSnap.exe`; the app stays available in the system tray.
+3. Press `F1` to capture or `F3` to pin. Right-click the tray icon for scrolling capture, history, and Settings.
+
+> 当前预览版尚未进行代码签名，Windows 首次运行时可能显示未知发布者提示。
+> The current preview is unsigned, so Windows may show an unknown-publisher warning on first launch.
+
+## 快捷键 / Shortcuts
+
+### 全局与截图 / Global and capture
 
 | 操作 / Action | 快捷键 / Shortcut |
 | --- | --- |
 | 区域截图 / Region capture | `F1` |
 | 贴出剪贴板图片或最近截图 / Pin clipboard image or latest capture | `F3` |
-| 微调截图十字准星 / Nudge the capture crosshair | `W` `A` `S` `D`（每次 1 px / 1 px per press） |
-| 重新显示上次截图范围 / Restore the previous capture region | `Shift+F1` |
-| 确认截图 / Confirm capture | `Enter` 或双击 / or double-click |
-| OCR | `Ctrl+O` |
-| 复制 / Copy | `Ctrl+C` |
-| 保存 / Save | `Ctrl+S` |
-| 读取上次选区 / Restore previous selection in overlay | `R` |
+| 重复上次截图范围 / Repeat the previous capture region | `Shift+F1` |
+| 微调截图十字准星 / Nudge the capture crosshair | `W` `A` `S` `D` · 1 px |
+| 载入上次选区 / Reload the previous selection | `R` |
 | 复制当前 HEX 颜色 / Copy current HEX color | `I` |
-| 取消 / Cancel | `Esc` 或鼠标右键 / or right-click |
+| OCR / Recognize text | `Ctrl+O` |
+| 复制选区 / Copy selection | `Ctrl+C` |
+| 保存选区 / Save selection | `Ctrl+S` |
+| 撤销标注 / Undo annotation | `Ctrl+Z` |
+| 确认截图 / Confirm capture | `Enter` 或双击 / or double-click |
+| 取消或关闭 / Cancel or close | `Esc` 或鼠标右键 / or right-click |
 
-截图工具栏可直接启动自动长截图、OCR、贴图、复制、保存或完成截图。自动与手动长截图也可以从系统托盘菜单启动。
+三个全局快捷键可在设置中修改，支持 `Ctrl`、`Shift`、`Alt` 与 `F1–F12` 组合，且不能彼此重复。
 
-The capture toolbar provides direct access to automatic scrolling capture, OCR, pinning, copy, save, and confirmation. Automatic and manual scrolling capture can also be started from the system tray.
+The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`, `Alt`, and `F1–F12`, and must remain unique.
 
-## 更多功能 / More features
+### 贴图与长图阅读 / Pins and long-image reader
 
-- 自定义全局快捷键与延时截图 / Custom global hotkeys and delayed capture
-- 自动复制、输出格式及 JPEG 质量设置 / Auto-copy, output format, and JPEG quality settings
-- 历史目录与保留天数管理 / Configurable history directory and retention period
-- 长截图参数与标注默认样式 / Scrolling-capture options and annotation defaults
-- 可选显示关闭按钮；`Esc` 始终有效，启用后截图工具栏最右侧常驻 X，贴图右上角 X 自动渐隐 / Optional close buttons while `Esc` always remains available
-- 贴图拖动、滚轮缩放、适屏、1:1 显示及再次复制 / Drag, zoom, fit-to-screen, 1:1 view, and recopy for pinned images
-- 普通与长图贴图可按 `M` 暂存为缩略图标签；标签拖动后自动靠边，只露出提示条，悬停展开，单击或再次按 `M` 原位恢复 / Press `M` to stash a pin as an edge-snapping thumbnail that peeks from the edge, expands on hover, and restores in place on click
-- 将展开的贴图拖到屏幕侧边松开，可用缓出动画直接缩成当前位置的缩略窗；大图位置与缩略窗停靠位置分别记忆 / Drop an expanded pin at a screen side to animate it into a thumbnail while remembering expanded and docked positions separately
-- 单实例运行与系统托盘菜单 / Single-instance operation and system tray menu
-- 浅色、深色任务栏均清晰可辨的专用托盘图标 / Dedicated tray icon designed for light and dark taskbars
-- 剪贴板被占用时自动等待并友好提示 / Automatic clipboard retry with user-friendly errors
-- Per-Monitor V2 DPI 感知 / Per-Monitor V2 DPI awareness
-- 无原生标题栏的统一深色设置界面 / Consistent dark settings UI with a custom title bar
+| 操作 / Action | 快捷键 / Shortcut |
+| --- | --- |
+| 收起或恢复贴图 / Stash or restore a pin | `M` |
+| 复制图片或选中文字 / Copy image or selected text | `Ctrl+C` |
+| 选择全部 OCR 文字 / Select all OCR text | `Ctrl+A` |
+| 回到顶部 / Jump to top | `Home` |
+| 跳到底部 / Jump to bottom | `End` |
+| 翻页 / Page through a long image | `PageUp` / `PageDown` / `Space` |
+| 在阅读窗与完整概览间切换 / Toggle reader and overview | 双击 / Double-click |
+| 关闭贴图 / Close pin | `Esc` |
 
-## 下载与运行 / Download and run
+## 可配置项目 / Settings
 
-1. 从 [Releases](https://github.com/za5132-web/QingSnap/releases) 下载最新 ZIP。
-2. 解压到任意文件夹。
-3. 运行 `QingSnap.exe`。
-
-1. Download the latest ZIP from [Releases](https://github.com/za5132-web/QingSnap/releases).
-2. Extract it to any folder.
-3. Run `QingSnap.exe`.
-
-系统要求 / Requirements:
-
-- Windows 10/11 64-bit
-- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-
-当前版本为预览版，程序尚未进行代码签名，Windows 首次运行时可能显示未知发布者提示。
-
-This is a preview build and is currently unsigned, so Windows may show an unknown-publisher warning on first launch.
+| 分类 / Category | 可配置内容 / Options |
+| --- | --- |
+| 快捷键 / Shortcuts | 区域截图、贴图、重复上次范围 / capture, pin, repeat region |
+| OCR | PP-OCRv6 或 Windows OCR；模型下载、校验、删除 / engine and model management |
+| 截图 / Capture | 智能选区、像素放大镜、自动复制、0/1/3/5 秒延时、关闭按钮 / selection, magnifier, copy, delay, close buttons |
+| 标注 / Annotation | 默认颜色、线条粗细、文字大小 / default color, stroke width, font size |
+| 输出 / Output | PNG/JPG/BMP、JPG 质量、历史目录、保留天数 / format, quality, history location and retention |
+| 长截图 / Scrolling capture | 滚动步长、失败重试次数、最小重叠比例 / scroll step, retries, minimum overlap |
+| 系统 / System | 登录 Windows 后自动启动 / start with Windows |
 
 ## 数据与隐私 / Data and privacy
 
-- 截图记录默认保存在 `%LOCALAPPDATA%\QingSnap\History`
-- OCR 模型保存在 `%LOCALAPPDATA%\QingSnap\Models`
-- OCR 图片与识别文本不会上传
-- 模型可在设置中心下载、校验、删除，或切换为 Windows OCR
+- 截图历史默认保存在 `%LOCALAPPDATA%\QingSnap\History`。
+- OCR 模型保存在 `%LOCALAPPDATA%\QingSnap\Models`。
+- 截图、OCR 图片和识别文本不会上传到云端。
+- 仅在首次安装 PP-OCRv6 模型时需要下载模型文件；也可始终使用 Windows OCR。
 
 - Screenshot history is stored in `%LOCALAPPDATA%\QingSnap\History` by default.
 - OCR models are stored in `%LOCALAPPDATA%\QingSnap\Models`.
-- OCR images and recognized text are not uploaded.
-- Models can be downloaded, verified, removed, or replaced with Windows OCR from Settings.
+- Captures, OCR images, and recognized text are not uploaded to the cloud.
+- A network connection is needed only to obtain the PP-OCRv6 model on first installation; Windows OCR can be used instead.
 
-## 自动长截图建议 / Scrolling capture tips
+## 系统要求 / Requirements
 
-请只选择内容滚动区域，尽量排除固定标题栏、侧栏和悬浮动画。自动模式会显示逐屏进度，并在连续检测到页面不再移动时停止。按 `Enter` 可提前停止，按 `Esc` 可取消；自动停止后仍可手动补截并完成拼接。
-
-Select only the scrollable content area when possible, excluding fixed headers, sidebars, and floating animations. Automatic mode displays frame-by-frame progress and stops when the page no longer moves. Press `Enter` to stop early or `Esc` to cancel; manual frames can still be added before final stitching.
+- Windows 10/11 64-bit
+- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+- 建议使用支持 Per-Monitor V2 DPI 的现代 Windows 显示环境 / A modern Windows display environment with Per-Monitor V2 DPI support is recommended
 
 ## 从源码构建 / Build from source
 
@@ -138,24 +216,20 @@ dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 
 主要技术 / Main technologies:
 
-- C# / .NET 8
-- WPF + Windows Forms interoperability
-- RapidOcrNet / PP-OCRv6 Small
-- Native Windows capture, clipboard, hotkey, and DPI APIs
+- C# / .NET 8 / WPF
+- Windows Forms interoperability
+- RapidOcrNet / PP-OCRv6 Small / Windows OCR
+- Native Windows capture, clipboard, hotkey, window, and DPI APIs
 
 项目还包含 `tools/QingSnap.OcrBench`，用于本地 OCR 性能与识别效果测试。
 
 The repository also includes `tools/QingSnap.OcrBench` for local OCR performance and recognition testing.
 
-## 项目状态 / Project status
+## 项目状态与许可 / Project status and license
 
-QingSnap 仍处于快速迭代的预览阶段。下一阶段将继续验证多显示器混合缩放场景，并完善历史记录搜索、标签和批量整理。
+QingSnap 仍处于快速迭代的预览阶段。开发过程由 Codex 协助完成。
 
-QingSnap is an actively developed preview. Planned work includes broader mixed-DPI multi-monitor testing plus history search, tags, and batch organization.
-
-开发过程由 Codex 协助完成。 / Development is assisted by Codex.
-
-## 许可 / License
+QingSnap is an actively developed preview. Development is assisted by Codex.
 
 当前未授予开源许可。源代码仅供查看；如需使用、修改或再发布，请先取得作者授权。第三方组件信息见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
