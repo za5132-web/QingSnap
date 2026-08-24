@@ -547,6 +547,27 @@
                             </WrapPanel>
                             <Grid Margin="0,9,0,0">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="218" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="关闭按钮" />
+                                    <ComboBox x:Name="CloseInteractionCombo">
+                                        <ComboBoxItem Content="仅使用 Esc" Tag="Escape" />
+                                        <ComboBoxItem Content="Esc + X 按钮" Tag="Button" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2"
+                                           Margin="0,20,0,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="10.5"
+                                           Foreground="{StaticResource TextMuted}"
+                                           TextWrapping="Wrap"
+                                           Text="Esc 始终可以关闭；启用 X 后，截图工具栏会常驻关闭按钮，贴图右上角的关闭按钮会自动渐隐。" />
+                            </Grid>
+                            <Grid Margin="0,9,0,0">
+                                <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="1.45*" />
                                     <ColumnDefinition Width="16" />
                                     <ColumnDefinition Width="1.45*" />

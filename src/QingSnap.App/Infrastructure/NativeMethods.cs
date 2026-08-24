@@ -5,7 +5,9 @@ namespace QingSnap.App.Infrastructure;
 internal static class NativeMethods
 {
     internal const int WmHotkey = 0x0312;
+    internal const uint SwpNoZOrder = 0x0004;
     internal const uint SwpNoActivate = 0x0010;
+    internal const uint SwpNoOwnerZOrder = 0x0200;
     internal const uint SwpShowWindow = 0x0040;
     internal static readonly nint HwndTopmost = new(-1);
     internal const uint InputMouse = 0;
@@ -16,6 +18,8 @@ internal static class NativeMethods
     internal const long WsExToolWindow = 0x00000080L;
     internal const long WsExNoActivate = 0x08000000L;
     internal const int WmNcHitTest = 0x0084;
+    internal const int DwmWindowAttributeCloak = 13;
+    internal const uint IaceDefault = 0x0010;
     private const uint ChildWindowSkipInvisible = 0x0001;
     private const uint ChildWindowSkipDisabled = 0x0002;
     private const uint ChildWindowSkipTransparent = 0x0004;
@@ -39,6 +43,30 @@ internal static class NativeMethods
         int width,
         int height,
         uint flags);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        nint hWnd,
+        int attribute,
+        ref int attributeValue,
+        int attributeSize);
+
+    [DllImport("dwmapi.dll")]
+    internal static extern int DwmFlush();
+
+    [DllImport("imm32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool ImmAssociateContextEx(nint hWnd, nint hImc, uint flags);
+
+    internal static bool SetWindowCloaked(nint window, bool cloaked)
+    {
+        var value = cloaked ? 1 : 0;
+        return DwmSetWindowAttribute(
+            window,
+            DwmWindowAttributeCloak,
+            ref value,
+            sizeof(int)) >= 0;
+    }
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     internal static extern nint GetWindowLongPtr(nint hWnd, int index);

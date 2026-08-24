@@ -74,6 +74,12 @@ public sealed class AppSettingsService
                 : "PNG",
             JpegQuality = Math.Clamp(settings.JpegQuality, 50, 100),
             CaptureDelaySeconds = Math.Clamp(settings.CaptureDelaySeconds, 0, 10),
+            CloseInteraction = string.Equals(
+                settings.CloseInteraction,
+                "Button",
+                StringComparison.OrdinalIgnoreCase)
+                ? "Button"
+                : "Escape",
             OcrEngine = string.Equals(settings.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase)
                 ? "Windows"
                 : "Advanced",

@@ -471,6 +471,7 @@ internal sealed class CaptureAnnotationController
         };
         editor.PreviewKeyDown += OnTextEditorKeyDown;
         editor.LostKeyboardFocus += (_, _) => CommitText();
+        InputMethod.SetIsInputMethodEnabled(editor, true);
         Canvas.SetLeft(editor, point.X);
         Canvas.SetTop(editor, point.Y);
         _layer.Children.Add(editor);

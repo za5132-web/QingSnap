@@ -3,7 +3,7 @@
 > 轻量、聪明、离线优先的 Windows 截图与长截图工具。  
 > A lightweight, intelligent, offline-first screenshot and scrolling-capture tool for Windows.
 
-[下载最新预览版 / Download the latest preview](https://github.com/za5132-web/QingSnap/releases/latest)
+[下载最新预览版 / Download the latest preview](https://github.com/za5132-web/QingSnap/releases/latest) · [更新日志 / Changelog](CHANGELOG.md)
 
 QingSnap 面向 Windows 10/11，使用 .NET 8 与 WPF 独立开发。它把区域截图、智能选区、自动长截图、本地 OCR、专业标注、贴图和历史记录整合在一个简洁的桌面工具中。
 
@@ -61,6 +61,7 @@ Captures can be copied and saved to history automatically. The history window pr
 | --- | --- |
 | 区域截图 / Region capture | `F1` |
 | 贴出剪贴板图片或最近截图 / Pin clipboard image or latest capture | `F3` |
+| 微调截图十字准星 / Nudge the capture crosshair | `W` `A` `S` `D`（每次 1 px / 1 px per press） |
 | 重新显示上次截图范围 / Restore the previous capture region | `Shift+F1` |
 | 确认截图 / Confirm capture | `Enter` 或双击 / or double-click |
 | OCR | `Ctrl+O` |
@@ -80,7 +81,10 @@ The capture toolbar provides direct access to automatic scrolling capture, OCR, 
 - 自动复制、输出格式及 JPEG 质量设置 / Auto-copy, output format, and JPEG quality settings
 - 历史目录与保留天数管理 / Configurable history directory and retention period
 - 长截图参数与标注默认样式 / Scrolling-capture options and annotation defaults
+- 可选显示关闭按钮；`Esc` 始终有效，启用后截图工具栏最右侧常驻 X，贴图右上角 X 自动渐隐 / Optional close buttons while `Esc` always remains available
 - 贴图拖动、滚轮缩放、适屏、1:1 显示及再次复制 / Drag, zoom, fit-to-screen, 1:1 view, and recopy for pinned images
+- 普通与长图贴图可按 `M` 暂存为缩略图标签；标签拖动后自动靠边，只露出提示条，悬停展开，单击或再次按 `M` 原位恢复 / Press `M` to stash a pin as an edge-snapping thumbnail that peeks from the edge, expands on hover, and restores in place on click
+- 将展开的贴图拖到屏幕侧边松开，可用缓出动画直接缩成当前位置的缩略窗；大图位置与缩略窗停靠位置分别记忆 / Drop an expanded pin at a screen side to animate it into a thumbnail while remembering expanded and docked positions separately
 - 单实例运行与系统托盘菜单 / Single-instance operation and system tray menu
 - 浅色、深色任务栏均清晰可辨的专用托盘图标 / Dedicated tray icon designed for light and dark taskbars
 - 剪贴板被占用时自动等待并友好提示 / Automatic clipboard retry with user-friendly errors

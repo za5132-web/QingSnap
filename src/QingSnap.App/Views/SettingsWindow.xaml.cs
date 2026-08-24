@@ -40,6 +40,7 @@ public partial class SettingsWindow : Window
         SelectComboByTag(DelayCombo, settings.CaptureDelaySeconds.ToString());
         SmartSelectionCheck.IsChecked = settings.SmartWindowSelection;
         MagnifierCheck.IsChecked = settings.ShowMagnifier;
+        SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
         SelectComboByTag(OcrEngineCombo, settings.OcrEngine);
         LongWheelBox.Text = settings.LongScrollWheelDelta.ToString();
         LongRetryBox.Text = settings.LongMatchRetryCount.ToString();
@@ -82,6 +83,7 @@ public partial class SettingsWindow : Window
                 CaptureDelaySeconds = int.Parse(SelectedTag(DelayCombo, "0")),
                 SmartWindowSelection = SmartSelectionCheck.IsChecked == true,
                 ShowMagnifier = MagnifierCheck.IsChecked == true,
+                CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
                 OcrEngine = SelectedTag(OcrEngineCombo, "Advanced"),
                 LongScrollWheelDelta = ParseInt(LongWheelBox, "长截图滚动步长"),
                 LongMatchRetryCount = ParseInt(LongRetryBox, "长截图重试次数"),

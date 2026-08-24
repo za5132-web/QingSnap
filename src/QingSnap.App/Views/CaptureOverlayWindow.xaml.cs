@@ -89,6 +89,14 @@ public partial class CaptureOverlayWindow : Window
         _ocrPrefetchTimer.Tick += OnOcrPrefetchTimerTick;
 
         BackgroundImage.Source = snapshot.Image;
+        CloseCaptureButton.Visibility = UsesCloseButton && _showActionToolbar
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (UsesCloseButton && _showActionToolbar)
+        {
+            HintActionText.Text = "R 上次选区  ·  双击 / ENTER 复制  ·  ESC / × 关闭";
+        }
+
         if (!string.IsNullOrWhiteSpace(confirmationHint))
         {
             HintActionText.Text = $"R 上次选区  ·  {confirmationHint}";
@@ -124,9 +132,20 @@ public partial class CaptureOverlayWindow : Window
     public event EventHandler<CaptureOverlayActionEventArgs>? ActionRequested;
     public event EventHandler? PreviousSelectionRequested;
 
+    public void CloseAfterPinPresented()
+    {
+        if (IsVisible)
+        {
+            IsHitTestVisible = false;
+        }
+
+        Close();
+    }
+
     private void OnSourceInitialized(object? sender, EventArgs e)
     {
         var handle = new WindowInteropHelper(this).Handle;
+        NativeMethods.ImmAssociateContextEx(handle, nint.Zero, 0);
         var bounds = _snapshot.Bounds;
         NativeMethods.SetWindowPos(
             handle,
@@ -140,15 +159,42 @@ public partial class CaptureOverlayWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        InputMethod.SetIsInputMethodEnabled(this, false);
         Activate();
         Focus();
         Keyboard.Focus(this);
+        ConfigureNativeIme(false);
         UpdateHintPosition();
         ShowFullShade();
 
         if (_initialLocalRegion is { Width: > 0, Height: > 0 } initialRegion)
         {
             LoadLocalSelection(initialRegion);
+        }
+    }
+
+    private void OnPreviewGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (e.NewFocus is DependencyObject focusTarget)
+        {
+            var enableIme = focusTarget is WpfTextBox;
+            InputMethod.SetIsInputMethodEnabled(focusTarget, enableIme);
+            ConfigureNativeIme(enableIme);
+            Dispatcher.BeginInvoke(
+                () => ConfigureNativeIme(Keyboard.FocusedElement is WpfTextBox),
+                DispatcherPriority.Input);
+        }
+    }
+
+    private void ConfigureNativeIme(bool enabled)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle != nint.Zero)
+        {
+            NativeMethods.ImmAssociateContextEx(
+                handle,
+                nint.Zero,
+                enabled ? NativeMethods.IaceDefault : 0);
         }
     }
 
@@ -311,8 +357,25 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
+        var key = ResolveShortcutKey(e);
+        if (Keyboard.Modifiers == ModifierKeys.None &&
+            key is Key.W or Key.A or Key.S or Key.D)
+        {
+            var offset = key switch
+            {
+                Key.W => (X: 0, Y: -1),
+                Key.A => (X: -1, Y: 0),
+                Key.S => (X: 0, Y: 1),
+                Key.D => (X: 1, Y: 0),
+                _ => (X: 0, Y: 0)
+            };
+            NudgeCrosshair(offset.X, offset.Y);
+            e.Handled = true;
+            return;
+        }
+
         if (_showActionToolbar &&
-            e.Key == Key.Z &&
+            key == Key.Z &&
             Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             _annotationController.Undo();
@@ -322,28 +385,28 @@ public partial class CaptureOverlayWindow : Window
 
         if (_showActionToolbar && _annotationController.ActiveTool == CaptureAnnotationTool.Select)
         {
-            if (e.Key == Key.Delete)
+            if (key == Key.Delete)
             {
                 _annotationController.DeleteSelected();
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            if (key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 _annotationController.CopySelected();
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.V && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            if (key == Key.V && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 _annotationController.PasteSelected();
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.F2)
+            if (key == Key.F2)
             {
                 _annotationController.BeginEditSelectedText();
                 e.Handled = true;
@@ -351,10 +414,10 @@ public partial class CaptureOverlayWindow : Window
             }
 
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) &&
-                e.Key is Key.OemOpenBrackets or Key.Oem6)
+                key is Key.OemOpenBrackets or Key.Oem6)
             {
                 var toFrontOrBack = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
-                var moved = e.Key == Key.Oem6
+                var moved = key == Key.Oem6
                     ? toFrontOrBack
                         ? _annotationController.BringSelectedToFront()
                         : _annotationController.BringSelectedForward()
@@ -364,21 +427,21 @@ public partial class CaptureOverlayWindow : Window
                 if (moved)
                 {
                     ShowAdjustmentBadge(Mouse.GetPosition(Root),
-                        e.Key == Key.Oem6 ? "图层已上移" : "图层已下移");
+                        key == Key.Oem6 ? "图层已上移" : "图层已下移");
                 }
                 e.Handled = true;
                 return;
             }
         }
 
-        if (e.Key == Key.R && Keyboard.Modifiers == ModifierKeys.None)
+        if (key == Key.R && Keyboard.Modifiers == ModifierKeys.None)
         {
             RecallPreviousSelection();
             e.Handled = true;
             return;
         }
 
-        if (e.Key == Key.I && Keyboard.Modifiers == ModifierKeys.None && _settings.ShowMagnifier)
+        if (key == Key.I && Keyboard.Modifiers == ModifierKeys.None && _settings.ShowMagnifier)
         {
             try
             {
@@ -395,21 +458,21 @@ public partial class CaptureOverlayWindow : Window
 
         if (_showActionToolbar && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
-            if (e.Key == Key.O)
+            if (key == Key.O)
             {
                 RequestAction(CaptureOverlayAction.Ocr);
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.C)
+            if (key == Key.C)
             {
                 RequestAction(CaptureOverlayAction.Copy);
                 e.Handled = true;
                 return;
             }
 
-            if (e.Key == Key.S)
+            if (key == Key.S)
             {
                 RequestAction(CaptureOverlayAction.Save);
                 e.Handled = true;
@@ -417,7 +480,7 @@ public partial class CaptureOverlayWindow : Window
             }
         }
 
-        if (e.Key == Key.Escape)
+        if (key == Key.Escape)
         {
             if (_annotationController.ActiveTool != CaptureAnnotationTool.None)
             {
@@ -431,12 +494,38 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
-        if (e.Key == Key.Enter && !_selection.IsEmpty)
+        if (key == Key.Enter && !_selection.IsEmpty)
         {
             ConfirmSelection();
             e.Handled = true;
         }
     }
+
+    private void NudgeCrosshair(int offsetX, int offsetY)
+    {
+        if (!NativeMethods.GetCursorPos(out var cursor))
+        {
+            return;
+        }
+
+        var x = Math.Clamp(
+            cursor.X + offsetX,
+            _snapshot.Bounds.Left,
+            _snapshot.Bounds.Right - 1);
+        var y = Math.Clamp(
+            cursor.Y + offsetY,
+            _snapshot.Bounds.Top,
+            _snapshot.Bounds.Bottom - 1);
+        NativeMethods.SetCursorPos(x, y);
+    }
+
+    private static Key ResolveShortcutKey(System.Windows.Input.KeyEventArgs e) => e.Key switch
+    {
+        Key.System => e.SystemKey,
+        Key.ImeProcessed => e.ImeProcessedKey,
+        Key.DeadCharProcessed => e.DeadCharProcessedKey,
+        _ => e.Key
+    };
 
     private void OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -1390,6 +1479,8 @@ public partial class CaptureOverlayWindow : Window
 
     private void OnConfirmClick(object sender, RoutedEventArgs e) => ConfirmSelection();
 
+    private void OnCloseCaptureClick(object sender, RoutedEventArgs e) => CancelSelection();
+
     private void OnToolbarSizeMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var region = GetLocalRegion();
@@ -1437,6 +1528,11 @@ public partial class CaptureOverlayWindow : Window
     }
 
     private void CancelSelection() => SelectionCancelled?.Invoke(this, EventArgs.Empty);
+
+    private bool UsesCloseButton => string.Equals(
+        _settings.CloseInteraction,
+        "Button",
+        StringComparison.OrdinalIgnoreCase);
 
     private void SetAnnotationTool(CaptureAnnotationTool tool)
     {

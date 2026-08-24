@@ -219,6 +219,7 @@ public sealed class CaptureCoordinator
                 clipboardImage.SourceName,
                 _clipboardService,
                 _ocrService,
+                _settingsService.Current,
                 clipboardImage.PreferredRegion?.ToRectangle(),
                 initialPosition);
             stickyWindow.Show();
@@ -296,6 +297,27 @@ public sealed class CaptureCoordinator
                             globalRegion,
                             LongCaptureMode.Automatic,
                             targetWindow));
+                    return;
+                }
+
+                if (request.Action == CaptureOverlayAction.Pin)
+                {
+                    try
+                    {
+                        var (imagePath, _) = SaveCaptureToHistory(request.Image, globalRegion);
+                        PinImage(
+                            imagePath,
+                            globalRegion,
+                            request.Image,
+                            request.PrefetchedOcr,
+                            overlay.CloseAfterPinPresented);
+                    }
+                    catch (Exception exception)
+                    {
+                        overlay.Close();
+                        CaptureFailed?.Invoke(this, exception.Message);
+                    }
+
                     return;
                 }
 
@@ -530,7 +552,8 @@ public sealed class CaptureCoordinator
         string imagePath,
         DrawingRectangle? initialRegion = null,
         System.Windows.Media.Imaging.BitmapSource? sourceImage = null,
-        Task<OcrRecognitionResult>? prefetchedOcr = null)
+        Task<OcrRecognitionResult>? prefetchedOcr = null,
+        Action? firstFrameReady = null)
     {
         try
         {
@@ -540,12 +563,19 @@ public sealed class CaptureCoordinator
                 imagePath,
                 _clipboardService,
                 _ocrService,
+                _settingsService.Current,
                 initialRegion,
                 prefetchedOcr: prefetchedOcr);
+            if (firstFrameReady is not null)
+            {
+                stickyWindow.FirstFramePresented += (_, _) => firstFrameReady();
+            }
+
             stickyWindow.Show();
         }
         catch (Exception exception)
         {
+            firstFrameReady?.Invoke();
             CaptureFailed?.Invoke(this, $"贴图失败：{exception.Message}");
         }
     }

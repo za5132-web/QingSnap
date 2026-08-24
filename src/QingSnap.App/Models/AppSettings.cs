@@ -26,6 +26,8 @@ public sealed record AppSettings
 
     public bool ShowMagnifier { get; init; } = true;
 
+    public string CloseInteraction { get; init; } = "Escape";
+
     public string OcrEngine { get; init; } = "Advanced";
 
     public int LongScrollWheelDelta { get; init; } = 720;

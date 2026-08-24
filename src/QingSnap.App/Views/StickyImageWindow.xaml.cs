@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using QingSnap.App.Infrastructure;
@@ -15,6 +16,7 @@ using WpfPoint = System.Windows.Point;
 using ShapeRectangle = System.Windows.Shapes.Rectangle;
 using MediaColor = System.Windows.Media.Color;
 using WpfCursors = System.Windows.Input.Cursors;
+using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace QingSnap.App.Views;
 
@@ -22,19 +24,23 @@ public partial class StickyImageWindow : Window
 {
     private const double MinimumScale = 0.01;
     private const double MaximumScale = 4;
-    private const double ZoomStep = 1.12;
+    private const double ZoomStep = 1.1;
     private const double LongImageAspectThreshold = 2.15;
 
     private readonly BitmapSource _image;
     private readonly ClipboardService _clipboardService;
     private readonly OcrService _ocrService;
     private readonly DispatcherTimer _feedbackTimer;
-    private readonly DispatcherTimer _zoomQualityTimer;
+    private readonly DispatcherTimer _collapsedDockHideTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(180)
+    };
     private readonly double _imageWidthDip;
     private readonly double _imageHeightDip;
     private readonly DrawingRectangle? _initialRegion;
     private readonly DrawingPoint? _initialPosition;
     private readonly bool _isLongImage;
+    private readonly bool _usesCloseButton;
     private double _fitScale;
     private double _scale;
     private double _readerBaseScale;
@@ -51,19 +57,43 @@ public partial class StickyImageWindow : Window
     private OcrRecognitionResult? _ocrResult;
     private IReadOnlyList<OcrTextWord> _ocrWords = [];
     private readonly HashSet<int> _selectedWordIndices = [];
+    private bool _isInitiallyCloaked;
+    private bool _usesOpacityFallback;
+    private bool _isCollapsed;
+    private NativeMethods.NativeRectangle? _expandedBounds;
+    private bool _isDraggingCollapsedDock;
+    private bool _collapsedDockDragMoved;
+    private NativeMethods.NativePoint _collapsedDockDragStart;
+    private NativeMethods.NativeRectangle _collapsedDockWindowStart;
+    private bool _collapsedDockUsesLeftEdge;
+    private bool _isCollapsedDockRevealed;
+    private DrawingRectangle _collapsedDockWorkArea;
+    private NativeMethods.NativeRectangle? _collapsedDockRestingBounds;
+    private DispatcherTimer? _dockTransitionTimer;
+    private bool _isDockTransitioning;
 
     public StickyImageWindow(
         BitmapSource image,
         string sourceName,
         ClipboardService clipboardService,
         OcrService ocrService,
+        AppSettings settings,
         DrawingRectangle? initialRegion = null,
         DrawingPoint? initialPosition = null,
         Task<OcrRecognitionResult>? prefetchedOcr = null)
     {
+        if (image.CanFreeze && !image.IsFrozen)
+        {
+            image.Freeze();
+        }
+
         _image = image;
         _clipboardService = clipboardService;
         _ocrService = ocrService;
+        _usesCloseButton = string.Equals(
+            settings.CloseInteraction,
+            "Button",
+            StringComparison.OrdinalIgnoreCase);
         _imageWidthDip = image.PixelWidth * 96D / Math.Max(1, image.DpiX);
         _imageHeightDip = image.PixelHeight * 96D / Math.Max(1, image.DpiY);
         _initialRegion = initialRegion;
@@ -75,6 +105,10 @@ public partial class StickyImageWindow : Window
         Title = $"QingSnap 贴图 — {Path.GetFileName(sourceName)}";
         PinnedImage.Source = image;
         LongPinnedImage.Source = image;
+        CollapsedThumbnail.Source = image;
+        CollapsedThumbnail.Stretch = Stretch.UniformToFill;
+        PinCloseHotspot.Visibility = _usesCloseButton ? Visibility.Visible : Visibility.Collapsed;
+        CloseMenuItem.InputGestureText = "Esc";
 
         if (_isLongImage)
         {
@@ -90,22 +124,41 @@ public partial class StickyImageWindow : Window
             _feedbackTimer.Stop();
             FeedbackBadge.Visibility = Visibility.Collapsed;
         };
-        _zoomQualityTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(140) };
-        _zoomQualityTimer.Tick += (_, _) =>
+        _collapsedDockHideTimer.Tick += (_, _) =>
         {
-            _zoomQualityTimer.Stop();
-            RenderOptions.SetBitmapScalingMode(PinnedImage, BitmapScalingMode.HighQuality);
-            RenderOptions.SetBitmapScalingMode(LongPinnedImage, BitmapScalingMode.HighQuality);
+            _collapsedDockHideTimer.Stop();
+            if (_isCollapsed && !_isDraggingCollapsedDock && !CollapsedDock.IsMouseOver)
+            {
+                SetCollapsedDockRevealed(false);
+            }
         };
+        RenderOptions.SetBitmapScalingMode(PinnedImage, BitmapScalingMode.Linear);
+        RenderOptions.SetBitmapScalingMode(LongPinnedImage, BitmapScalingMode.Linear);
 
+        SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
+        ContentRendered += OnFirstContentRendered;
         Closed += (_, _) =>
         {
             _feedbackTimer.Stop();
-            _zoomQualityTimer.Stop();
+            _collapsedDockHideTimer.Stop();
+            _dockTransitionTimer?.Stop();
             _ocrCancellation?.Cancel();
             _ocrCancellation?.Dispose();
         };
+    }
+
+    private void OnSourceInitialized(object? sender, EventArgs e)
+    {
+        SourceInitialized -= OnSourceInitialized;
+        var handle = new WindowInteropHelper(this).Handle;
+        NativeMethods.ImmAssociateContextEx(handle, nint.Zero, 0);
+        _isInitiallyCloaked = handle != nint.Zero && NativeMethods.SetWindowCloaked(handle, true);
+        if (!_isInitiallyCloaked)
+        {
+            _usesOpacityFallback = true;
+            Opacity = 0;
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -122,8 +175,6 @@ public partial class StickyImageWindow : Window
         if (_isLongImage)
         {
             InitializeLongReader(workArea);
-            Activate();
-            Focus();
             return;
         }
 
@@ -133,7 +184,7 @@ public partial class StickyImageWindow : Window
                 region.Height / (double)Math.Max(1, _image.PixelHeight))
             : _fitScale;
         _fitScale = Math.Clamp(_fitScale, MinimumScale, MaximumScale);
-        SetScale(_fitScale, _initialRegion is null);
+        SetScale(_fitScale, false);
 
         if (_initialRegion is { Width: > 0, Height: > 0 } initialRegion)
         {
@@ -145,20 +196,59 @@ public partial class StickyImageWindow : Window
                 initialRegion.Top - 1,
                 initialRegion.Width + 2,
                 initialRegion.Height + 2,
-                NativeMethods.SwpShowWindow);
+                NativeMethods.SwpNoActivate);
         }
         else if (_initialPosition is { } initialPosition)
         {
             PlaceAtPoint(initialPosition, workArea);
         }
+        else
+        {
+            PlaceAtCenter(workArea);
+        }
 
         UpdateTextOverlayVisibility();
+    }
+
+    private void OnFirstContentRendered(object? sender, EventArgs e)
+    {
+        ContentRendered -= OnFirstContentRendered;
+        UpdateLayout();
+        NativeMethods.DwmFlush();
+        if (_isInitiallyCloaked)
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            NativeMethods.SetWindowCloaked(handle, false);
+            _isInitiallyCloaked = false;
+            NativeMethods.DwmFlush();
+        }
+        else if (_usesOpacityFallback)
+        {
+            Opacity = 1;
+            UpdateLayout();
+            NativeMethods.DwmFlush();
+        }
+
         Activate();
         Focus();
+        if (_usesCloseButton)
+        {
+            ShowPinCloseButton(true);
+        }
+
+        FirstFramePresented?.Invoke(this, EventArgs.Empty);
     }
+
+    public event EventHandler? FirstFramePresented;
 
     private void OnImageMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_isDockTransitioning)
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.ClickCount >= 2)
         {
             if (_isLongImage)
@@ -177,14 +267,23 @@ public partial class StickyImageWindow : Window
             }
 
             var useActualSize = Math.Abs(_scale - _fitScale) < 0.01;
-            SetScaleSmooth(useActualSize ? 1 : _fitScale, false);
+            SetScaleImmediate(useActualSize ? 1 : _fitScale);
             e.Handled = true;
             return;
         }
 
         if (e.LeftButton == MouseButtonState.Pressed)
         {
+            var handle = new WindowInteropHelper(this).Handle;
+            var beforeDrag = default(NativeMethods.NativeRectangle);
+            var hadBounds = handle != nint.Zero &&
+                            NativeMethods.GetWindowRect(handle, out beforeDrag);
             DragMove();
+            if (hadBounds)
+            {
+                TryCollapseFromEdgeDrop(beforeDrag);
+            }
+
             e.Handled = true;
         }
     }
@@ -522,10 +621,11 @@ public partial class StickyImageWindow : Window
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        RenderOptions.SetBitmapScalingMode(PinnedImage, BitmapScalingMode.LowQuality);
-        RenderOptions.SetBitmapScalingMode(LongPinnedImage, BitmapScalingMode.LowQuality);
-        _zoomQualityTimer.Stop();
-        _zoomQualityTimer.Start();
+        if (_isCollapsed || _isDockTransitioning)
+        {
+            e.Handled = true;
+            return;
+        }
 
         if (_isLongReaderMode)
         {
@@ -548,13 +648,22 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        SetScaleSmooth(_scale * (e.Delta > 0 ? ZoomStep : 1 / ZoomStep), true);
+        var wheelSteps = Math.Clamp(e.Delta / 120D, -4, 4);
+        SetScaleImmediate(_scale * Math.Pow(ZoomStep, wheelSteps));
         e.Handled = true;
     }
 
     private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (e.Key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        var key = ResolveShortcutKey(e);
+        if (key == Key.M && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            ToggleCollapsed();
+            e.Handled = true;
+            return;
+        }
+
+        if (key == Key.C && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             if (_selectedWordIndices.Count > 0)
             {
@@ -569,7 +678,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        if (e.Key == Key.A && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && _ocrWords.Count > 0)
+        if (key == Key.A && Keyboard.Modifiers.HasFlag(ModifierKeys.Control) && _ocrWords.Count > 0)
         {
             _selectedWordIndices.Clear();
             foreach (var word in _ocrWords)
@@ -582,7 +691,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        if (e.Key == Key.Escape)
+        if (key == Key.Escape)
         {
             Close();
             e.Handled = true;
@@ -594,7 +703,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        switch (e.Key)
+        switch (key)
         {
             case Key.Home:
                 LongImageScroller.ScrollToTop();
@@ -624,6 +733,14 @@ public partial class StickyImageWindow : Window
         }
     }
 
+    private static Key ResolveShortcutKey(System.Windows.Input.KeyEventArgs e) => e.Key switch
+    {
+        Key.System => e.SystemKey,
+        Key.ImeProcessed => e.ImeProcessedKey,
+        Key.DeadCharProcessed => e.DeadCharProcessedKey,
+        _ => e.Key
+    };
+
     private void OnCopyClick(object sender, RoutedEventArgs e) => CopyImage();
 
     private void OnFitClick(object sender, RoutedEventArgs e)
@@ -639,7 +756,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        SetScaleSmooth(_fitScale, false);
+        SetScaleImmediate(_fitScale);
     }
 
     private void OnActualSizeClick(object sender, RoutedEventArgs e)
@@ -655,7 +772,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        SetScaleSmooth(1, false);
+        SetScaleImmediate(1);
     }
 
     private void OnTopClick(object sender, RoutedEventArgs e)
@@ -672,7 +789,539 @@ public partial class StickyImageWindow : Window
 
     private void OnReaderModeClick(object sender, RoutedEventArgs e) => EnterReaderMode(false);
 
+    private void OnCollapseClick(object sender, RoutedEventArgs e) => ToggleCollapsed();
+
+    private void OnCollapsedDockMouseEnter(object sender, WpfMouseEventArgs e)
+    {
+        if (_isCollapsed && !_isDraggingCollapsedDock && !_isDockTransitioning)
+        {
+            _collapsedDockHideTimer.Stop();
+            SetCollapsedDockRevealed(true);
+        }
+    }
+
+    private void OnCollapsedDockMouseLeave(object sender, WpfMouseEventArgs e)
+    {
+        if (_isCollapsed && !_isDraggingCollapsedDock && !_isDockTransitioning)
+        {
+            _collapsedDockHideTimer.Stop();
+            _collapsedDockHideTimer.Start();
+        }
+    }
+
+    private void OnCollapsedDockMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (_isDockTransitioning || e.ChangedButton != MouseButton.Left || handle == nint.Zero ||
+            !NativeMethods.GetCursorPos(out _collapsedDockDragStart) ||
+            !NativeMethods.GetWindowRect(handle, out _collapsedDockWindowStart))
+        {
+            return;
+        }
+
+        _isDraggingCollapsedDock = true;
+        _collapsedDockDragMoved = false;
+        _collapsedDockHideTimer.Stop();
+        CollapsedDock.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void OnCollapsedDockMouseMove(object sender, WpfMouseEventArgs e)
+    {
+        if (!_isDraggingCollapsedDock)
+        {
+            return;
+        }
+
+        if (e.LeftButton != MouseButtonState.Pressed)
+        {
+            EndCollapsedDockDrag(false);
+            return;
+        }
+
+        if (!NativeMethods.GetCursorPos(out var cursor))
+        {
+            return;
+        }
+
+        var offsetX = cursor.X - _collapsedDockDragStart.X;
+        var offsetY = cursor.Y - _collapsedDockDragStart.Y;
+        _collapsedDockDragMoved |= Math.Abs(offsetX) > 3 || Math.Abs(offsetY) > 3;
+        if (_collapsedDockDragMoved)
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            NativeMethods.SetWindowPos(
+                handle,
+                nint.Zero,
+                _collapsedDockWindowStart.Left + offsetX,
+                _collapsedDockWindowStart.Top + offsetY,
+                _collapsedDockWindowStart.Width,
+                _collapsedDockWindowStart.Height,
+                NativeMethods.SwpNoActivate |
+                NativeMethods.SwpNoZOrder |
+                NativeMethods.SwpNoOwnerZOrder);
+        }
+
+        e.Handled = true;
+    }
+
+    private void OnCollapsedDockMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ChangedButton != MouseButton.Left || !_isDraggingCollapsedDock)
+        {
+            return;
+        }
+
+        EndCollapsedDockDrag(!_collapsedDockDragMoved);
+        e.Handled = true;
+    }
+
+    private void EndCollapsedDockDrag(bool restore)
+    {
+        _isDraggingCollapsedDock = false;
+        CollapsedDock.ReleaseMouseCapture();
+        if (restore)
+        {
+            RestoreFromDock();
+        }
+        else if (_isCollapsed)
+        {
+            SnapCollapsedDockToNearestEdge();
+        }
+    }
+
+    private void SnapCollapsedDockToNearestEdge()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var bounds))
+        {
+            return;
+        }
+
+        var workArea = System.Windows.Forms.Screen.FromRectangle(
+            new DrawingRectangle(bounds.Left, bounds.Top, bounds.Width, bounds.Height)).WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
+        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
+        var useLeftEdge = bounds.Left + bounds.Width / 2 < workArea.Left + workArea.Width / 2;
+        _collapsedDockWorkArea = workArea;
+        _collapsedDockUsesLeftEdge = useLeftEdge;
+        _isCollapsedDockRevealed = false;
+        UpdateCollapsedDockBadgePosition();
+        var left = useLeftEdge
+            ? workArea.Left - bounds.Width + peekWidth
+            : workArea.Right - peekWidth;
+        var top = Math.Clamp(
+            bounds.Top,
+            workArea.Top + verticalMargin,
+            Math.Max(workArea.Top + verticalMargin, workArea.Bottom - bounds.Height - verticalMargin));
+        NativeMethods.SetWindowPos(
+            handle,
+            nint.Zero,
+            left,
+            top,
+            bounds.Width,
+            bounds.Height,
+            NativeMethods.SwpNoActivate |
+            NativeMethods.SwpNoZOrder |
+            NativeMethods.SwpNoOwnerZOrder);
+        _collapsedDockRestingBounds = new NativeMethods.NativeRectangle
+        {
+            Left = left,
+            Top = top,
+            Right = left + bounds.Width,
+            Bottom = top + bounds.Height
+        };
+    }
+
+    private void SetCollapsedDockRevealed(bool reveal)
+    {
+        if (!_isCollapsed || _isCollapsedDockRevealed == reveal)
+        {
+            return;
+        }
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var bounds))
+        {
+            return;
+        }
+
+        var workArea = _collapsedDockWorkArea.Width > 0
+            ? _collapsedDockWorkArea
+            : System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
+        var left = reveal
+            ? _collapsedDockUsesLeftEdge
+                ? workArea.Left
+                : workArea.Right - bounds.Width
+            : _collapsedDockUsesLeftEdge
+                ? workArea.Left - bounds.Width + peekWidth
+                : workArea.Right - peekWidth;
+        _isCollapsedDockRevealed = reveal;
+        NativeMethods.SetWindowPos(
+            handle,
+            nint.Zero,
+            left,
+            bounds.Top,
+            bounds.Width,
+            bounds.Height,
+            NativeMethods.SwpNoActivate |
+            NativeMethods.SwpNoZOrder |
+            NativeMethods.SwpNoOwnerZOrder);
+    }
+
+    private void UpdateCollapsedDockBadgePosition()
+    {
+        CollapsedPinBadge.HorizontalAlignment = _collapsedDockUsesLeftEdge
+            ? System.Windows.HorizontalAlignment.Right
+            : System.Windows.HorizontalAlignment.Left;
+        CollapsedPinBadge.Margin = _collapsedDockUsesLeftEdge
+            ? new Thickness(0, 2, 2, 0)
+            : new Thickness(2, 2, 0, 0);
+    }
+
+    private void TryCollapseFromEdgeDrop(NativeMethods.NativeRectangle beforeDrag)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (_isCollapsed || handle == nint.Zero ||
+            !NativeMethods.GetWindowRect(handle, out var afterDrag) ||
+            !NativeMethods.GetCursorPos(out var cursor))
+        {
+            return;
+        }
+
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var minimumTravel = Math.Max(18, (int)Math.Round(24 * Math.Max(dpi.DpiScaleX, dpi.DpiScaleY)));
+        if (Math.Abs(afterDrag.Left - beforeDrag.Left) < minimumTravel &&
+            Math.Abs(afterDrag.Top - beforeDrag.Top) < minimumTravel)
+        {
+            return;
+        }
+
+        var workArea = System.Windows.Forms.Screen.FromPoint(
+            new DrawingPoint(cursor.X, cursor.Y)).WorkingArea;
+        var edgeThreshold = Math.Max(14, (int)Math.Round(20 * dpi.DpiScaleX));
+        var useLeftEdge = cursor.X <= workArea.Left + edgeThreshold;
+        var useRightEdge = cursor.X >= workArea.Right - 1 - edgeThreshold;
+        if (!useLeftEdge && !useRightEdge)
+        {
+            return;
+        }
+
+        CollapseToDockAtEdge(beforeDrag, afterDrag, cursor, workArea, useLeftEdge);
+    }
+
+    private void CollapseToDockAtEdge(
+        NativeMethods.NativeRectangle restoreBounds,
+        NativeMethods.NativeRectangle animationFrom,
+        NativeMethods.NativePoint cursor,
+        DrawingRectangle workArea,
+        bool useLeftEdge)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == nint.Zero)
+        {
+            return;
+        }
+
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var width = Math.Max(46, (int)Math.Round(58 * dpi.DpiScaleX));
+        var height = Math.Max(36, (int)Math.Round(44 * dpi.DpiScaleY));
+        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
+        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
+        var top = Math.Clamp(
+            cursor.Y - height / 2,
+            workArea.Top + verticalMargin,
+            Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
+        var restingLeft = useLeftEdge
+            ? workArea.Left - width + peekWidth
+            : workArea.Right - peekWidth;
+        var revealedLeft = useLeftEdge
+            ? workArea.Left
+            : workArea.Right - width;
+
+        _expandedBounds = restoreBounds;
+        _collapsedDockWorkArea = workArea;
+        _collapsedDockUsesLeftEdge = useLeftEdge;
+        _isCollapsedDockRevealed = true;
+        _collapsedDockRestingBounds = new NativeMethods.NativeRectangle
+        {
+            Left = restingLeft,
+            Top = top,
+            Right = restingLeft + width,
+            Bottom = top + height
+        };
+        UpdateCollapsedDockBadgePosition();
+        PrepareCollapsedVisualState();
+        UpdateLayout();
+
+        var revealedBounds = new NativeMethods.NativeRectangle
+        {
+            Left = revealedLeft,
+            Top = top,
+            Right = revealedLeft + width,
+            Bottom = top + height
+        };
+        AnimateWindowBounds(handle, animationFrom, revealedBounds, () =>
+        {
+            if (_isCollapsed && !CollapsedDock.IsMouseOver)
+            {
+                _collapsedDockHideTimer.Stop();
+                _collapsedDockHideTimer.Start();
+            }
+        });
+    }
+
+    private void PrepareCollapsedVisualState()
+    {
+        _isCollapsed = true;
+        _collapsedDockHideTimer.Stop();
+        _feedbackTimer.Stop();
+        FeedbackBadge.Visibility = Visibility.Collapsed;
+        PinCloseButton.BeginAnimation(OpacityProperty, null);
+        PinCloseButton.Opacity = 0;
+        ExpandedPinContent.Visibility = Visibility.Collapsed;
+        CollapsedDock.Visibility = Visibility.Visible;
+        CollapseMenuItem.Header = "恢复贴图";
+        Frame.Background = System.Windows.Media.Brushes.Transparent;
+        Frame.BorderThickness = new Thickness(0);
+        Frame.CornerRadius = new CornerRadius(0);
+    }
+
+    private void AnimateWindowBounds(
+        nint handle,
+        NativeMethods.NativeRectangle from,
+        NativeMethods.NativeRectangle to,
+        Action? completed = null)
+    {
+        _dockTransitionTimer?.Stop();
+        _isDockTransitioning = true;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        const double durationMilliseconds = 190;
+        var timer = new DispatcherTimer(DispatcherPriority.Render)
+        {
+            Interval = TimeSpan.FromMilliseconds(16)
+        };
+        _dockTransitionTimer = timer;
+        timer.Tick += (_, _) =>
+        {
+            var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            var progress = Math.Clamp(elapsed / durationMilliseconds, 0, 1);
+            var eased = 1 - Math.Pow(1 - progress, 3);
+            var left = (int)Math.Round(from.Left + (to.Left - from.Left) * eased);
+            var top = (int)Math.Round(from.Top + (to.Top - from.Top) * eased);
+            var width = Math.Max(1, (int)Math.Round(from.Width + (to.Width - from.Width) * eased));
+            var height = Math.Max(1, (int)Math.Round(from.Height + (to.Height - from.Height) * eased));
+            NativeMethods.SetWindowPos(
+                handle,
+                nint.Zero,
+                left,
+                top,
+                width,
+                height,
+                NativeMethods.SwpNoActivate |
+                NativeMethods.SwpNoZOrder |
+                NativeMethods.SwpNoOwnerZOrder);
+
+            if (progress < 1)
+            {
+                return;
+            }
+
+            timer.Stop();
+            if (ReferenceEquals(_dockTransitionTimer, timer))
+            {
+                _dockTransitionTimer = null;
+            }
+
+            _isDockTransitioning = false;
+            NativeMethods.DwmFlush();
+            completed?.Invoke();
+        };
+        timer.Start();
+    }
+
+    private void ToggleCollapsed()
+    {
+        if (_isDockTransitioning)
+        {
+            return;
+        }
+
+        if (_isCollapsed)
+        {
+            RestoreFromDock();
+        }
+        else
+        {
+            CollapseToDock();
+        }
+    }
+
+    private void CollapseToDock()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (_isCollapsed || handle == nint.Zero ||
+            !NativeMethods.GetWindowRect(handle, out var currentBounds))
+        {
+            return;
+        }
+
+        _expandedBounds = currentBounds;
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
+        DrawingRectangle workArea;
+        int width;
+        int height;
+        int left;
+        int top;
+        bool useLeftEdge;
+        if (_collapsedDockRestingBounds is { } restingBounds &&
+            restingBounds.Width > 0 && restingBounds.Height > 0 &&
+            _collapsedDockWorkArea.Width > 0)
+        {
+            workArea = _collapsedDockWorkArea;
+            width = restingBounds.Width;
+            height = restingBounds.Height;
+            useLeftEdge = _collapsedDockUsesLeftEdge;
+            left = restingBounds.Left;
+            top = Math.Clamp(
+                restingBounds.Top,
+                workArea.Top + verticalMargin,
+                Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
+        }
+        else
+        {
+            workArea = System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
+            width = Math.Max(46, (int)Math.Round(58 * dpi.DpiScaleX));
+            height = Math.Max(36, (int)Math.Round(44 * dpi.DpiScaleY));
+            var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
+            useLeftEdge = currentBounds.Left + currentBounds.Width / 2 <
+                          workArea.Left + workArea.Width / 2;
+            left = useLeftEdge
+                ? workArea.Left - width + peekWidth
+                : workArea.Right - peekWidth;
+            top = Math.Clamp(
+                currentBounds.Top,
+                workArea.Top + verticalMargin,
+                Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
+        }
+
+        _collapsedDockWorkArea = workArea;
+        _collapsedDockUsesLeftEdge = useLeftEdge;
+        _isCollapsedDockRevealed = false;
+        UpdateCollapsedDockBadgePosition();
+
+        var cloaked = NativeMethods.SetWindowCloaked(handle, true);
+        try
+        {
+            _isCollapsed = true;
+            _collapsedDockHideTimer.Stop();
+            _feedbackTimer.Stop();
+            FeedbackBadge.Visibility = Visibility.Collapsed;
+            PinCloseButton.BeginAnimation(OpacityProperty, null);
+            PinCloseButton.Opacity = 0;
+            ExpandedPinContent.Visibility = Visibility.Collapsed;
+            CollapsedDock.Visibility = Visibility.Visible;
+            CollapseMenuItem.Header = "恢复贴图";
+            Frame.Background = System.Windows.Media.Brushes.Transparent;
+            Frame.BorderThickness = new Thickness(0);
+            Frame.CornerRadius = new CornerRadius(0);
+            NativeMethods.SetWindowPos(
+                handle,
+                nint.Zero,
+                left,
+                top,
+                width,
+                height,
+                NativeMethods.SwpNoActivate |
+                NativeMethods.SwpNoZOrder |
+                NativeMethods.SwpNoOwnerZOrder);
+            _collapsedDockRestingBounds = new NativeMethods.NativeRectangle
+            {
+                Left = left,
+                Top = top,
+                Right = left + width,
+                Bottom = top + height
+            };
+            UpdateLayout();
+            NativeMethods.DwmFlush();
+        }
+        finally
+        {
+            if (cloaked)
+            {
+                NativeMethods.SetWindowCloaked(handle, false);
+                NativeMethods.DwmFlush();
+            }
+        }
+    }
+
+    private void RestoreFromDock()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (_isDockTransitioning || !_isCollapsed || handle == nint.Zero ||
+            _expandedBounds is not { } expandedBounds ||
+            !NativeMethods.GetWindowRect(handle, out var collapsedBounds))
+        {
+            return;
+        }
+
+        _isCollapsed = false;
+        _isCollapsedDockRevealed = false;
+        _collapsedDockHideTimer.Stop();
+        CollapsedDock.Visibility = Visibility.Collapsed;
+        ExpandedPinContent.Visibility = Visibility.Visible;
+        CollapseMenuItem.Header = "暂时收起";
+        Frame.Background = new SolidColorBrush(MediaColor.FromRgb(7, 11, 14));
+        Frame.BorderThickness = new Thickness(1);
+        Frame.CornerRadius = new CornerRadius(0);
+        UpdateLayout();
+        AnimateWindowBounds(handle, collapsedBounds, expandedBounds, () =>
+        {
+            Activate();
+            Focus();
+            if (_usesCloseButton)
+            {
+                ShowPinCloseButton(true);
+            }
+        });
+    }
+
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();
+
+    private void OnPinCloseClick(object sender, RoutedEventArgs e) => Close();
+
+    private void OnPinCloseHotspotMouseEnter(object sender, WpfMouseEventArgs e) =>
+        ShowPinCloseButton(false);
+
+    private void OnPinCloseHotspotMouseLeave(object sender, WpfMouseEventArgs e) =>
+        FadePinCloseButton(TimeSpan.Zero);
+
+    private void ShowPinCloseButton(bool autoFade)
+    {
+        PinCloseButton.BeginAnimation(OpacityProperty, null);
+        PinCloseButton.Opacity = 1;
+        if (autoFade)
+        {
+            FadePinCloseButton(TimeSpan.FromMilliseconds(950));
+        }
+    }
+
+    private void FadePinCloseButton(TimeSpan delay)
+    {
+        var fade = new DoubleAnimation
+        {
+            BeginTime = delay,
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(180),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            FillBehavior = FillBehavior.HoldEnd
+        };
+        PinCloseButton.BeginAnimation(OpacityProperty, fade, HandoffBehavior.SnapshotAndReplace);
+    }
 
     private void CopyImage()
     {
@@ -741,6 +1390,10 @@ public partial class StickyImageWindow : Window
         {
             PlaceAtPoint(initialPosition, workArea);
         }
+        else if (useInitialPosition)
+        {
+            PlaceAtCenter(workArea);
+        }
         else if (IsLoaded)
         {
             Left = Math.Clamp(oldCenterX - Width / 2, workArea.Left, Math.Max(workArea.Left, workArea.Right - Width));
@@ -777,7 +1430,7 @@ public partial class StickyImageWindow : Window
         TopMenuItem.Visibility = Visibility.Collapsed;
         OverviewMenuItem.Visibility = Visibility.Collapsed;
         ReaderModeMenuItem.Visibility = Visibility.Visible;
-        SetScaleSmooth(_fitScale, false);
+        SetScaleImmediate(_fitScale);
         UpdateTextOverlayVisibility();
         ShowFeedback("完整概览 · 双击返回阅读窗");
     }
@@ -832,6 +1485,12 @@ public partial class StickyImageWindow : Window
             Math.Max(workArea.Top, workArea.Bottom - Height));
     }
 
+    private void PlaceAtCenter(Rect workArea)
+    {
+        Left = workArea.Left + Math.Max(0, (workArea.Width - Width) / 2);
+        Top = workArea.Top + Math.Max(0, (workArea.Height - Height) / 2);
+    }
+
     private void OnLongImageScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
     {
         if (_isLongReaderMode && LongImageScroller.ScrollableHeight > 0)
@@ -882,7 +1541,7 @@ public partial class StickyImageWindow : Window
         }
     }
 
-    private void SetScaleSmooth(double scale, bool anchorAtCursor)
+    private void SetScaleImmediate(double scale)
     {
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var current))
@@ -892,38 +1551,30 @@ public partial class StickyImageWindow : Window
         }
 
         var nextScale = Math.Clamp(scale, MinimumScale, MaximumScale);
+        if (Math.Abs(nextScale - _scale) < 0.00001)
+        {
+            return;
+        }
+
         var dpi = VisualTreeHelper.GetDpi(this);
-        var width = Math.Max(24, (int)Math.Round((_imageWidthDip * nextScale + 2) * dpi.DpiScaleX));
-        var height = Math.Max(24, (int)Math.Round((_imageHeightDip * nextScale + 2) * dpi.DpiScaleY));
+        var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
+        var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
+        var centerX = current.Left + current.Width / 2;
+        var centerY = current.Top + current.Height / 2;
 
-        double anchorX;
-        double anchorY;
-        double relativeX;
-        double relativeY;
-        if (anchorAtCursor && NativeMethods.GetCursorPos(out var cursor))
-        {
-            anchorX = cursor.X;
-            anchorY = cursor.Y;
-            relativeX = Math.Clamp((cursor.X - current.Left) / (double)Math.Max(1, current.Width), 0, 1);
-            relativeY = Math.Clamp((cursor.Y - current.Top) / (double)Math.Max(1, current.Height), 0, 1);
-        }
-        else
-        {
-            anchorX = current.Left + current.Width / 2D;
-            anchorY = current.Top + current.Height / 2D;
-            relativeX = 0.5;
-            relativeY = 0.5;
-        }
-
+        var width = Math.Max(24, (int)Math.Round(_imageWidthDip * nextScale * dpi.DpiScaleX) + borderX * 2);
+        var height = Math.Max(24, (int)Math.Round(_imageHeightDip * nextScale * dpi.DpiScaleY) + borderY * 2);
         _scale = nextScale;
         NativeMethods.SetWindowPos(
             handle,
-            NativeMethods.HwndTopmost,
-            (int)Math.Round(anchorX - width * relativeX),
-            (int)Math.Round(anchorY - height * relativeY),
+            nint.Zero,
+            centerX - width / 2,
+            centerY - height / 2,
             width,
             height,
-            NativeMethods.SwpNoActivate | NativeMethods.SwpShowWindow);
+            NativeMethods.SwpNoActivate |
+            NativeMethods.SwpNoZOrder |
+            NativeMethods.SwpNoOwnerZOrder);
     }
 
     private void ShowFeedback(string message)

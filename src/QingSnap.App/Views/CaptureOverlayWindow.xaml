@@ -11,6 +11,7 @@
         Cursor="Cross"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
+        PreviewGotKeyboardFocus="OnPreviewGotKeyboardFocus"
         PreviewKeyDown="OnPreviewKeyDown"
         PreviewMouseWheel="OnPreviewMouseWheel"
         PreviewMouseRightButtonDown="OnPreviewMouseRightButtonDown">
@@ -433,6 +434,16 @@
                                 AutomationProperties.Name="完成截图"
                                 Click="OnConfirmClick">
                             <icons:QingSnapIcon Kind="Confirm" Width="21" Height="21" IconStrokeThickness="2.2" />
+                        </Button>
+                        <Button x:Name="CloseCaptureButton"
+                                Visibility="Collapsed"
+                                Style="{StaticResource CaptureToolButton}"
+                                Width="34"
+                                Margin="3,0,0,0"
+                                ToolTip="关闭截图"
+                                AutomationProperties.Name="关闭截图"
+                                Click="OnCloseCaptureClick">
+                            <icons:QingSnapIcon Kind="Close" Foreground="#FFFF7180" />
                         </Button>
                     </StackPanel>
                 </Grid>
