@@ -13,6 +13,7 @@ public partial class HistoryWindow : Window
     private const int MaximumLoadedItems = 500;
 
     private readonly CaptureHistoryService _historyService;
+    private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly ClipboardService _clipboardService;
     private readonly Action<string> _pinImage;
     private readonly Action<string> _recognizeImage;
@@ -20,21 +21,32 @@ public partial class HistoryWindow : Window
     private HistorySnapshot? _snapshot;
     private CancellationTokenSource? _refreshCancellation;
     private bool _isReady;
+    private bool _isLoadingHistory;
+    private HistoryOcrIndexProgress? _indexProgress;
+    private readonly Dictionary<string, string> _pendingIndexUpdates =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public HistoryWindow(
         CaptureHistoryService historyService,
+        HistoryOcrIndexingService historyOcrIndexer,
         ClipboardService clipboardService,
         Action<string> pinImage,
         Action<string> recognizeImage)
     {
         _historyService = historyService;
+        _historyOcrIndexer = historyOcrIndexer;
         _clipboardService = clipboardService;
         _pinImage = pinImage;
         _recognizeImage = recognizeImage;
         InitializeComponent();
         DataContext = this;
         Loaded += OnLoaded;
-        Closed += (_, _) => _refreshCancellation?.Cancel();
+        _historyOcrIndexer.ProgressChanged += OnIndexProgressChanged;
+        Closed += (_, _) =>
+        {
+            _refreshCancellation?.Cancel();
+            _historyOcrIndexer.ProgressChanged -= OnIndexProgressChanged;
+        };
     }
 
     public ObservableCollection<HistoryItem> VisibleItems { get; } = [];
@@ -45,6 +57,7 @@ public partial class HistoryWindow : Window
     {
         _isReady = true;
         RefreshHistory();
+        _historyOcrIndexer.ScheduleBackfill();
     }
 
     private async Task LoadHistoryAsync()
@@ -56,6 +69,7 @@ public partial class HistoryWindow : Window
 
         LoadingPanel.Visibility = Visibility.Visible;
         StatusText.Text = "正在读取截图记录…";
+        _isLoadingHistory = true;
 
         try
         {
@@ -66,6 +80,16 @@ public partial class HistoryWindow : Window
 
             _snapshot = snapshot;
             _loadedItems = snapshot.Items;
+            _isLoadingHistory = false;
+            if (_pendingIndexUpdates.Count > 0)
+            {
+                _loadedItems = _loadedItems
+                    .Select(item => _pendingIndexUpdates.TryGetValue(item.FilePath, out var text)
+                        ? item with { SearchText = text }
+                        : item)
+                    .ToArray();
+                _pendingIndexUpdates.Clear();
+            }
             HeaderStatsText.Text = snapshot.TotalCount > MaximumLoadedItems
                 ? $"共 {snapshot.TotalCount:N0} 张 · {FormatBytes(snapshot.TotalBytes)} · 已载入最近 {MaximumLoadedItems:N0} 张"
                 : $"共 {snapshot.TotalCount:N0} 张 · {FormatBytes(snapshot.TotalBytes)}";
@@ -82,6 +106,7 @@ public partial class HistoryWindow : Window
         }
         finally
         {
+            _isLoadingHistory = false;
             if (!cancellationToken.IsCancellationRequested)
             {
                 LoadingPanel.Visibility = Visibility.Collapsed;
@@ -131,6 +156,65 @@ public partial class HistoryWindow : Window
         StatusText.Text = _snapshot is null
             ? "就绪"
             : $"当前显示 {VisibleItems.Count:N0} / {_snapshot.TotalCount:N0} 张 · 双击预览图可打开原图";
+        ApplyIndexProgressStatus();
+    }
+
+    private void OnIndexProgressChanged(object? sender, HistoryOcrIndexProgress progress)
+    {
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (!_isReady)
+            {
+                return;
+            }
+
+            _indexProgress = progress;
+            if (progress.CompletedFilePath is not null)
+            {
+                if (_isLoadingHistory)
+                {
+                    _pendingIndexUpdates[progress.CompletedFilePath] = progress.RecognizedText ?? string.Empty;
+                    ApplyIndexProgressStatus();
+                    return;
+                }
+
+                _loadedItems = _loadedItems
+                    .Select(item => string.Equals(
+                        item.FilePath,
+                        progress.CompletedFilePath,
+                        StringComparison.OrdinalIgnoreCase)
+                        ? item with { SearchText = progress.RecognizedText ?? string.Empty }
+                        : item)
+                    .ToArray();
+                ApplyFilters();
+            }
+            else
+            {
+                ApplyIndexProgressStatus();
+            }
+        });
+    }
+
+    private void ApplyIndexProgressStatus()
+    {
+        if (_indexProgress is { IsOcrAvailable: false })
+        {
+            if (!string.IsNullOrWhiteSpace(SearchBox.Text))
+            {
+                StatusText.Text = "OCR 组件未安装；当前只能搜索已经建立过文字索引的截图";
+            }
+
+            return;
+        }
+
+        if (_indexProgress is { PendingCount: > 0 } progress)
+        {
+            StatusText.Text = $"正在后台识字找图 · 剩余 {progress.PendingCount:N0} 张 · 已完成 {progress.IndexedCount:N0} 张";
+        }
+        else if (_indexProgress is { IndexedCount: > 0 } completed)
+        {
+            StatusText.Text = $"文字索引已更新 · 本次完成 {completed.IndexedCount:N0} 张";
+        }
     }
 
     private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => ApplyFilters();

@@ -170,7 +170,7 @@
                                    FontFamily="{StaticResource UiFont}"
                                    FontSize="13"
                                    Foreground="#FF687783"
-                                   Text="搜索文件名、尺寸或已识别文字" />
+                                   Text="搜索文件名、尺寸或图片文字" />
                     </Grid>
                     <ComboBox x:Name="DateFilter"
                               Grid.Column="1"

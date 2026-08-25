@@ -331,6 +331,60 @@ public sealed class LongCaptureAssemblerTests
         }
     }
 
+    [Fact]
+    public void HistoryBlankOcrResultStillMarksImageAsIndexed()
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-history-empty-index-{Guid.NewGuid():N}");
+        try
+        {
+            var settings = new AppSettingsService(dataDirectory);
+            var history = new CaptureHistoryService(settings);
+            var imagePath = history.Save(CreatePattern(48, 36, 12));
+
+            Assert.False(history.HasOcrIndex(imagePath));
+            Assert.Contains(imagePath, history.FindImagesWithoutOcrIndex(CancellationToken.None));
+
+            history.SaveOcrText(imagePath, "   ");
+
+            Assert.True(history.HasOcrIndex(imagePath));
+            Assert.DoesNotContain(imagePath, history.FindImagesWithoutOcrIndex(CancellationToken.None));
+            Assert.Equal(string.Empty, Assert.Single(history.LoadSnapshot(10, CancellationToken.None).Items).SearchText);
+        }
+        finally
+        {
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void HistoryBackfillOnlyReturnsImagesWithoutOcrIndex()
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-history-backfill-{Guid.NewGuid():N}");
+        try
+        {
+            var settings = new AppSettingsService(dataDirectory);
+            var history = new CaptureHistoryService(settings);
+            var indexedPath = history.Save(CreatePattern(64, 40, 21));
+            Thread.Sleep(20);
+            var missingPath = history.Save(CreatePattern(64, 40, 22));
+            history.SaveOcrText(indexedPath, "indexed text");
+
+            var missing = history.FindImagesWithoutOcrIndex(CancellationToken.None);
+
+            Assert.Equal([missingPath], missing);
+        }
+        finally
+        {
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, true);
+            }
+        }
+    }
+
     private static BitmapSource CreatePattern(int width, int height, int seed)
     {
         var stride = width * 4;

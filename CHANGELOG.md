@@ -3,6 +3,17 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [Preview v48] - 2026-08-25
+
+### 识字找图 / Search by text
+
+- 新截图保存后会在后台自动建立 OCR 文字索引，不再需要先到截图记录中逐张点击“识字”。  New captures now receive a background OCR search index automatically without opening OCR for every image.
+- 首次打开截图记录时会从最新图片开始补齐旧记录的文字索引；建立过程中不阻塞浏览、搜索、截图、复制或贴图。  Opening History schedules missing legacy indexes from newest to oldest without blocking capture or browsing.
+- 搜索结果会随着后台识别完成实时更新，底部状态栏显示剩余数量与本次完成数量。  Search results update live as indexing finishes, with unobtrusive progress in the footer.
+- 截图阶段已经产生的 OCR 预识别结果会直接复用，避免保存后重复识别；新截图任务优先于旧记录补建。  Capture-time OCR prefetch results are reused, and new captures take priority over legacy backfill.
+- 无文字图片也会保存“已索引”标记，避免每次打开记录都重复识别空白或纯图片截图。  Images with no detected text keep an indexed marker so they are not repeatedly processed.
+- 自动化测试增至 27 项，新增空识别结果与旧记录待索引筛选覆盖。  Automated coverage increases to 27 tests, including empty OCR markers and legacy backlog selection.
+
 ## [Preview v47] - 2026-08-25
 
 ### OCR 模块化 / Modular OCR
@@ -173,6 +184,7 @@ This index covers every local preview build between public releases. `Internal i
 | v2 | 2026-08-19 | 内部迭代：可编辑上次选区与历史窗口初版 / internal iteration: first editable region recall and history window |
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
+[Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
 [Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47
 [Preview v46]: https://github.com/za5132-web/QingSnap/compare/preview-v45...preview-v46
 [Preview v45]: https://github.com/za5132-web/QingSnap/compare/preview-v44...preview-v45

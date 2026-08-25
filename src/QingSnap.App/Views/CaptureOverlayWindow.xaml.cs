@@ -967,6 +967,12 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
+        if (_showActionToolbar)
+        {
+            RequestAction(CaptureOverlayAction.Confirm);
+            return;
+        }
+
         var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
         var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
         var left = Math.Clamp((int)Math.Floor(_selection.Left * scaleX), 0, _snapshot.Bounds.Width - 1);
@@ -985,7 +991,10 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
-        var usePrefetch = (action == CaptureOverlayAction.Ocr || action == CaptureOverlayAction.Pin) &&
+        var usePrefetch = action is CaptureOverlayAction.Ocr or
+                                      CaptureOverlayAction.Pin or
+                                      CaptureOverlayAction.Copy or
+                                      CaptureOverlayAction.Confirm &&
                           _prefetchedOcrImage is not null &&
                           _prefetchedOcrTask is not null;
         var image = usePrefetch ? _prefetchedOcrImage! : CreateSelectedImage();

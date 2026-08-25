@@ -6,5 +6,6 @@ public enum CaptureOverlayAction
     Ocr,
     Pin,
     Copy,
+    Confirm,
     Save
 }

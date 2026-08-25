@@ -23,6 +23,7 @@ public sealed class CaptureHistoryService
     private readonly AppSettingsService _settingsService;
     private DateTime _lastCleanupDate;
     private readonly object _favoritesSync = new();
+    private readonly object _searchIndexSync = new();
 
     public CaptureHistoryService(AppSettingsService settingsService)
     {
@@ -182,16 +183,47 @@ public sealed class CaptureHistoryService
 
     public void SaveOcrText(string filePath, string text)
     {
-        if (string.IsNullOrWhiteSpace(text))
+        if (!File.Exists(filePath))
         {
             return;
         }
 
-        Directory.CreateDirectory(SearchIndexDirectory);
-        var indexPath = GetSearchIndexPath(filePath);
-        var temporaryPath = indexPath + ".tmp";
-        File.WriteAllText(temporaryPath, text.Trim(), new UTF8Encoding(false));
-        File.Move(temporaryPath, indexPath, true);
+        lock (_searchIndexSync)
+        {
+            Directory.CreateDirectory(SearchIndexDirectory);
+            var indexPath = GetSearchIndexPath(filePath);
+            var temporaryPath = indexPath + ".tmp";
+            File.WriteAllText(temporaryPath, text.Trim(), new UTF8Encoding(false));
+            File.Move(temporaryPath, indexPath, true);
+        }
+    }
+
+    public bool HasOcrIndex(string filePath)
+    {
+        lock (_searchIndexSync)
+        {
+            return File.Exists(GetSearchIndexPath(filePath));
+        }
+    }
+
+    public IReadOnlyList<string> FindImagesWithoutOcrIndex(CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(HistoryDirectory);
+        var result = new List<string>();
+        foreach (var file in Directory
+                     .EnumerateFiles(HistoryDirectory, "*.*", System.IO.SearchOption.AllDirectories)
+                     .Where(path => SupportedExtensions.Contains(Path.GetExtension(path)))
+                     .Select(path => new FileInfo(path))
+                     .OrderByDescending(file => file.LastWriteTimeUtc))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!HasOcrIndex(file.FullName))
+            {
+                result.Add(file.FullName);
+            }
+        }
+
+        return result;
     }
 
     public void OpenHistoryDirectory()

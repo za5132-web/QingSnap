@@ -12,6 +12,7 @@ public sealed class CaptureCoordinator
     private readonly ClipboardService _clipboardService;
     private readonly AppStateStore _stateStore;
     private readonly CaptureHistoryService _historyService;
+    private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly OcrService _ocrService;
     private readonly AppSettingsService _settingsService;
     private HistoryWindow? _historyWindow;
@@ -22,6 +23,7 @@ public sealed class CaptureCoordinator
         ClipboardService clipboardService,
         AppStateStore stateStore,
         CaptureHistoryService historyService,
+        HistoryOcrIndexingService historyOcrIndexer,
         OcrService ocrService,
         AppSettingsService settingsService)
     {
@@ -29,6 +31,7 @@ public sealed class CaptureCoordinator
         _clipboardService = clipboardService;
         _stateStore = stateStore;
         _historyService = historyService;
+        _historyOcrIndexer = historyOcrIndexer;
         _ocrService = ocrService;
         _settingsService = settingsService;
     }
@@ -161,6 +164,7 @@ public sealed class CaptureCoordinator
 
         _historyWindow = new HistoryWindow(
             _historyService,
+            _historyOcrIndexer,
             _clipboardService,
             path => PinImage(path),
             RecognizeImage);
@@ -339,7 +343,10 @@ public sealed class CaptureCoordinator
                 {
                     try
                     {
-                        var (imagePath, _) = SaveCaptureToHistory(request.Image, globalRegion);
+                        var (imagePath, _) = SaveCaptureToHistory(
+                            request.Image,
+                            globalRegion,
+                            request.PrefetchedOcr);
                         PinImage(
                             imagePath,
                             globalRegion,
@@ -421,9 +428,10 @@ public sealed class CaptureCoordinator
     private async Task CompleteCaptureAsync(
         System.Windows.Media.Imaging.BitmapSource image,
         DrawingRectangle region,
-        bool forceCopy = false)
+        bool forceCopy = false,
+        Task<OcrRecognitionResult>? prefetchedOcr = null)
     {
-        var (imagePath, savedRegion) = SaveCaptureToHistory(image, region);
+        var (imagePath, savedRegion) = SaveCaptureToHistory(image, region, prefetchedOcr);
         var copyRequested = forceCopy || _settingsService.Current.AutoCopy;
         var copiedToClipboard = false;
         if (copyRequested)
@@ -457,18 +465,34 @@ public sealed class CaptureCoordinator
         {
             case CaptureOverlayAction.Ocr:
                 {
-                    var (imagePath, _) = SaveCaptureToHistory(request.Image, globalRegion);
+                    var (imagePath, _) = SaveCaptureToHistory(
+                        request.Image,
+                        globalRegion,
+                        request.PrefetchedOcr);
                     RecognizeImage(imagePath, request.Image, request.PrefetchedOcr);
                     break;
                 }
             case CaptureOverlayAction.Pin:
                 {
-                    var (imagePath, _) = SaveCaptureToHistory(request.Image, globalRegion);
+                    var (imagePath, _) = SaveCaptureToHistory(
+                        request.Image,
+                        globalRegion,
+                        request.PrefetchedOcr);
                     PinImage(imagePath, globalRegion, request.Image, request.PrefetchedOcr);
                     break;
                 }
             case CaptureOverlayAction.Copy:
-                await CompleteCaptureAsync(request.Image, globalRegion, true);
+                await CompleteCaptureAsync(
+                    request.Image,
+                    globalRegion,
+                    true,
+                    request.PrefetchedOcr);
+                break;
+            case CaptureOverlayAction.Confirm:
+                await CompleteCaptureAsync(
+                    request.Image,
+                    globalRegion,
+                    prefetchedOcr: request.PrefetchedOcr);
                 break;
             case CaptureOverlayAction.Save:
                 SaveImageAs(request.Image);
@@ -478,9 +502,11 @@ public sealed class CaptureCoordinator
 
     private (string ImagePath, CaptureRegion Region) SaveCaptureToHistory(
         System.Windows.Media.Imaging.BitmapSource image,
-        DrawingRectangle region)
+        DrawingRectangle region,
+        Task<OcrRecognitionResult>? prefetchedOcr = null)
     {
         var imagePath = _historyService.Save(image);
+        _historyOcrIndexer.EnqueueCapture(imagePath, prefetchedOcr);
         var savedRegion = CaptureRegion.FromRectangle(region);
         _stateStore.SaveLastRegion(savedRegion);
         _historyWindow?.RefreshHistory();

@@ -7,11 +7,11 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区�
 
 QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[下载 Preview v47 基础包 / Download v47](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-preview-v47.zip) · [下载 OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-OCR-Module-v47.zip) · [v47 版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v47) · [完整更新日志 / Changelog](CHANGELOG.md)
+[下载 Preview v48 基础包 / Download v48](https://github.com/za5132-web/QingSnap/releases/download/preview-v48/QingSnap-preview-v48.zip) · [下载 OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/preview-v48/QingSnap-OCR-Module-v48.zip) · [v48 版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v48) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `Preview v47` |
+| 当前版本 / Current version | `Preview v48` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
 | OCR | 可选运行库 + PP-OCRv6 Tiny / Small 模型（离线） / optional runtime and Tiny or Small model |
@@ -144,6 +144,15 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
 
+## Preview v48 改进 / What’s new in Preview v48
+
+- 截图保存后会在后台自动建立可搜索的文字索引，不再要求逐张点击“识字”。
+  Every saved capture is indexed for text search in the background without opening OCR manually.
+- 打开截图记录时会从最新图片开始补齐旧记录；搜索结果随识别进度实时出现。
+  Opening History backfills older captures from newest to oldest, and matching results appear as indexing completes.
+- 自动复用截图阶段的 OCR 预识别结果，新截图优先于旧记录补建，不阻塞截图、复制和贴图。
+  Capture-time OCR prefetch is reused, with new captures prioritized over legacy backfill and no blocking of capture, copy, or pin workflows.
+
 ## Preview v47 改进 / What’s new in Preview v47
 
 - 不再区分精简包和完整版：所有用户使用同一个无 OCR 基础包。
@@ -199,12 +208,13 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 
 ## 完整版本历程 / Complete version history
 
-下表按实际开发顺序记录 v1–v47。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
+下表按实际开发顺序记录 v1–v48。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
 
-The table follows the actual v1–v47 development sequence. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
+The table follows the actual v1–v48 development sequence. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
 
 | 版本 / Version | 日期 / Date | 本次更新 / Changes |
 | --- | --- | --- |
+| v48 | 2026-08-25 | 新截图自动建立 OCR 搜索索引；截图记录后台补齐旧图索引，搜索结果实时更新，并复用截图阶段预识别。<br>Automatically indexes new captures, backfills missing history OCR indexes, updates search results live, and reuses capture-time prefetch. |
 | v47 | 2026-08-25 | 统一为无 OCR 基础包；设置页一键安装/卸载 OCR 运行库与 Tiny/Small 模型；修复 Tiny 字典乱码和英文选区空格；新增多尺寸程序图标。<br>Unified the OCR-free base package; added one-click runtime and Tiny/Small model management; fixed Tiny dictionary decoding and selection spacing; added multi-size app icons. |
 | v46 | 2026-08-25 | 用屏幕中央自绘浮窗替代 Windows 通知；剪贴板改为最长 15 秒后台恢复，截图保存不再受复制失败影响。<br>Replaced Windows notifications with centered custom toasts; added up to 15 seconds of background clipboard recovery and decoupled history saving from copy failures. |
 | v45 | 2026-08-25 | 拆分可选高精度 OCR 扩展，优化长截图内存、OCR 缓存、历史检索与诊断，并新增 13 项测试。<br>Split high-accuracy OCR into an optional extension; optimized scrolling-capture memory, OCR caching, history search, diagnostics, and added 13 tests. |

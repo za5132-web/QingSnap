@@ -9,7 +9,7 @@ QingSnap 基础包不包含 OCR。截图、长截图、标注、贴图和历史�
 3. 点击“一键安装 OCR”。QingSnap 会在后台下载并安装运行库和所选模型。
 4. 校验完成后，状态链会显示“运行库 → 模型 → 可用”。
 
-安装过程中不需要查找或解压 ZIP。如果 `QingSnap-OCR-Module-v47.zip` 已与 `QingSnap.exe` 放在同一目录，程序会优先使用本地模块，适合离线部署。
+安装过程中不需要查找或解压 ZIP。如果 `QingSnap-OCR-Module-v48.zip` 已与 `QingSnap.exe` 放在同一目录，程序会优先使用本地模块，适合离线部署。
 
 ## 模型选择
 

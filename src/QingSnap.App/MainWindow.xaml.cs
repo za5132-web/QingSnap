@@ -9,6 +9,7 @@ public partial class MainWindow : Window
     private readonly CaptureCoordinator _captureCoordinator;
     private readonly AppSettingsService _settingsService;
     private readonly OcrService _ocrService;
+    private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly ClipboardService _clipboardService;
     private GlobalHotkeyService? _hotkeys;
     private TrayIconService? _tray;
@@ -24,11 +25,13 @@ public partial class MainWindow : Window
         var stateStore = new AppStateStore();
         var historyService = new CaptureHistoryService(_settingsService);
         _ocrService = new OcrService(_settingsService);
+        _historyOcrIndexer = new HistoryOcrIndexingService(historyService, _ocrService);
         _captureCoordinator = new CaptureCoordinator(
             captureService,
             _clipboardService,
             stateStore,
             historyService,
+            _historyOcrIndexer,
             _ocrService,
             _settingsService);
 
@@ -114,7 +117,20 @@ public partial class MainWindow : Window
     {
         ConfigureHotkeys();
         ConfigureTray();
-        _ = _ocrService.ApplySettingsAsync();
+        _ = ApplyOcrSettingsAsync();
+    }
+
+    private async Task ApplyOcrSettingsAsync()
+    {
+        try
+        {
+            await _ocrService.ApplySettingsAsync();
+            _historyOcrIndexer.ScheduleBackfill();
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("OCR", exception, "Failed to apply OCR settings.");
+        }
     }
 
     private void CloseApplication()
@@ -130,6 +146,7 @@ public partial class MainWindow : Window
     {
         _tray?.Dispose();
         _hotkeys?.Dispose();
+        _historyOcrIndexer.Dispose();
         _ocrService.Dispose();
         _clipboardService.Dispose();
         _settingsService.SettingsChanged -= OnSettingsChanged;

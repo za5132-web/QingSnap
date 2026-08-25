@@ -7,13 +7,13 @@ namespace QingSnap.App.Services;
 
 public sealed class OcrRuntimeManager
 {
-    public const string PackageFileName = "QingSnap-OCR-Module-v47.zip";
+    public const string PackageFileName = "QingSnap-OCR-Module-v48.zip";
     public const string PackagePattern = "QingSnap-OCR-Module-*.zip";
 
     private static readonly HttpClient Client = CreateHttpClient();
     private static readonly string[] PackageUrls =
     [
-        $"https://github.com/za5132-web/QingSnap/releases/download/preview-v47/{PackageFileName}"
+        $"https://github.com/za5132-web/QingSnap/releases/download/preview-v48/{PackageFileName}"
     ];
 
     private static readonly string[] RequiredFiles =
