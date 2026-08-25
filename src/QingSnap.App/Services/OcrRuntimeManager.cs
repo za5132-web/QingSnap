@@ -13,7 +13,7 @@ public sealed class OcrRuntimeManager
     private static readonly HttpClient Client = CreateHttpClient();
     private static readonly string[] PackageUrls =
     [
-        $"https://github.com/za5132-web/QingSnap/releases/download/preview-v48/{PackageFileName}"
+        "https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-OCR-Module-v47.zip"
     ];
 
     private static readonly string[] RequiredFiles =

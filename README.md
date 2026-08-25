@@ -7,7 +7,7 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区�
 
 QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[下载 Preview v48 基础包 / Download v48](https://github.com/za5132-web/QingSnap/releases/download/preview-v48/QingSnap-preview-v48.zip) · [下载 OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/preview-v48/QingSnap-OCR-Module-v48.zip) · [v48 版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v48) · [完整更新日志 / Changelog](CHANGELOG.md)
+[当前公开下载 Preview v47 / Public download](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-preview-v47.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-OCR-Module-v47.zip) · [Preview v48 源码 / Source](https://github.com/za5132-web/QingSnap/tree/preview-v48) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
