@@ -1,6 +1,7 @@
 using System.IO;
 using System.ComponentModel;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -11,9 +12,12 @@ namespace QingSnap.App.Services;
 public sealed class ClipboardService : IDisposable
 {
     private const string CaptureRegionFormat = "QingSnap.CaptureRegion.v1";
-    private const int ClipboardRetryCount = 12;
+    private const int ClipbrdECantOpen = unchecked((int)0x800401D0);
     private const uint CfUnicodeText = 13;
     private const uint GmemMoveable = 0x0002;
+    private static readonly TimeSpan ClipboardWriteTimeout = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan ClipboardReadTimeout = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan ClipboardFlushTimeout = TimeSpan.FromSeconds(4);
     private static readonly HashSet<string> SupportedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"
@@ -49,78 +53,74 @@ public sealed class ClipboardService : IDisposable
 
     private static ClipboardImageContent? TryGetImageCore()
     {
-        COMException? lastException = null;
-        for (var attempt = 1; attempt <= ClipboardRetryCount; attempt++)
+        return ExecuteWithClipboardRetry(() =>
         {
-            try
+            var data = System.Windows.Clipboard.GetDataObject();
+            if (data is null)
             {
-                var data = System.Windows.Clipboard.GetDataObject();
-                if (data is null)
-                {
-                    return null;
-                }
-
-                var preferredRegion = ParseCaptureRegion(data.GetData(CaptureRegionFormat) as string);
-                var clipboardImage = System.Windows.Clipboard.GetImage();
-                if (clipboardImage is not null)
-                {
-                    return new ClipboardImageContent(
-                        FreezeImage(clipboardImage),
-                        preferredRegion is null ? "剪贴板图片" : "QingSnap 截图",
-                        preferredRegion);
-                }
-
-                if (data.GetData(System.Windows.DataFormats.FileDrop) is string[] paths)
-                {
-                    foreach (var path in paths)
-                    {
-                        var image = TryLoadImageFile(path);
-                        if (image is not null)
-                        {
-                            return new ClipboardImageContent(image, path, null);
-                        }
-                    }
-                }
-
                 return null;
             }
-            catch (COMException exception)
-            {
-                lastException = exception;
-                WaitBeforeRetry(attempt);
-            }
-        }
 
-        throw CreateClipboardBusyException(lastException);
+            var preferredRegion = ParseCaptureRegion(data.GetData(CaptureRegionFormat) as string);
+            var clipboardImage = System.Windows.Clipboard.GetImage();
+            if (clipboardImage is not null)
+            {
+                return new ClipboardImageContent(
+                    FreezeImage(clipboardImage),
+                    preferredRegion is null ? "剪贴板图片" : "QingSnap 截图",
+                    preferredRegion);
+            }
+
+            if (data.GetData(System.Windows.DataFormats.FileDrop) is string[] paths)
+            {
+                foreach (var path in paths)
+                {
+                    var image = TryLoadImageFile(path);
+                    if (image is not null)
+                    {
+                        return new ClipboardImageContent(image, path, null);
+                    }
+                }
+            }
+
+            return null;
+        }, ClipboardReadTimeout, "读取图片");
     }
 
     private static void SetImage(BitmapSource image, CaptureRegion? region)
     {
-        COMException? lastException = null;
-        for (var attempt = 1; attempt <= ClipboardRetryCount; attempt++)
+        var data = new System.Windows.DataObject();
+        data.SetImage(image);
+        if (region is not null)
         {
-            try
-            {
-                var data = new System.Windows.DataObject();
-                data.SetImage(image);
-                if (region is not null)
-                {
-                    data.SetData(
-                        CaptureRegionFormat,
-                        $"{region.X},{region.Y},{region.Width},{region.Height}");
-                }
-
-                System.Windows.Clipboard.SetDataObject(data, true);
-                return;
-            }
-            catch (COMException exception)
-            {
-                lastException = exception;
-                WaitBeforeRetry(attempt);
-            }
+            data.SetData(
+                CaptureRegionFormat,
+                $"{region.X},{region.Y},{region.Width},{region.Height}");
         }
 
-        throw CreateClipboardBusyException(lastException);
+        // Publish first without forcing an immediate flush. Clipboard managers frequently hold
+        // OpenClipboard for a short period; tying publication and flush together turns a harmless
+        // persistence delay into a failed screenshot copy.
+        ExecuteWithClipboardRetry(
+            () => System.Windows.Clipboard.SetDataObject(data, false),
+            ClipboardWriteTimeout,
+            "复制图片");
+
+        try
+        {
+            ExecuteWithClipboardRetry(
+                System.Windows.Clipboard.Flush,
+                ClipboardFlushTimeout,
+                "持久化图片");
+        }
+        catch (InvalidOperationException exception)
+        {
+            // QingSnap is a tray application, so the published OLE data remains available while
+            // it is running. Failure to flush must not turn a successful copy into a failure.
+            DiagnosticLog.Warning(
+                "Clipboard",
+                $"图片已经复制，但暂时无法持久化；程序运行期间仍可正常粘贴。{DescribeClipboardOwner()} {exception.Message}");
+        }
     }
 
     private static CaptureRegion? ParseCaptureRegion(string? value)
@@ -186,29 +186,41 @@ public sealed class ClipboardService : IDisposable
 
     internal static void CopyTextWithRetry(string text)
     {
-        int lastError = 0;
-        for (var attempt = 1; attempt <= ClipboardRetryCount; attempt++)
+        var stopwatch = Stopwatch.StartNew();
+        Exception? lastException = null;
+        var attempt = 0;
+        while (true)
         {
+            attempt++;
             if (!OpenClipboard(IntPtr.Zero))
             {
-                lastError = Marshal.GetLastWin32Error();
-                WaitBeforeRetry(attempt);
-                continue;
+                lastException = new Win32Exception(Marshal.GetLastWin32Error());
+            }
+            else
+            {
+                try
+                {
+                    SetUnicodeText(text);
+                    LogRecovery("复制文字", attempt, stopwatch.Elapsed);
+                    return;
+                }
+                catch (Exception exception) when (IsClipboardContentionException(exception))
+                {
+                    lastException = exception;
+                }
+                finally
+                {
+                    CloseClipboard();
+                }
             }
 
-            try
+            if (stopwatch.Elapsed >= ClipboardWriteTimeout)
             {
-                SetUnicodeText(text);
-                return;
+                ThrowClipboardBusy("复制文字", stopwatch.Elapsed, lastException);
             }
-            finally
-            {
-                CloseClipboard();
-            }
+
+            WaitBeforeRetry(attempt, ClipboardWriteTimeout - stopwatch.Elapsed);
         }
-
-        throw CreateClipboardBusyException(
-            lastError == 0 ? null : new Win32Exception(lastError));
     }
 
     private static void SetUnicodeText(string text)
@@ -260,16 +272,117 @@ public sealed class ClipboardService : IDisposable
         }
     }
 
-    private static void WaitBeforeRetry(int attempt)
+    private static T ExecuteWithClipboardRetry<T>(
+        Func<T> operation,
+        TimeSpan timeout,
+        string operationName)
     {
-        if (attempt < ClipboardRetryCount)
+        var stopwatch = Stopwatch.StartNew();
+        Exception? lastException = null;
+        var attempt = 0;
+        while (true)
         {
-            Thread.Sleep(Math.Min(400, 40 * attempt));
+            attempt++;
+            try
+            {
+                var result = operation();
+                LogRecovery(operationName, attempt, stopwatch.Elapsed);
+                return result;
+            }
+            catch (Exception exception) when (IsClipboardContentionException(exception))
+            {
+                lastException = exception;
+            }
+
+            if (stopwatch.Elapsed >= timeout)
+            {
+                ThrowClipboardBusy(operationName, stopwatch.Elapsed, lastException);
+            }
+
+            WaitBeforeRetry(attempt, timeout - stopwatch.Elapsed);
+        }
+    }
+
+    private static void ExecuteWithClipboardRetry(
+        Action operation,
+        TimeSpan timeout,
+        string operationName) =>
+        ExecuteWithClipboardRetry(() =>
+        {
+            operation();
+            return true;
+        }, timeout, operationName);
+
+    internal static bool IsClipboardContentionException(Exception exception) =>
+        exception is COMException { ErrorCode: ClipbrdECantOpen } ||
+        exception is ExternalException;
+
+    internal static TimeSpan GetRetryDelay(int attempt)
+    {
+        var normalizedAttempt = Math.Max(1, attempt);
+        return TimeSpan.FromMilliseconds(Math.Min(350, 25 + (normalizedAttempt * normalizedAttempt * 7)));
+    }
+
+    private static void WaitBeforeRetry(int attempt, TimeSpan remaining)
+    {
+        var delay = GetRetryDelay(attempt);
+        if (delay > remaining)
+        {
+            delay = remaining;
+        }
+
+        if (delay > TimeSpan.Zero)
+        {
+            Thread.Sleep(delay);
+        }
+    }
+
+    private static void LogRecovery(string operation, int attempt, TimeSpan elapsed)
+    {
+        if (attempt <= 1)
+        {
+            return;
+        }
+
+        DiagnosticLog.Info(
+            "Clipboard",
+            $"{operation}在剪贴板占用后恢复：尝试 {attempt} 次，耗时 {elapsed.TotalMilliseconds:0} ms。");
+    }
+
+    private static void ThrowClipboardBusy(string operation, TimeSpan elapsed, Exception? exception)
+    {
+        var message = $"{operation}等待剪贴板 {elapsed.TotalSeconds:0.0} 秒后仍未成功。{DescribeClipboardOwner()}";
+        DiagnosticLog.Error("Clipboard", exception ?? new ExternalException(message), message);
+        throw CreateClipboardBusyException(exception);
+    }
+
+    private static string DescribeClipboardOwner()
+    {
+        var window = GetOpenClipboardWindow();
+        if (window == IntPtr.Zero)
+        {
+            return "未检测到持续占用进程。";
+        }
+
+        GetWindowThreadProcessId(window, out var processId);
+        if (processId == 0)
+        {
+            return $"占用窗口：0x{window.ToInt64():X}。";
+        }
+
+        try
+        {
+            using var process = Process.GetProcessById(checked((int)processId));
+            return $"占用进程：{process.ProcessName}（PID {processId}）。";
+        }
+        catch
+        {
+            return $"占用进程 PID：{processId}。";
         }
     }
 
     private static InvalidOperationException CreateClipboardBusyException(Exception? exception) =>
-        new("剪贴板暂时被其他程序占用，请稍后再试。", exception);
+        new("剪贴板被其他程序持续占用；截图已保存在记录中，请稍后再次复制。", exception);
 
     public void Dispose() => _queue.Dispose();
 
@@ -350,6 +463,12 @@ public sealed class ClipboardService : IDisposable
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool OpenClipboard(IntPtr owner);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetOpenClipboardWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool CloseClipboard();

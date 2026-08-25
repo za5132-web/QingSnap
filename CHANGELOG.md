@@ -3,6 +3,50 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [Preview v47] - 2026-08-25
+
+### OCR 模块化 / Modular OCR
+
+- 合并原有精简包与完整版，发布单一无 OCR 基础包；截图、长截图、标注、贴图和历史功能保持完整。
+  Lite and Full editions are replaced by one OCR-free base package while all capture, annotation, pin, and history features remain available.
+- OCR 运行库可从设置页独立安装、重装和卸载，不再随主程序发布。
+  The OCR runtime can be installed, replaced, or removed independently from Settings instead of shipping inside the app.
+- 新增 PP-OCRv6 Tiny 与 Small 两种按需模型，下载体积约为 7.4 MB 与 30.8 MB，可自由切换。
+  PP-OCRv6 Tiny and Small are now separate on-demand models of about 7.4 MB and 30.8 MB that can be switched freely.
+- 设置页新增“运行库 → 模型 → 可用”组件状态链、安装进度与统一卸载入口。
+  Settings now shows a runtime-to-model-to-ready pipeline, installation progress, and a single uninstall action.
+- OCR 安装改为一键流程：自动下载对应版本运行库并继续安装所选模型，不再弹出 ZIP 文件选择框。
+  OCR setup is now a one-click flow that downloads the matching runtime and selected model without a ZIP file picker.
+- 新增多尺寸应用图标，设置、历史与 OCR 窗口现在在任务栏显示统一的 QingSnap 图标。
+  A multi-resolution app icon now gives Settings, History, and OCR windows a consistent QingSnap taskbar identity.
+- 未安装 OCR 时停止截图和贴图的后台预识别；点击 OCR 会明确引导用户进入设置安装组件。
+  OCR prefetch is disabled when the module is absent, and OCR actions provide a clear installation hint.
+- 旧版高精度 OCR 设置和 Small 模型目录会自动迁移到新结构。
+  Legacy advanced-OCR settings and Small model storage are migrated to the new structure.
+- 修复 Tiny 误用 Small 字典导致中文字符索引错位和乱码的问题；Tiny 现在下载并校验专用字典。
+  Fixed garbled Tiny OCR caused by using the Small dictionary; Tiny now downloads and verifies its dedicated dictionary.
+- 修复 Tiny 单字符框在贴图复制时把英文单词拼成 `T i n y` 的问题；选区现在按 OCR 行原文重建空格。
+  Fixed extra spaces such as `T i n y` when copying Tiny OCR selections by rebuilding spacing from the recognized source line.
+- 自动测试增至 25 项，覆盖默认无 OCR、旧设置迁移、模型选择、运行库安装/卸载和中英文选区空格重建。
+  Automated coverage increases to 25 tests, including OCR-free defaults, legacy migration, model selection, runtime installation/removal, and mixed-language selection spacing.
+
+## [Preview v46] - 2026-08-25
+
+### 改进 / Improved
+
+- 截图成功、错误和延时提示改为轻量自绘浮窗，不再使用 Windows 原生气泡通知。
+  Capture success, error, and delay feedback now use lightweight custom toasts instead of Windows balloon notifications.
+- 浮窗不抢焦点、不接收鼠标点击，定位到鼠标所在显示器，并带有克制的淡入淡出动画。
+  Toasts do not steal focus or pointer input, appear on the cursor's monitor, and use restrained enter/exit motion.
+- 图片剪贴板写入拆分为即时发布与持久化，持久化被短暂占用时不再导致复制失败。
+  Image clipboard writes now separate immediate publication from persistence, so temporary flush contention no longer fails the copy.
+- 剪贴板读写改为最长 15 秒的时间窗口重试，并记录恢复耗时与持续占用进程。
+  Clipboard operations now retry within a time-based window of up to 15 seconds and log recovery timing and prolonged ownership.
+- 截图历史保存与剪贴板复制解耦；即使复制最终失败，截图仍会正常完成并保存在记录中。
+  History persistence is decoupled from clipboard copying, so captures still complete and remain available when a copy ultimately fails.
+- 自动测试增至 15 项，新增剪贴板竞争识别与退避策略覆盖。
+  Automated coverage increases to 15 tests, adding clipboard-contention classification and retry-backoff checks.
+
 ## [Preview v45] - 2026-08-25
 
 ### 性能与体积 / Performance and size
@@ -71,13 +115,66 @@ This file documents notable changes in each public QingSnap preview release.
 - 修复部分 DPI 环境下贴图首次显示、边框尺寸和缩放窗口位置不够稳定的问题。
   Fixed unstable first-frame presentation, border sizing, and scaled-window placement in some DPI configurations.
 
-## [Preview v34] - 2026-08-19
+## [Preview v34] - 2026-08-23
 
 - QingSnap 首个公开预览版本。
   Initial public preview of QingSnap.
 - 包含区域截图、智能选区、自动与手动长截图、离线 OCR、截图标注、贴图、历史记录和系统托盘支持。
   Included region capture, smart selection, automatic and manual scrolling capture, offline OCR, annotation, pinned images, history, and system tray support.
 
+## 完整构建索引 / Complete build index
+
+以下索引补充记录公开发布之间的全部本地预览构建。`内部迭代`表示该测试包很快被后续版本替代。
+
+This index covers every local preview build between public releases. `Internal iteration` means the test package was quickly superseded.
+
+| 版本 / Version | 日期 / Date | 更新 / Change |
+| --- | --- | --- |
+| v43 | 2026-08-24 | `WASD` 像素微调、IME 安全快捷键、贴图侧边缩略与悬停恢复 / pixel nudging, IME-safe shortcuts, and edge-stashed pins |
+| v42 | 2026-08-24 | Per-Monitor V2 DPI 与中心锚定线性缩放重写 / Per-Monitor V2 DPI and center-anchored linear scaling rewrite |
+| v41 | 2026-08-24 | 统一缩放采样与设备像素对齐 / consistent scaling sampling and device-pixel alignment |
+| v40 | 2026-08-24 | 每格滚轮单次缩放并锁定鼠标锚点 / one resize per wheel step with a locked pointer anchor |
+| v39 | 2026-08-24 | 贴图预绘制并与截图蒙层同帧交接 / pre-rendered pin and same-frame capture-overlay handoff |
+| v38 | 2026-08-24 | `Esc` 常驻并可额外显示 `X` 关闭按钮 / always-on `Esc` with optional `X` close buttons |
+| v37 | 2026-08-24 | 内部迭代：可选关闭按钮与阻尼缩放 / internal iteration: optional close buttons and damped scaling |
+| v36 | 2026-08-24 | 内部迭代：修复缩放黑框并调整首帧交接 / internal iteration: fixed black scaling borders and first-frame handoff |
+| v35 | 2026-08-24 | 内部迭代：连续滚轮合并与贴图首帧优化 / internal iteration: coalesced wheel input and first-frame pin optimization |
+| v33 | 2026-08-23 | OCR 像素直读、缓存、预热、线程与内存池优化 / direct OCR pixels, caching, warm-up, thread and memory-pool tuning |
+| v32 | 2026-08-23 | 内部迭代：OCR 核心数调优和性能/内存基准 / internal iteration: OCR core tuning plus performance and memory benchmarks |
+| v31 | 2026-08-23 | 内部迭代：选区预识别与快速/高精度两阶段结果 / internal iteration: selection prefetch and staged fast/accurate results |
+| v30 | 2026-08-23 | 标注缩放、端点、文字二次编辑和图层管理 / annotation resizing, endpoints, text re-editing, and layers |
+| v29 | 2026-08-22 | 紧凑 OCR 状态提示与 `Ctrl+C` 文字复制 / compact OCR status and `Ctrl+C` text copying |
+| v28 | 2026-08-22 | 原生 Unicode 剪贴板与占用重试 / native Unicode clipboard and contention retries |
+| v27 | 2026-08-22 | PP-OCRv6 Small 高精度离线 OCR / high-accuracy offline PP-OCRv6 Small |
+| v26 | 2026-08-22 | 贴图直接识别、选择和复制文字 / OCR text recognition, selection, and copying directly in pins |
+| v25 | 2026-08-22 | 工具分组、箭头端点和紧凑工具栏 / grouped tools, arrow endpoints, and a compact toolbar |
+| v24 | 2026-08-22 | 标注六色面板与滚轮尺寸调整 / six-color annotation palette and wheel-based sizing |
+| v23 | 2026-08-22 | 重排贴图、确认和取消交互 / reorganized pin, confirm, and cancel interactions |
+| v22 | 2026-08-21 | 修复绘制工具光标即时反馈 / fixed immediate cursor feedback for drawing tools |
+| v21 | 2026-08-20 | 设置保存后保持窗口并即时应用 / kept Settings open after saving and applied changes immediately |
+| v20 | 2026-08-20 | 修复设置保存 `DialogResult` 错误 / fixed the Settings save `DialogResult` error |
+| v19 | 2026-08-20 | 深色自绘设置页与稀疏长图固定栏修复 / custom dark Settings UI and sparse-page fixed-footer fix |
+| v18 | 2026-08-20 | 矢量工具栏、状态色、托盘图标与拾色器布局 / vector toolbar, state colors, tray icon, and magnifier layout |
+| v17 | 2026-08-20 | 设置中心、智能选区、放大镜、精确坐标与扩展标注 / Settings, smart selection, magnifier, exact coordinates, and expanded annotations |
+| v16 | 2026-08-20 | 内部迭代：设置持久化、智能选区和更多标注初版 / internal iteration: first settings persistence, smart selection, and expanded annotations |
+| v15 | 2026-08-20 | `F3` 贴图、`R` 恢复选区与智能初始位置 / `F3` pinning, `R` region recall, and smarter initial placement |
+| v14 | 2026-08-20 | 长图阅读窗、进度轨和阅读/概览切换 / long-image reader, progress track, and reader/overview toggle |
+| v13 | 2026-08-20 | 长截图回滚、缩小步长重试与撤销最后一屏 / scrolling rollback, smaller-step retry, and last-frame undo |
+| v12 | 2026-08-20 | 画笔、箭头、形状、文字、马赛克与撤销 / pen, arrows, shapes, text, mosaic, and undo |
+| v11 | 2026-08-20 | 深色贴图右键菜单重做 / rebuilt dark pin context menu |
+| v10 | 2026-08-20 | 长截图穿透蒙层与原位贴图 / click-through scrolling overlay and source-position pins |
+| v9 | 2026-08-20 | 长截图匹配核心重写、固定栏排除与可靠到底检测 / scrolling matcher rewrite, fixed-bar exclusion, and robust bottom detection |
+| v8 | 2026-08-19 | 选区工具栏、长图/OCR 入口与实时状态 / region toolbar, scrolling/OCR actions, and live status |
+| v7 | 2026-08-19 | 自动滚动、稳定采样、到底检测与手动回退 / automatic scrolling, stable sampling, bottom detection, and manual fallback |
+| v6 | 2026-08-19 | 手动长截图、重叠匹配与安全限制 / manual scrolling capture, overlap matching, and safety limits |
+| v5 | 2026-08-19 | Windows 本地 OCR 与结果校对窗口 / local Windows OCR and result-review window |
+| v4 | 2026-08-19 | 多贴图、拖动、缩放、适屏与复制 / multiple pins, dragging, zoom, fit, and copy |
+| v3 | 2026-08-19 | 双击确认、可编辑重复选区和截图历史 UI / double-click confirmation, editable repeat region, and history UI |
+| v2 | 2026-08-19 | 内部迭代：可编辑上次选区与历史窗口初版 / internal iteration: first editable region recall and history window |
+| v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
+
+[Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47
+[Preview v46]: https://github.com/za5132-web/QingSnap/compare/preview-v45...preview-v46
 [Preview v45]: https://github.com/za5132-web/QingSnap/compare/preview-v44...preview-v45
 [Preview v44]: https://github.com/za5132-web/QingSnap/compare/preview-v34...preview-v44
 [Preview v34]: https://github.com/za5132-web/QingSnap/releases/tag/preview-v34

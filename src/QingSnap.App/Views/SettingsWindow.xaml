@@ -4,6 +4,7 @@
         xmlns:icons="clr-namespace:QingSnap.App.Controls"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="QingSnap 设置"
+        Icon="/Assets/QingSnap.ico"
         Width="780" Height="740"
         MinWidth="720" MinHeight="620"
         WindowStartupLocation="CenterScreen"
@@ -506,10 +507,11 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                    <TextBlock Style="{StaticResource FieldLabel}" Text="识别引擎" />
-                                    <ComboBox x:Name="OcrEngineCombo" SelectionChanged="OnOcrEngineChanged">
-                                        <ComboBoxItem Content="高精度 · PP-OCRv6" Tag="Advanced" />
-                                        <ComboBoxItem Content="Windows OCR" Tag="Windows" />
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="OCR 模型" />
+                                    <ComboBox x:Name="OcrModelCombo" SelectionChanged="OnOcrEngineChanged">
+                                        <ComboBoxItem Content="不安装 OCR" Tag="None" />
+                                        <ComboBoxItem Content="极速 · PP-OCRv6 Tiny" Tag="Tiny" />
+                                        <ComboBoxItem Content="高精度 · PP-OCRv6 Small" Tag="Small" />
                                     </ComboBox>
                                     <TextBlock Margin="0,12,0,0" Style="{StaticResource FieldLabel}" Text="性能策略" />
                                     <ComboBox x:Name="OcrPerformanceCombo" SelectionChanged="OnOcrEngineChanged">
@@ -527,16 +529,29 @@
                                         <StackPanel Grid.Column="1" Margin="12,0,0,0">
                                             <TextBlock x:Name="OcrModelStatusText" FontSize="12" FontWeight="SemiBold" Text="正在检查模型…" />
                                             <TextBlock x:Name="OcrEngineDescriptionText" Margin="0,4,0,0" FontSize="10.5" Foreground="{StaticResource TextMuted}" TextWrapping="Wrap" />
+                                            <StackPanel Margin="0,9,0,0" Orientation="Horizontal">
+                                                <TextBlock x:Name="OcrRuntimeStageText" FontSize="10" FontWeight="SemiBold" Text="○ 运行库" />
+                                                <TextBlock Margin="8,0" FontSize="10" Foreground="#FF536A76" Text="→" />
+                                                <TextBlock x:Name="OcrModelStageText" FontSize="10" FontWeight="SemiBold" Text="○ 模型" />
+                                                <TextBlock Margin="8,0" FontSize="10" Foreground="#FF536A76" Text="→" />
+                                                <TextBlock x:Name="OcrReadyStageText" FontSize="10" FontWeight="SemiBold" Text="○ 可用" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
                             </Grid>
                             <ProgressBar x:Name="OcrDownloadProgress" Margin="0,14,0,0" Minimum="0" Maximum="100" Value="0" Visibility="Collapsed" Style="{StaticResource SlimProgress}" />
                             <Grid Margin="0,12,0,0">
-                                <TextBlock x:Name="OcrDownloadStatusText" VerticalAlignment="Center" FontSize="10.5" Foreground="#FF71848F" />
-                                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                                    <Button x:Name="OcrDeleteButton" Style="{StaticResource ActionButton}" Content="删除模型" Click="OnOcrDeleteClick" />
-                                    <Button x:Name="OcrInstallButton" Style="{StaticResource ActionButton}" Content="立即下载" Click="OnOcrInstallClick" />
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="16" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="OcrDownloadStatusText" VerticalAlignment="Center" FontSize="10.5" Foreground="#FF71848F" TextTrimming="CharacterEllipsis" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Button x:Name="OcrDeleteButton" Style="{StaticResource ActionButton}" Content="卸载 OCR" Click="OnOcrDeleteClick" />
+                                    <Button x:Name="OcrRuntimeButton" Style="{StaticResource ActionButton}" Content="安装运行库" Click="OnOcrRuntimeInstallClick" />
+                                    <Button x:Name="OcrInstallButton" Style="{StaticResource ActionButton}" Content="安装模型" Click="OnOcrInstallClick" />
                                 </StackPanel>
                             </Grid>
                         </StackPanel>

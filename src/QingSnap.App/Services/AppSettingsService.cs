@@ -65,6 +65,11 @@ public sealed class AppSettingsService
     private static AppSettings Normalize(AppSettings settings, string dataDirectory)
     {
         var defaultHistoryDirectory = Path.Combine(dataDirectory, "History");
+        var ocrModel = string.IsNullOrWhiteSpace(settings.OcrModel)
+            ? string.Equals(settings.OcrEngine, "Advanced", StringComparison.OrdinalIgnoreCase)
+                ? OcrModelManager.SmallModel
+                : OcrModelManager.NoModel
+            : OcrModelManager.NormalizeModel(settings.OcrModel);
         return settings with
         {
             CaptureHotkey = NormalizeHotkey(settings.CaptureHotkey, "F1"),
@@ -85,9 +90,8 @@ public sealed class AppSettingsService
                 StringComparison.OrdinalIgnoreCase)
                 ? "Button"
                 : "Escape",
-            OcrEngine = string.Equals(settings.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase)
-                ? "Windows"
-                : "Advanced",
+            OcrEngine = ocrModel == OcrModelManager.NoModel ? "None" : "Advanced",
+            OcrModel = ocrModel,
             OcrPerformanceMode = string.Equals(
                 settings.OcrPerformanceMode,
                 "Balanced",

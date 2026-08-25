@@ -74,7 +74,7 @@ public partial class MainWindow : Window
     {
         ConfigureTray();
         _captureCoordinator.CaptureCompleted += (_, result) =>
-            _tray?.ShowCaptureCompleted(result.ImagePath, result.ImageWidth, result.ImageHeight);
+            _tray?.ShowCaptureCompleted(result);
         _captureCoordinator.CaptureFailed += (_, message) => _tray?.ShowError(message);
         _captureCoordinator.CaptureDelayStarted += (_, seconds) => _tray?.ShowDelay(seconds);
         _settingsService.SettingsChanged += OnSettingsChanged;

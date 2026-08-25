@@ -10,6 +10,7 @@ namespace QingSnap.AdvancedOcr;
 public sealed class AdvancedOcrRuntime : IAdvancedOcrRuntime
 {
     private RapidOcr? _engine;
+    private string _modelVariant = OcrModelManager.SmallModel;
 
     public void Initialize(OcrModelPaths paths)
     {
@@ -25,7 +26,13 @@ public sealed class AdvancedOcrRuntime : IAdvancedOcrRuntime
             using var sessionOptions = RapidOcr.GetDefaultSessionOptions(inferenceThreads);
             sessionOptions.EnableCpuMemArena = false;
             sessionOptions.EnableMemoryPattern = false;
-            engine.InitModels(RapidOcrModelSet.PPOCRv6Small with
+            var modelSet = string.Equals(
+                paths.ModelVariant,
+                OcrModelManager.TinyModel,
+                StringComparison.OrdinalIgnoreCase)
+                ? RapidOcrModelSet.PPOCRv6Tiny
+                : RapidOcrModelSet.PPOCRv6Small;
+            engine.InitModels(modelSet with
             {
                 DetModelPath = paths.Detection,
                 RecModelPath = paths.Recognition,
@@ -33,6 +40,7 @@ public sealed class AdvancedOcrRuntime : IAdvancedOcrRuntime
                 KeysPath = paths.Dictionary
             }, sessionOptions);
             _engine = engine;
+            _modelVariant = paths.ModelVariant;
         }
         catch
         {
@@ -89,7 +97,7 @@ public sealed class AdvancedOcrRuntime : IAdvancedOcrRuntime
 
         return new OcrRecognitionResult(
             string.Join(Environment.NewLine, lines.Select(line => line.Text)).Trim(),
-            "PP-OCRv6 Small",
+            OcrModelManager.GetDisplayName(_modelVariant),
             "离线 · 多语言",
             lines.Length,
             source.PixelWidth,
@@ -103,12 +111,18 @@ public sealed class AdvancedOcrRuntime : IAdvancedOcrRuntime
     {
         _engine?.Dispose();
         _engine = null;
+        _modelVariant = OcrModelManager.SmallModel;
     }
 
-    private static RapidOcrOptions CreateOptions(bool includeWordBoxes) =>
+    private RapidOcrOptions CreateOptions(bool includeWordBoxes) =>
         RapidOcrOptions.PPOCRv6 with
         {
-            LimitSideLen = 384,
+            LimitSideLen = string.Equals(
+                _modelVariant,
+                OcrModelManager.TinyModel,
+                StringComparison.OrdinalIgnoreCase)
+                ? 512
+                : 736,
             DoAngle = false,
             ReturnWordBox = includeWordBoxes,
             ReturnSingleCharBox = false

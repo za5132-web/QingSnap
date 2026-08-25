@@ -4,4 +4,6 @@ public sealed record CaptureResult(
     CaptureRegion Region,
     string ImagePath,
     int ImageWidth,
-    int ImageHeight);
+    int ImageHeight,
+    bool CopyRequested,
+    bool CopiedToClipboard);

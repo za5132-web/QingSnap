@@ -42,8 +42,8 @@ public partial class SettingsWindow : Window
         MagnifierCheck.IsChecked = settings.ShowMagnifier;
         SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
         SelectComboByTag(
-            OcrEngineCombo,
-            _ocrService.IsAdvancedRuntimeAvailable ? settings.OcrEngine : "Windows");
+            OcrModelCombo,
+            settings.OcrModel);
         SelectComboByTag(OcrPerformanceCombo, settings.OcrPerformanceMode);
         LongWheelBox.Text = settings.LongScrollWheelDelta.ToString();
         LongRetryBox.Text = settings.LongMatchRetryCount.ToString();
@@ -87,7 +87,8 @@ public partial class SettingsWindow : Window
                 SmartWindowSelection = SmartSelectionCheck.IsChecked == true,
                 ShowMagnifier = MagnifierCheck.IsChecked == true,
                 CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
-                OcrEngine = SelectedTag(OcrEngineCombo, "Advanced"),
+                OcrEngine = SelectedOcrModel() == OcrModelManager.NoModel ? "None" : "Advanced",
+                OcrModel = SelectedOcrModel(),
                 OcrPerformanceMode = SelectedTag(OcrPerformanceCombo, "Instant"),
                 LongScrollWheelDelta = ParseInt(LongWheelBox, "长截图滚动步长"),
                 LongMatchRetryCount = ParseInt(LongRetryBox, "长截图重试次数"),
@@ -135,27 +136,61 @@ public partial class SettingsWindow : Window
         RefreshOcrStatus();
     }
 
-    private async void OnOcrInstallClick(object sender, RoutedEventArgs e)
+    private async void OnOcrRuntimeInstallClick(object sender, RoutedEventArgs e)
     {
-        _ocrOperationCancellation?.Cancel();
-        _ocrOperationCancellation?.Dispose();
-        _ocrOperationCancellation = new CancellationTokenSource();
-        SetOcrControlsBusy(true);
-        OcrDownloadProgress.Visibility = Visibility.Visible;
-        OcrDownloadProgress.Value = 0;
+        BeginOcrOperation();
         try
         {
-            var progress = new Progress<OcrProgress>(value =>
+            await _ocrService.InstallRuntimeAsync(
+                CreateOcrProgress(),
+                _ocrOperationCancellation!.Token);
+            OcrDownloadStatusText.Text = "OCR 运行库安装完成；现在可以选择并安装模型。";
+            OcrDownloadProgress.Value = 100;
+        }
+        catch (OperationCanceledException)
+        {
+            OcrDownloadStatusText.Text = "运行库安装已取消。";
+        }
+        catch (Exception exception)
+        {
+            OcrDownloadStatusText.Text = exception.Message;
+        }
+        finally
+        {
+            SetOcrControlsBusy(false);
+            RefreshOcrStatus();
+        }
+    }
+
+    private async void OnOcrInstallClick(object sender, RoutedEventArgs e)
+    {
+        var model = SelectedOcrModel();
+        if (model == OcrModelManager.NoModel)
+        {
+            OcrDownloadStatusText.Text = "请先选择 Tiny 或 Small 模型。";
+            return;
+        }
+
+        BeginOcrOperation();
+        try
+        {
+            if (!_ocrService.IsRuntimeInstalled)
             {
-                OcrDownloadStatusText.Text = value.Message;
-                if (value.Percent is double percent)
-                {
-                    OcrDownloadProgress.Value = percent * 100;
-                }
+                await _ocrService.InstallRuntimeAsync(
+                    CreateOcrProgress(),
+                    _ocrOperationCancellation!.Token);
+            }
+
+            await _ocrService.InstallModelAsync(
+                model,
+                CreateOcrProgress(),
+                _ocrOperationCancellation!.Token);
+            _settingsService.Save(_settingsService.Current with
+            {
+                OcrEngine = "Advanced",
+                OcrModel = model
             });
-            await _ocrService.InstallAdvancedModelsAsync(progress, _ocrOperationCancellation.Token);
-            await _ocrService.WarmUpAsync(_ocrOperationCancellation.Token);
-            OcrDownloadStatusText.Text = "模型下载完成，可以立即离线识别。";
+            OcrDownloadStatusText.Text = $"{OcrModelManager.GetDisplayName(model)} 安装完成，可以立即离线识别。";
             OcrDownloadProgress.Value = 100;
         }
         catch (OperationCanceledException)
@@ -175,15 +210,18 @@ public partial class SettingsWindow : Window
 
     private async void OnOcrDeleteClick(object sender, RoutedEventArgs e)
     {
-        _ocrOperationCancellation?.Cancel();
-        _ocrOperationCancellation?.Dispose();
-        _ocrOperationCancellation = new CancellationTokenSource();
-        SetOcrControlsBusy(true);
+        BeginOcrOperation();
         try
         {
-            await _ocrService.DeleteAdvancedModelsAsync(_ocrOperationCancellation.Token);
+            await _ocrService.DeleteAllOcrAsync(_ocrOperationCancellation!.Token);
+            _settingsService.Save(_settingsService.Current with
+            {
+                OcrEngine = "None",
+                OcrModel = OcrModelManager.NoModel
+            });
+            SelectComboByTag(OcrModelCombo, OcrModelManager.NoModel);
             OcrDownloadProgress.Visibility = Visibility.Collapsed;
-            OcrDownloadStatusText.Text = "本地模型已删除，需要时可以重新下载。";
+            OcrDownloadStatusText.Text = "OCR 运行库和全部模型已卸载，空间已经释放。";
         }
         catch (OperationCanceledException)
         {
@@ -201,50 +239,94 @@ public partial class SettingsWindow : Window
 
     private void RefreshOcrStatus()
     {
-        var advancedSelected = string.Equals(
-            SelectedTag(OcrEngineCombo, "Advanced"),
-            "Advanced",
-            StringComparison.OrdinalIgnoreCase);
-        var installed = _ocrService.AreAdvancedModelsInstalled;
-        var runtimeAvailable = _ocrService.IsAdvancedRuntimeAvailable;
+        var model = SelectedOcrModel();
+        var modelSelected = model != OcrModelManager.NoModel;
+        var runtimeInstalled = _ocrService.IsRuntimeInstalled;
+        var modelInstalled = modelSelected && _ocrService.IsModelInstalled(model);
+        var ready = runtimeInstalled && modelInstalled;
         var instantMode = string.Equals(
             SelectedTag(OcrPerformanceCombo, "Instant"),
             "Instant",
             StringComparison.OrdinalIgnoreCase);
-        OcrEngineDescriptionText.Text = advancedSelected
-            ? !runtimeAvailable
-                ? "当前为轻量包，未包含高精度 OCR 扩展；Windows OCR 仍可直接使用。"
-                : instantMode
-                ? "中文与混排识别更准确；后台预热引擎，优先保证首次识别接近无感。"
-                : "中文与混排识别更准确；闲置 5 分钟释放引擎，降低常驻内存。"
-            : "使用系统自带识别，无需下载模型；中文复杂页面的识别率相对较低。";
-        OcrModelStatusText.Text = !runtimeAvailable
-            ? "高精度 OCR 扩展 · 未包含"
-            : installed
-            ? "PP-OCRv6 Small · 已就绪"
-            : "PP-OCRv6 Small · 未安装";
-        OcrStatusRail.Background = new System.Windows.Media.SolidColorBrush(installed && runtimeAvailable
+        OcrEngineDescriptionText.Text = !modelSelected
+            ? "基础版不包含 OCR。需要时选择 Tiny 或 Small，再依次安装运行库和模型。"
+            : !runtimeInstalled
+            ? "先安装通用 OCR 运行库；运行库只安装一次，Tiny 与 Small 可以自由切换。"
+            : !modelInstalled
+            ? $"{OcrModelManager.GetDisplayName(model)} 尚未安装，预计下载 {_ocrService.GetModelDownloadSize(model) / 1024D / 1024D:0.0} MB。"
+            : instantMode
+            ? "组件完整；后台预热引擎，优先保证第一次识别接近无感。"
+            : "组件完整；闲置 5 分钟释放引擎，降低常驻内存。";
+        OcrModelStatusText.Text = ready
+            ? $"{OcrModelManager.GetDisplayName(model)} · 已就绪"
+            : !runtimeInstalled
+            ? "OCR 组件 · 未安装"
+            : !modelSelected
+            ? "OCR 运行库 · 已安装，尚未选择模型"
+            : $"{OcrModelManager.GetDisplayName(model)} · 未安装";
+        OcrStatusRail.Background = new System.Windows.Media.SolidColorBrush(ready
             ? System.Windows.Media.Color.FromRgb(118, 223, 238)
             : System.Windows.Media.Color.FromRgb(255, 178, 92));
-        OcrInstallButton.Content = installed ? "重新校验" : "立即下载";
-        OcrInstallButton.IsEnabled = runtimeAvailable;
-        OcrDeleteButton.IsEnabled = installed && runtimeAvailable;
+        SetOcrStageState(OcrRuntimeStageText, runtimeInstalled);
+        SetOcrStageState(OcrModelStageText, modelInstalled);
+        SetOcrStageState(OcrReadyStageText, ready);
+        OcrRuntimeButton.Content = runtimeInstalled ? "重新安装运行库" : "安装运行库";
+        OcrInstallButton.Content = modelInstalled
+            ? "校验模型"
+            : runtimeInstalled
+            ? "安装模型"
+            : "一键安装 OCR";
+        OcrRuntimeButton.IsEnabled = true;
+        OcrInstallButton.IsEnabled = modelSelected;
+        OcrDeleteButton.IsEnabled = runtimeInstalled || _ocrService.GetInstalledModels().Count > 0;
+        OcrPerformanceCombo.IsEnabled = modelSelected;
         if (string.IsNullOrWhiteSpace(OcrDownloadStatusText.Text))
         {
-            OcrDownloadStatusText.Text = !runtimeAvailable
-                ? "轻量包已省去 OCR 运行库；如需 PP-OCRv6，请使用完整包。"
-                : installed
-                ? $"模型保存在 {_ocrService.AdvancedModelDirectory}"
-                : $"首次识别会自动下载约 {_ocrService.AdvancedModelDownloadSize / 1024D / 1024D:0.0} MB。";
+            OcrDownloadStatusText.Text = ready
+                ? $"模型保存在 {_ocrService.GetModelDirectory(model)}"
+                : _ocrService.FindLocalRuntimePackage() is not null
+                ? "已检测到本地 OCR 模块包，可以直接安装。"
+                : "OCR 运行库和模型均按需安装，不占用基础包空间。";
         }
     }
 
     private void SetOcrControlsBusy(bool busy)
     {
-        OcrInstallButton.IsEnabled = !busy && _ocrService.IsAdvancedRuntimeAvailable;
-        OcrDeleteButton.IsEnabled = !busy && _ocrService.IsAdvancedRuntimeAvailable && _ocrService.AreAdvancedModelsInstalled;
-        OcrEngineCombo.IsEnabled = !busy;
-        OcrPerformanceCombo.IsEnabled = !busy;
+        OcrRuntimeButton.IsEnabled = !busy;
+        OcrInstallButton.IsEnabled = !busy && SelectedOcrModel() != OcrModelManager.NoModel;
+        OcrDeleteButton.IsEnabled = !busy && (_ocrService.IsRuntimeInstalled || _ocrService.GetInstalledModels().Count > 0);
+        OcrModelCombo.IsEnabled = !busy;
+        OcrPerformanceCombo.IsEnabled = !busy && SelectedOcrModel() != OcrModelManager.NoModel;
+    }
+
+    private string SelectedOcrModel() =>
+        OcrModelManager.NormalizeModel(SelectedTag(OcrModelCombo, OcrModelManager.NoModel));
+
+    private void BeginOcrOperation()
+    {
+        _ocrOperationCancellation?.Cancel();
+        _ocrOperationCancellation?.Dispose();
+        _ocrOperationCancellation = new CancellationTokenSource();
+        SetOcrControlsBusy(true);
+        OcrDownloadProgress.Visibility = Visibility.Visible;
+        OcrDownloadProgress.Value = 0;
+    }
+
+    private IProgress<OcrProgress> CreateOcrProgress() => new Progress<OcrProgress>(value =>
+    {
+        OcrDownloadStatusText.Text = value.Message;
+        if (value.Percent is double percent)
+        {
+            OcrDownloadProgress.Value = percent * 100;
+        }
+    });
+
+    private static void SetOcrStageState(TextBlock text, bool completed)
+    {
+        text.Text = completed ? "● " + text.Text.TrimStart('○', '●', ' ') : "○ " + text.Text.TrimStart('○', '●', ' ');
+        text.Foreground = new System.Windows.Media.SolidColorBrush(completed
+            ? System.Windows.Media.Color.FromRgb(118, 223, 238)
+            : System.Windows.Media.Color.FromRgb(113, 132, 143));
     }
 
     private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

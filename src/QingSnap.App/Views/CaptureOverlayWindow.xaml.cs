@@ -1020,7 +1020,7 @@ public partial class CaptureOverlayWindow : Window
 
     private void InvalidateOcrPrefetch()
     {
-        if (_creatingOcrPrefetch || _ocrService is null || !_showActionToolbar)
+        if (_creatingOcrPrefetch || _ocrService?.IsOcrAvailable != true || !_showActionToolbar)
         {
             return;
         }
@@ -1045,7 +1045,7 @@ public partial class CaptureOverlayWindow : Window
     private void OnOcrPrefetchTimerTick(object? sender, EventArgs e)
     {
         _ocrPrefetchTimer.Stop();
-        if (_ocrService is null || _selection.IsEmpty || !IsVisible)
+        if (_ocrService?.IsOcrAvailable != true || _selection.IsEmpty || !IsVisible)
         {
             return;
         }

@@ -1,21 +1,21 @@
 # QingSnap（轻截）
 
-> 截得准，拼得长，贴得住，文字留在本地。
-> Precise capture, reliable scrolling screenshots, flexible pins, and offline OCR.
+> 截得准，拼得长，贴得住；需要文字识别时，再装 OCR。
+> Precise capture, reliable scrolling screenshots, flexible pins, with optional offline OCR.
 
-QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区、自动与手动长截图、离线 OCR、专业标注、桌面贴图和截图历史整合到一套连贯的工作流中。
+QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区、自动与手动长截图、专业标注、桌面贴图和截图历史整合到一套连贯的工作流中；离线 OCR 作为可选模块按需安装。
 
-QingSnap is a lightweight screenshot utility for Windows 10/11. It brings smart region capture, automatic and manual scrolling capture, offline OCR, annotation, desktop pins, and screenshot history into one focused workflow.
+QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[下载 Preview v45 完整包 / Download v45 Full](https://github.com/za5132-web/QingSnap/releases/download/preview-v45/QingSnap-preview-v45.zip) · [下载轻量包 / Download Lite](https://github.com/za5132-web/QingSnap/releases/download/preview-v45/QingSnap-preview-v45-lite.zip) · [v45 版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v45) · [完整更新日志 / Changelog](CHANGELOG.md)
+[下载 Preview v47 基础包 / Download v47](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-preview-v47.zip) · [下载 OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/preview-v47/QingSnap-OCR-Module-v47.zip) · [v47 版本说明 / Release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v47) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `Preview v45` |
+| 当前版本 / Current version | `Preview v47` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
-| OCR | 可选 PP-OCRv6 Small 扩展（离线）· Windows OCR 回退 / optional offline PP-OCRv6 extension with Windows OCR fallback |
-| 发布形式 / Distribution | 完整包 + 轻量包 / Full and Lite portable packages |
+| OCR | 可选运行库 + PP-OCRv6 Tiny / Small 模型（离线） / optional runtime and Tiny or Small model |
+| 发布形式 / Distribution | 单一基础包 + 可选 OCR 模块 / one base package plus an optional OCR module |
 
 ## 产品截图 / Product tour
 
@@ -79,18 +79,20 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Detect fixed headers and bottom action bars on sparse pages so they appear only once in the final image.
 - Open long pins in a dedicated reader with wheel navigation, progress, jump-to-top, and full overview.
 
-### 3. 真正本地的高精度 OCR / High-accuracy offline OCR
+### 3. 按需安装的本地 OCR / Optional offline OCR
 
-- 默认使用 PP-OCRv6 Small，本地完成图片与文字识别。
-- 首次使用时按需下载约 30.8 MB 模型，并可在设置中下载、校验或删除。
-- 模型不可用时自动回退到 Windows OCR。
+- 基础包默认不安装 OCR，截图、长截图、标注、贴图和历史功能不受影响。
+- 设置页可独立安装或卸载 OCR 运行库，并选择 PP-OCRv6 Tiny（约 7.4 MB）或 Small（约 30.8 MB）。
+- 选择模型后点击一次即可自动下载、安装和校验运行库与模型，不需要手动寻找 ZIP。
+- Tiny 更轻、更快；Small 更适合复杂中文和混排页面，两种模型可按需切换。
 - OCR 引擎会在程序空闲时预热，并直接读取截图像素；同一图片的结果可复用。
 - 普通贴图和长图贴图都可直接拖选文字，按 `Ctrl+C` 复制选中内容。
 - OCR 结果窗口支持重新识别和一键复制全文。
 
-- Use PP-OCRv6 Small locally for image-to-text recognition.
-- Download the approximately 30.8 MB model on demand, then verify or remove it from Settings.
-- Fall back to Windows OCR automatically when the advanced model is unavailable.
+- The base package ships without OCR; capture, scrolling capture, annotation, pins, and history remain fully available.
+- Install or remove the OCR runtime independently in Settings, then choose PP-OCRv6 Tiny (about 7.4 MB) or Small (about 30.8 MB).
+- Select a model and install the runtime and model in one click, with no ZIP browsing or extraction.
+- Tiny favors size and speed; Small favors complex Chinese and mixed-layout accuracy, and models can be switched on demand.
 - Preheat OCR while the app is idle, read screenshot pixels directly, and reuse results for the same image.
 - Select text directly inside both normal and long-image pins, then copy it with `Ctrl+C`.
 - Retry recognition or copy all text from the OCR result window.
@@ -142,6 +144,26 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
 
+## Preview v47 改进 / What’s new in Preview v47
+
+- 不再区分精简包和完整版：所有用户使用同一个无 OCR 基础包。
+  Lite and Full editions are replaced by one OCR-free base package.
+- OCR 运行库成为可独立安装、重装和卸载的模块；Tiny 与 Small 模型也可分别下载和切换。
+  The OCR runtime can be installed, replaced, or removed independently, with separately downloadable Tiny and Small models.
+- 设置页用“运行库 → 模型 → 可用”状态链展示安装进度；未安装 OCR 时不会后台预识别。
+  Settings shows a runtime-to-model-to-ready status chain, and the app performs no background recognition when OCR is absent.
+
+## Preview v46 改进 / What’s new in Preview v46
+
+- 截图完成通知改为不抢焦点、不进入 Windows 通知中心的轻量自绘浮窗，并支持多显示器与系统“减少动画”。
+  Capture completion now uses a focus-free custom toast instead of a Windows notification, with multi-monitor and reduced-motion support.
+- 图片复制拆分为“立即发布”和“持久化”两个阶段；剪贴板短暂被占用时会自动恢复，不再把已经保存的截图判为失败。
+  Image copy now separates immediate publication from persistence, automatically recovering from temporary clipboard contention without treating a saved capture as failed.
+- 剪贴板写入最多按时间恢复 15 秒，并在诊断日志中记录恢复耗时及持续占用进程。
+  Clipboard writes now recover for up to 15 seconds and log recovery time and the process responsible for prolonged contention.
+- 截图即使遇到长期剪贴板占用也会正常进入历史记录，浮窗会明确显示“截图已保存”。
+  Captures still complete and enter history during prolonged clipboard contention, with a clear saved-state toast.
+
 ## Preview v45 优化 / What’s new in Preview v45
 
 - 长截图只保留最近 3 个撤销检查点，生成最终图片时不再分配一份完整的中间像素数组。
@@ -174,6 +196,64 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Improved capture-to-pin presentation, wheel zoom, IME-safe shortcuts, and high-DPI behavior.
 
 [阅读完整 Preview v44 更新说明 / Read the full Preview v44 release notes](https://github.com/za5132-web/QingSnap/releases/tag/preview-v44)
+
+## 完整版本历程 / Complete version history
+
+下表按实际开发顺序记录 v1–v47。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
+
+The table follows the actual v1–v47 development sequence. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
+
+| 版本 / Version | 日期 / Date | 本次更新 / Changes |
+| --- | --- | --- |
+| v47 | 2026-08-25 | 统一为无 OCR 基础包；设置页一键安装/卸载 OCR 运行库与 Tiny/Small 模型；修复 Tiny 字典乱码和英文选区空格；新增多尺寸程序图标。<br>Unified the OCR-free base package; added one-click runtime and Tiny/Small model management; fixed Tiny dictionary decoding and selection spacing; added multi-size app icons. |
+| v46 | 2026-08-25 | 用屏幕中央自绘浮窗替代 Windows 通知；剪贴板改为最长 15 秒后台恢复，截图保存不再受复制失败影响。<br>Replaced Windows notifications with centered custom toasts; added up to 15 seconds of background clipboard recovery and decoupled history saving from copy failures. |
+| v45 | 2026-08-25 | 拆分可选高精度 OCR 扩展，优化长截图内存、OCR 缓存、历史检索与诊断，并新增 13 项测试。<br>Split high-accuracy OCR into an optional extension; optimized scrolling-capture memory, OCR caching, history search, diagnostics, and added 13 tests. |
+| v44 | 2026-08-24 | 修复贴图侧边缩略窗四角黑边，完成缩略停靠交互的公开版收尾。<br>Fixed black corners on docked pin thumbnails and polished the public edge-stash release. |
+| v43 | 2026-08-24 | 新增 `WASD` 逐像素准星、输入法安全快捷键，以及贴图侧边缩略、悬停展开、拖拽吸附和位置记忆。<br>Added pixel-by-pixel `WASD` crosshair control, IME-safe shortcuts, edge thumbnails, hover reveal, drag docking, and position memory. |
+| v42 | 2026-08-24 | 让 Per-Monitor V2 DPI 真正生效，贴图改为中心锚定和线性采样，重写缩放稳定性。<br>Activated Per-Monitor V2 DPI correctly and rewrote pin scaling around a fixed center with linear sampling. |
+| v41 | 2026-08-24 | 移除缩放时低清/高清二次重绘，统一设备像素对齐，减少不规律回弹。<br>Removed low/high-quality redraw switching and aligned window, border, and image to device pixels. |
+| v40 | 2026-08-24 | 取消弹簧惯性动画，每格滚轮只提交一次尺寸变化，并锁定鼠标下图像锚点。<br>Removed spring-like inertia, applied one resize per wheel step, and locked the image point under the cursor. |
+| v39 | 2026-08-24 | 贴图改为后台预绘制、一次显现，并与截图蒙层同帧交接，消除截图转贴图闪烁。<br>Pre-rendered pins before a same-frame handoff from the capture overlay, eliminating capture-to-pin flashing. |
+| v38 | 2026-08-24 | `Esc` 始终可关闭；设置可额外显示截图工具栏和贴图的 `X`，并固定工具栏顺序。<br>Kept `Esc` always available while optionally showing `X` buttons on the capture toolbar and pins. |
+| v37 | 2026-08-24 | 内部迭代：加入可选关闭按钮、贴图阻尼缩放和蒙层退场方案。<br>Internal iteration: introduced optional close buttons, damped pin scaling, and overlay-transition experiments. |
+| v36 | 2026-08-24 | 内部迭代：把贴图尺寸更新移到布局前，修复缩放黑框，并改进截图与贴图交接。<br>Internal iteration: moved resize updates before layout, fixed black scaling borders, and improved capture-to-pin handoff. |
+| v35 | 2026-08-24 | 内部迭代：首次尝试合并连续滚轮输入和优化贴图首帧呈现。<br>Internal iteration: first pass at coalesced wheel input and improved first-frame pin presentation. |
+| v34 | 2026-08-23 | 截图阶段预识别并在贴图复用结果；贴图文字可直接拖选，空白区域仍可拖动图片。<br>Prefetched OCR during capture and reused it in pins; enabled direct text selection while preserving drag behavior on blank areas. |
+| v33 | 2026-08-23 | OCR 直接读取像素、缓存同图结果、后台预热，并限制推理线程与内存池。<br>Fed pixels directly into OCR, cached repeated results, warmed the engine in the background, and limited inference threads and memory pools. |
+| v32 | 2026-08-23 | 内部迭代：按 CPU 核心数控制 OCR 推理线程，补充性能/内存基准与压缩包验证。<br>Internal iteration: tuned OCR threads to CPU cores and added performance, memory, and packaging measurements. |
+| v31 | 2026-08-23 | 内部迭代：选区稳定后提前 OCR，先显示快速结果，再无闪烁替换为高精度结果。<br>Internal iteration: prefetched OCR for stable selections and staged fast results before high-accuracy replacement. |
+| v30 | 2026-08-23 | 标注支持控制框、缩放节点、线条端点、文字二次编辑、右键菜单和图层顺序。<br>Added annotation handles, endpoint editing, text re-editing, context actions, and layer ordering. |
+| v29 | 2026-08-22 | OCR 进度缩为自动淡出的状态点，贴图文字统一用 `Ctrl+C` 复制并保留失败选区。<br>Condensed OCR progress into a fading status indicator and standardized pin-text copying on `Ctrl+C`. |
+| v28 | 2026-08-22 | 文字复制改用原生 Unicode 剪贴板接口，并加强文字、图片和颜色复制重试。<br>Moved text copying to the native Unicode clipboard API and hardened text, image, and color retries. |
+| v27 | 2026-08-22 | 接入 PP-OCRv6 Small 高精度离线 OCR，支持模型下载、校验、删除和 Windows OCR 回退。<br>Integrated offline PP-OCRv6 Small with model download, verification, removal, and Windows OCR fallback. |
+| v26 | 2026-08-22 | 普通贴图和长图贴图新增文字识别、点选/拖选/整行选择及缩放滚动坐标跟随。<br>Added OCR text picking, drag selection, line selection, and coordinate tracking in normal and long-image pins. |
+| v25 | 2026-08-22 | 合并矩形/区域效果与直线/箭头工具，支持箭头端点调整，并缩短工具栏。<br>Grouped shape/effect and line/arrow tools, added arrow endpoint editing, and shortened the toolbar. |
+| v24 | 2026-08-22 | 标注工具点击即弹六色面板；悬停标注时滚轮可调整线宽、字号和序号大小。<br>Added contextual six-color palettes and wheel adjustment for stroke width, text size, and marker size. |
+| v23 | 2026-08-22 | 移除取消按钮，将贴图放在确认左侧、确认固定最右，继续使用 `Esc`/右键取消。<br>Removed the cancel button, placed Pin before Confirm, kept Confirm last, and retained `Esc`/right-click cancellation. |
+| v22 | 2026-08-21 | 修复绘制工具激活后光标不能立即变为十字的问题，并保留选择工具的移动光标。<br>Fixed immediate crosshair cursor feedback for drawing tools while preserving move feedback in Select mode. |
+| v21 | 2026-08-20 | 保存设置后窗口保持打开，显示成功状态并立即应用，关闭/取消时才退出。<br>Kept Settings open after saving, showed success feedback, and applied changes immediately. |
+| v20 | 2026-08-20 | 修复设置窗口保存时的 `DialogResult` 错误，确保快捷键与托盘配置即时刷新。<br>Fixed the Settings `DialogResult` error and ensured hotkeys and tray configuration refreshed immediately. |
+| v19 | 2026-08-20 | 设置页改为统一深色自绘窗口；修复稀疏页面长截图重复拼接底部固定栏。<br>Redesigned Settings as a consistent dark custom window and fixed repeated fixed footers on sparse scrolling pages. |
+| v18 | 2026-08-20 | 工具栏统一矢量图标和状态色，新增 QingSnap 托盘图标并优化拾色器信息布局。<br>Unified toolbar vector icons and state colors, added a QingSnap tray icon, and improved magnifier information layout. |
+| v17 | 2026-08-20 | 完成设置中心、智能选区、像素放大镜、精确坐标输入和扩展标注工具，并修复 1×1 误选区。<br>Completed Settings, smart selection, pixel magnifier, exact coordinates, expanded annotations, and fixed accidental 1×1 regions. |
+| v16 | 2026-08-20 | 内部迭代：首次整合设置持久化、智能选区、取色、延时截图和更多标注工具。<br>Internal iteration: first integrated settings persistence, smart selection, color picking, delayed capture, and expanded annotations. |
+| v15 | 2026-08-20 | 新增 `F3` 贴剪贴板/最近截图、`R` 恢复上次选区，并优化贴图初始位置。<br>Added `F3` pinning from clipboard/latest capture, `R` region recall, and smarter initial pin placement. |
+| v14 | 2026-08-20 | 长图贴图新增阅读窗、进度轨、阅读/概览切换、缩放与横向浏览。<br>Added a long-image reader, progress track, reader/overview toggle, zoom, and horizontal navigation. |
+| v13 | 2026-08-20 | 长截图匹配失败时回到最后成功位置、缩小步长重试，并支持撤销最后一屏。<br>Returned to the last successful scroll position on mismatch, retried with smaller steps, and added last-frame undo. |
+| v12 | 2026-08-20 | 新增画笔、箭头、矩形、文字、马赛克、撤销与清空，并改进贴图锚点缩放。<br>Added pen, arrow, rectangle, text, mosaic, undo, and clear actions, plus improved anchored pin scaling. |
+| v11 | 2026-08-20 | 重做深色贴图右键菜单，移除白色图标槽并优化宽度、分隔线、阴影和悬停。<br>Rebuilt the dark pin context menu without the white icon gutter and refined spacing, separators, shadows, and hover. |
+| v10 | 2026-08-20 | 长截图保留穿透式选区蒙层；贴图按原区域出现，操作移入右键菜单。<br>Kept a click-through capture overlay during scrolling; opened pins at the source region and moved actions into the context menu. |
+| v9 | 2026-08-20 | 重写长截图匹配：排除固定栏、使用真实位移和置信度、可靠判断到底，并修复历史保存。<br>Rewrote scrolling matching with fixed-bar exclusion, real displacement, confidence checks, robust bottom detection, and history saving. |
+| v8 | 2026-08-19 | 选区旁新增工具栏与长图/OCR/贴图/复制/保存入口，长截图显示实时状态。<br>Added a region-adjacent toolbar with scrolling capture, OCR, pin, copy, and save actions plus live scrolling status. |
+| v7 | 2026-08-19 | 新增自动滚动、画面稳定采样、自适应速度、到底检测和手动补截回退。<br>Added automatic scrolling, stable-frame sampling, adaptive speed, bottom detection, and manual fallback capture. |
+| v6 | 2026-08-19 | 实现手动逐屏长截图、重叠匹配、重复帧拦截和安全尺寸限制。<br>Implemented manual frame-by-frame scrolling capture, overlap matching, duplicate rejection, and safe size limits. |
+| v5 | 2026-08-19 | 接入 Windows 本地 OCR，新增识字入口、原图/文本校对窗口、重新识别和复制全文。<br>Integrated local Windows OCR with recognition actions, image/text review, retry, and copy-all. |
+| v4 | 2026-08-19 | 新增多贴图、置顶、拖动、滚轮缩放、适屏/1:1、复制与关闭操作。<br>Added multiple always-on-top pins with dragging, wheel zoom, fit/1:1, copy, and close actions. |
+| v3 | 2026-08-19 | 修复双击确认；上次选区可继续编辑；新增带缩略图、搜索、筛选和操作的历史窗口。<br>Fixed double-click confirmation, made previous regions editable, and added a thumbnail history window with search, filters, and actions. |
+| v2 | 2026-08-19 | 内部迭代：首次加入可编辑上次选区和截图历史 UI，随后由 v3 修复并取代。<br>Internal iteration: first editable region recall and history UI, superseded by the corrected v3 build. |
+| v1 | 2026-08-19 | 首个可运行版本：区域截图、重复范围、自动复制、历史保存、托盘、单实例和多 DPI。<br>First runnable build with region capture, repeat region, automatic copy, history storage, tray support, single instance, and multi-DPI awareness. |
+
+[查看独立更新日志 / Open the standalone changelog](CHANGELOG.md) · [版本档案说明 / Version archive notes](docs/VERSION_ARCHIVE.md)
 
 ## 快速开始 / Quick start
 
@@ -229,7 +309,7 @@ The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`
 | 分类 / Category | 可配置内容 / Options |
 | --- | --- |
 | 快捷键 / Shortcuts | 区域截图、贴图、重复上次范围 / capture, pin, repeat region |
-| OCR | PP-OCRv6 或 Windows OCR；模型下载、校验、删除 / engine and model management |
+| OCR | 运行库安装/卸载、Tiny/Small 模型、性能策略 / runtime, Tiny/Small models, performance |
 | 截图 / Capture | 智能选区、像素放大镜、自动复制、0/1/3/5 秒延时、关闭按钮 / selection, magnifier, copy, delay, close buttons |
 | 标注 / Annotation | 默认颜色、线条粗细、文字大小 / default color, stroke width, font size |
 | 输出 / Output | PNG/JPG/BMP、JPG 质量、历史目录、保留天数 / format, quality, history location and retention |
@@ -239,14 +319,14 @@ The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`
 ## 数据与隐私 / Data and privacy
 
 - 截图历史默认保存在 `%LOCALAPPDATA%\QingSnap\History`。
-- OCR 模型保存在 `%LOCALAPPDATA%\QingSnap\Models`。
+- OCR 运行库和模型分别保存在 `%LOCALAPPDATA%\QingSnap\Ocr\Runtime` 与 `%LOCALAPPDATA%\QingSnap\Ocr\Models`。
 - 截图、OCR 图片和识别文本不会上传到云端。
-- 仅在首次安装 PP-OCRv6 模型时需要下载模型文件；也可始终使用 Windows OCR。
+- 只有用户主动安装 OCR 模块和模型时才需要下载相关文件。
 
 - Screenshot history is stored in `%LOCALAPPDATA%\QingSnap\History` by default.
-- OCR models are stored in `%LOCALAPPDATA%\QingSnap\Models`.
+- The OCR runtime and models are stored under `%LOCALAPPDATA%\QingSnap\Ocr\Runtime` and `%LOCALAPPDATA%\QingSnap\Ocr\Models`.
 - Captures, OCR images, and recognized text are not uploaded to the cloud.
-- A network connection is needed only to obtain the PP-OCRv6 model on first installation; Windows OCR can be used instead.
+- Network access is used only when the user explicitly downloads an OCR model.
 
 ## 系统要求 / Requirements
 
@@ -266,7 +346,7 @@ dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 
 - C# / .NET 8 / WPF
 - Windows Forms interoperability
-- RapidOcrNet / PP-OCRv6 Small / Windows OCR
+- Optional RapidOcrNet / PP-OCRv6 Tiny and Small
 - Native Windows capture, clipboard, hotkey, window, and DPI APIs
 
 项目还包含 `tools/QingSnap.OcrBench`，用于本地 OCR 性能与识别效果测试。

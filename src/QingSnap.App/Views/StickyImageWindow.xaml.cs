@@ -290,6 +290,11 @@ public partial class StickyImageWindow : Window
 
     private void ScheduleOcrPreload()
     {
+        if (!_ocrService.IsOcrAvailable)
+        {
+            return;
+        }
+
         Dispatcher.BeginInvoke(() =>
         {
             if (_ocrResult is not null)
@@ -577,46 +582,7 @@ public partial class StickyImageWindow : Window
             return string.Empty;
         }
 
-        var selectedByLine = _ocrWords
-            .Where(word => _selectedWordIndices.Contains(word.Index))
-            .GroupBy(word => word.LineIndex)
-            .OrderBy(group => group.Key);
-        var lines = selectedByLine.Select(group =>
-        {
-            var words = group.OrderBy(word => word.Index).ToArray();
-            var text = new System.Text.StringBuilder();
-            for (var index = 0; index < words.Length; index++)
-            {
-                if (index > 0 && ShouldInsertSpace(words[index - 1], words[index]))
-                {
-                    text.Append(' ');
-                }
-
-                text.Append(words[index].Text);
-            }
-
-            return text.ToString();
-        });
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    private static bool ShouldInsertSpace(OcrTextWord previous, OcrTextWord current)
-    {
-        if (string.IsNullOrEmpty(previous.Text) || string.IsNullOrEmpty(current.Text))
-        {
-            return false;
-        }
-
-        var previousCharacter = previous.Text[^1];
-        var currentCharacter = current.Text[0];
-        if (previousCharacter <= 127 && currentCharacter <= 127 &&
-            char.IsLetterOrDigit(previousCharacter) && char.IsLetterOrDigit(currentCharacter))
-        {
-            return true;
-        }
-
-        var gap = current.Bounds.X - previous.Bounds.Right;
-        return gap > Math.Max(2, Math.Min(previous.Bounds.Height, current.Bounds.Height) * 0.32);
+        return OcrTextSelectionBuilder.Build(_ocrResult, _selectedWordIndices);
     }
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)

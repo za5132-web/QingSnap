@@ -63,4 +63,7 @@ var detailed = await service.RecognizeAsync(detailedImage, includeWordBoxes: tru
 timer.Stop();
 Console.WriteLine($"detailed_ms={timer.Elapsed.TotalMilliseconds:0.0} words={detailed.Lines.Sum(line => line.Words.Count)}");
 Console.WriteLine($"detailed_working_set_mb={Environment.WorkingSet / 1024D / 1024D:0.0}");
+Console.WriteLine("text_begin");
+Console.WriteLine(detailed.Text);
+Console.WriteLine("text_end");
 return 0;

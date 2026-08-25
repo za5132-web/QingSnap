@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Windows.Forms;
+using QingSnap.App.Models;
 
 namespace QingSnap.App.Services;
 
@@ -8,6 +9,7 @@ public sealed class TrayIconService : IDisposable
     private readonly CaptureCoordinator _captureCoordinator;
     private readonly NotifyIcon _notifyIcon;
     private readonly Icon _appIcon;
+    private readonly ToastNotificationService _toastNotifications = new();
     private bool _disposed;
 
     public TrayIconService(
@@ -49,29 +51,25 @@ public sealed class TrayIconService : IDisposable
 
     public event EventHandler? ExitRequested;
 
-    public void ShowCaptureCompleted(string imagePath, int width, int height)
+    public void ShowCaptureCompleted(CaptureResult result)
     {
-        _notifyIcon.BalloonTipTitle = $"已复制  {width} × {height}";
-        _notifyIcon.BalloonTipText = "截图已保存到记录。";
-        _notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
-        _notifyIcon.ShowBalloonTip(1400);
+        if (result.CopiedToClipboard)
+        {
+            _toastNotifications.ShowSuccess("已复制到剪贴板");
+        }
+        else if (result.CopyRequested)
+        {
+            _toastNotifications.ShowWarning("截图已保存\n剪贴板仍被占用");
+        }
+        else
+        {
+            _toastNotifications.ShowSuccess("截图已保存");
+        }
     }
 
-    public void ShowError(string message)
-    {
-        _notifyIcon.BalloonTipTitle = "QingSnap";
-        _notifyIcon.BalloonTipText = message;
-        _notifyIcon.BalloonTipIcon = ToolTipIcon.Warning;
-        _notifyIcon.ShowBalloonTip(2600);
-    }
+    public void ShowError(string message) => _toastNotifications.ShowWarning(message);
 
-    public void ShowDelay(int seconds)
-    {
-        _notifyIcon.BalloonTipTitle = $"{seconds} 秒后截图";
-        _notifyIcon.BalloonTipText = "请切换到需要截取的画面。";
-        _notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
-        _notifyIcon.ShowBalloonTip(Math.Max(1000, seconds * 1000));
-    }
+    public void ShowDelay(int seconds) => _toastNotifications.ShowCountdown(seconds);
 
     public void Dispose()
     {
@@ -81,6 +79,7 @@ public sealed class TrayIconService : IDisposable
         }
 
         _disposed = true;
+        _toastNotifications.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.ContextMenuStrip?.Dispose();
         _notifyIcon.Dispose();

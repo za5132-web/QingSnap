@@ -77,6 +77,7 @@ public static class DiagnosticLog
                     ProcessorCount = Environment.ProcessorCount,
                     WorkingSetBytes = Environment.WorkingSet,
                     OcrEngine = settings.OcrEngine,
+                    OcrModel = settings.OcrModel,
                     OcrPerformanceMode = settings.OcrPerformanceMode,
                     OutputFormat = settings.OutputFormat,
                     SmartWindowSelection = settings.SmartWindowSelection,

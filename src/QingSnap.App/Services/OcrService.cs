@@ -1,15 +1,7 @@
 using QingSnap.App.Models;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.CompilerServices;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Windows.Graphics.Imaging;
-using Windows.Media.Ocr;
-using Windows.Storage;
-using WindowsBitmapDecoder = Windows.Graphics.Imaging.BitmapDecoder;
-using WindowsOcrEngine = Windows.Media.Ocr.OcrEngine;
-using WpfBitmapFrame = System.Windows.Media.Imaging.BitmapFrame;
 
 namespace QingSnap.App.Services;
 
@@ -21,12 +13,14 @@ public sealed class OcrService : IDisposable
 
     private readonly AppSettingsService _settingsService;
     private readonly OcrModelManager _modelManager;
+    private readonly OcrRuntimeManager _runtimeManager;
     private readonly SemaphoreSlim _engineLock = new(1, 1);
     private readonly object _warmupSync = new();
     private readonly ConditionalWeakTable<BitmapSource, OcrCacheEntry> _resultCache = new();
     private readonly OcrResultCache _contentCache = new();
     private readonly System.Threading.Timer _idleReleaseTimer;
     private IAdvancedOcrRuntime? _advancedEngine;
+    private string? _loadedModel;
     private Task? _warmupTask;
     private DateTime _lastAdvancedUseUtc = DateTime.UtcNow;
     private bool _disposed;
@@ -35,6 +29,7 @@ public sealed class OcrService : IDisposable
     {
         _settingsService = settingsService;
         _modelManager = new OcrModelManager(settingsService.DataDirectory);
+        _runtimeManager = new OcrRuntimeManager(settingsService.DataDirectory);
         _idleReleaseTimer = new System.Threading.Timer(
             _ => _ = ReleaseIdleEngineAsync(),
             null,
@@ -42,32 +37,61 @@ public sealed class OcrService : IDisposable
             TimeSpan.FromMinutes(1));
     }
 
-    public bool AreAdvancedModelsInstalled => _modelManager.IsInstalled;
+    public string SelectedModel => OcrModelManager.NormalizeModel(_settingsService.Current.OcrModel);
 
-    public bool IsAdvancedRuntimeAvailable => AdvancedOcrRuntimeLoader.IsAvailable;
+    public bool IsRuntimeInstalled =>
+        AdvancedOcrRuntimeLoader.IsAvailable(_settingsService.DataDirectory);
 
-    public bool UsesAdvancedEngine =>
-        IsAdvancedRuntimeAvailable &&
-        !string.Equals(_settingsService.Current.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase);
+    public bool IsSelectedModelInstalled => _modelManager.IsInstalled(SelectedModel);
 
-    public string AdvancedModelDirectory => _modelManager.ModelDirectory;
+    public bool IsOcrAvailable =>
+        SelectedModel != OcrModelManager.NoModel &&
+        IsRuntimeInstalled &&
+        IsSelectedModelInstalled;
 
-    public long AdvancedModelDownloadSize => _modelManager.DownloadSize;
+    public bool UsesAdvancedEngine => IsOcrAvailable;
 
-    public Task InstallAdvancedModelsAsync(
+    public string RuntimeDirectory => _runtimeManager.RuntimeDirectory;
+
+    public long RuntimeInstalledSize => _runtimeManager.InstalledSize;
+
+    public string? FindLocalRuntimePackage() => _runtimeManager.FindLocalPackage();
+
+    public string GetModelDirectory(string model) => _modelManager.GetModelDirectory(model);
+
+    public long GetModelDownloadSize(string model) => _modelManager.GetDownloadSize(model);
+
+    public bool IsModelInstalled(string model) => _modelManager.IsInstalled(model);
+
+    public IReadOnlyList<string> GetInstalledModels() => _modelManager.GetInstalledModels();
+
+    public Task InstallModelAsync(
+        string model,
         IProgress<OcrProgress>? progress = null,
         CancellationToken cancellationToken = default) =>
-        _modelManager.EnsureInstalledAsync(progress, cancellationToken);
+        _modelManager.EnsureInstalledAsync(model, progress, cancellationToken);
+
+    public async Task InstallRuntimeAsync(
+        IProgress<OcrProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        await ReleaseAdvancedEngineAsync(true, cancellationToken).ConfigureAwait(false);
+        await _runtimeManager.DownloadAndInstallAsync(progress, cancellationToken).ConfigureAwait(false);
+    }
 
     public async Task ApplySettingsAsync(CancellationToken cancellationToken = default)
     {
         _resultCache.Clear();
         _contentCache.Clear();
-        if (!IsAdvancedRuntimeAvailable ||
-            string.Equals(_settingsService.Current.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase))
+        if (!IsOcrAvailable)
         {
             await ReleaseAdvancedEngineAsync(true, cancellationToken).ConfigureAwait(false);
             return;
+        }
+
+        if (!string.Equals(_loadedModel, SelectedModel, StringComparison.OrdinalIgnoreCase))
+        {
+            await ReleaseAdvancedEngineAsync(true, cancellationToken).ConfigureAwait(false);
         }
 
         if (string.Equals(_settingsService.Current.OcrPerformanceMode, "Instant", StringComparison.OrdinalIgnoreCase))
@@ -78,10 +102,8 @@ public sealed class OcrService : IDisposable
 
     public Task WarmUpAsync(CancellationToken cancellationToken = default)
     {
-        if (string.Equals(_settingsService.Current.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(_settingsService.Current.OcrPerformanceMode, "Balanced", StringComparison.OrdinalIgnoreCase) ||
-            !IsAdvancedRuntimeAvailable ||
-            !_modelManager.IsInstalled)
+        if (string.Equals(_settingsService.Current.OcrPerformanceMode, "Balanced", StringComparison.OrdinalIgnoreCase) ||
+            !IsOcrAvailable)
         {
             return Task.CompletedTask;
         }
@@ -124,23 +146,35 @@ public sealed class OcrService : IDisposable
         }
     }
 
-    public async Task DeleteAdvancedModelsAsync(CancellationToken cancellationToken = default)
+    public async Task DeleteModelAsync(string model, CancellationToken cancellationToken = default)
     {
         await _engineLock.WaitAsync(cancellationToken);
         try
         {
             _advancedEngine?.Dispose();
             _advancedEngine = null;
+            _loadedModel = null;
             lock (_warmupSync)
             {
                 _warmupTask = null;
             }
-            await _modelManager.DeleteAsync(cancellationToken);
+            await _modelManager.DeleteAsync(model, cancellationToken);
         }
         finally
         {
             _engineLock.Release();
         }
+    }
+
+    public async Task DeleteAllOcrAsync(CancellationToken cancellationToken = default)
+    {
+        await ReleaseAdvancedEngineAsync(true, cancellationToken).ConfigureAwait(false);
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        await _modelManager.DeleteAllAsync(cancellationToken).ConfigureAwait(false);
+        await _runtimeManager.DeleteAsync(cancellationToken).ConfigureAwait(false);
+        _resultCache.Clear();
+        _contentCache.Clear();
     }
 
     public async Task<OcrRecognitionResult> RecognizeAsync(
@@ -202,15 +236,10 @@ public sealed class OcrService : IDisposable
         return result;
     }
 
-    public async Task<OcrRecognitionResult> RecognizeFastAsync(
+    public Task<OcrRecognitionResult> RecognizeFastAsync(
         BitmapSource source,
-        CancellationToken cancellationToken = default)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        var result = await RecognizeWindowsAsync(source, cancellationToken);
-        stopwatch.Stop();
-        return result with { ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds };
-    }
+        CancellationToken cancellationToken = default) =>
+        RecognizeAsync(source, cancellationToken, includeWordBoxes: false);
 
     private async Task<OcrRecognitionResult> RecognizeCoreAsync(
         BitmapSource source,
@@ -218,41 +247,14 @@ public sealed class OcrService : IDisposable
         IProgress<OcrProgress>? progress,
         bool includeWordBoxes)
     {
-        if (!IsAdvancedRuntimeAvailable ||
-            string.Equals(_settingsService.Current.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase))
+        if (!IsOcrAvailable)
         {
-            progress?.Report(new OcrProgress("正在使用 Windows OCR…"));
-            return await RecognizeWindowsAsync(source, cancellationToken);
+            throw new InvalidOperationException(
+                "OCR 尚未安装。请打开设置，在“OCR 组件”中安装运行库并选择 Tiny 或 Small 模型。");
         }
 
-        try
-        {
-            if (!_modelManager.IsInstalled)
-            {
-                progress?.Report(new OcrProgress("首次使用，正在准备高精度 OCR…", 0));
-            }
-
-            if (!_modelManager.IsInstalled)
-            {
-                await _modelManager.EnsureInstalledAsync(progress, cancellationToken);
-            }
-            progress?.Report(new OcrProgress("正在使用 PP-OCRv6 识别…"));
-            return await RecognizeAdvancedAsync(source, cancellationToken, progress, includeWordBoxes);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception exception)
-        {
-            DiagnosticLog.Error("OCR", exception, "Advanced OCR failed; falling back to Windows OCR.");
-            progress?.Report(new OcrProgress("高精度 OCR 暂不可用，已切换 Windows OCR"));
-            var fallback = await RecognizeWindowsAsync(source, cancellationToken);
-            return fallback with
-            {
-                LanguageName = $"{fallback.LanguageName}（自动回退）"
-            };
-        }
+        progress?.Report(new OcrProgress($"正在使用 {OcrModelManager.GetDisplayName(SelectedModel)} 识别…"));
+        return await RecognizeAdvancedAsync(source, cancellationToken, progress, includeWordBoxes);
     }
 
     private async Task<OcrRecognitionResult> RecognizeAdvancedAsync(
@@ -316,7 +318,7 @@ public sealed class OcrService : IDisposable
 
         return BuildResult(
             collectedLines,
-            "PP-OCRv6 Small",
+            OcrModelManager.GetDisplayName(SelectedModel),
             "离线 · 多语言",
             sourceWidth,
             sourceHeight,
@@ -348,163 +350,6 @@ public sealed class OcrService : IDisposable
         }
     }
 
-    private async Task<OcrRecognitionResult> RecognizeWindowsAsync(
-        BitmapSource source,
-        CancellationToken cancellationToken)
-    {
-        var sourceWidth = source.PixelWidth;
-        var sourceHeight = source.PixelHeight;
-        var maximumDimension = checked((int)WindowsOcrEngine.MaxImageDimension);
-        var segmentHeight = Math.Min(maximumDimension, Math.Max(1800, sourceWidth * 4));
-        if (sourceHeight <= segmentHeight)
-        {
-            return await RecognizeWindowsSegmentAsync(source, cancellationToken);
-        }
-
-        var overlap = Math.Min(SegmentOverlap, segmentHeight / 12);
-        var step = segmentHeight - overlap;
-        var collectedLines = new List<OcrTextLine>();
-        string? languageName = null;
-        string? languageTag = null;
-        var nextWordIndex = 0;
-        for (var top = 0; top < sourceHeight; top += step)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var height = Math.Min(segmentHeight, sourceHeight - top);
-            var segment = new CroppedBitmap(source, new System.Windows.Int32Rect(0, top, sourceWidth, height));
-            segment.Freeze();
-            var result = await RecognizeWindowsSegmentAsync(segment, cancellationToken);
-            languageName ??= result.LanguageName;
-            languageTag ??= result.LanguageTag;
-            var isFirst = top == 0;
-            var isLast = top + height >= sourceHeight;
-            foreach (var line in result.Lines)
-            {
-                var centerY = line.Bounds.Y + line.Bounds.Height / 2;
-                if ((!isFirst && centerY < overlap / 2D) ||
-                    (!isLast && centerY > height - overlap / 2D))
-                {
-                    continue;
-                }
-
-                var lineIndex = collectedLines.Count;
-                var words = line.Words.Select(word => new OcrTextWord(
-                    nextWordIndex++,
-                    lineIndex,
-                    word.Text,
-                    word.Bounds with { Y = word.Bounds.Y + top })).ToArray();
-                collectedLines.Add(new OcrTextLine(
-                    lineIndex,
-                    line.Text,
-                    line.Bounds with { Y = line.Bounds.Y + top },
-                    words));
-            }
-
-            if (isLast)
-            {
-                break;
-            }
-        }
-
-        return BuildResult(
-            collectedLines,
-            languageName ?? "Windows OCR",
-            languageTag ?? string.Empty,
-            sourceWidth,
-            sourceHeight,
-            sourceWidth,
-            sourceHeight);
-    }
-
-    private async Task<OcrRecognitionResult> RecognizeWindowsSegmentAsync(
-        BitmapSource source,
-        CancellationToken cancellationToken)
-    {
-        var temporaryPath = Path.Combine(Path.GetTempPath(), $"QingSnap-ocr-{Guid.NewGuid():N}.png");
-        try
-        {
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(WpfBitmapFrame.Create(source));
-            await using (var stream = new FileStream(
-                             temporaryPath,
-                             FileMode.CreateNew,
-                             FileAccess.Write,
-                             FileShare.None,
-                             65536,
-                             useAsync: true))
-            {
-                encoder.Save(stream);
-                await stream.FlushAsync(cancellationToken);
-            }
-
-            return await RecognizeWindowsFileAsync(temporaryPath, cancellationToken);
-        }
-        finally
-        {
-            TryDelete(temporaryPath);
-        }
-    }
-
-    private static async Task<OcrRecognitionResult> RecognizeWindowsFileAsync(
-        string filePath,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var engine = WindowsOcrEngine.TryCreateFromUserProfileLanguages()
-            ?? throw new InvalidOperationException(
-                "Windows 没有可用的 OCR 语言。请在系统语言设置中安装中文或英文语言功能。");
-        var file = await StorageFile.GetFileFromPathAsync(filePath);
-        using var stream = await file.OpenAsync(FileAccessMode.Read);
-        var decoder = await WindowsBitmapDecoder.CreateAsync(stream);
-        cancellationToken.ThrowIfCancellationRequested();
-        var sourceWidth = checked((int)decoder.PixelWidth);
-        var sourceHeight = checked((int)decoder.PixelHeight);
-        var scale = Math.Min(
-            1D,
-            WindowsOcrEngine.MaxImageDimension / (double)Math.Max(sourceWidth, sourceHeight));
-        var recognitionWidth = Math.Max(1, (int)Math.Round(sourceWidth * scale));
-        var recognitionHeight = Math.Max(1, (int)Math.Round(sourceHeight * scale));
-        var transform = new BitmapTransform
-        {
-            ScaledWidth = checked((uint)recognitionWidth),
-            ScaledHeight = checked((uint)recognitionHeight)
-        };
-        using var bitmap = await decoder.GetSoftwareBitmapAsync(
-            BitmapPixelFormat.Bgra8,
-            BitmapAlphaMode.Premultiplied,
-            transform,
-            ExifOrientationMode.RespectExifOrientation,
-            ColorManagementMode.ColorManageToSRgb);
-        var result = await engine.RecognizeAsync(bitmap);
-        cancellationToken.ThrowIfCancellationRequested();
-        var scaleX = sourceWidth / (double)Math.Max(1, recognitionWidth);
-        var scaleY = sourceHeight / (double)Math.Max(1, recognitionHeight);
-        var lineIndex = 0;
-        var wordIndex = 0;
-        var lines = result.Lines.Select(line =>
-        {
-            var currentLineIndex = lineIndex++;
-            var words = line.Words.Select(word => new OcrTextWord(
-                wordIndex++,
-                currentLineIndex,
-                word.Text,
-                new OcrTextBounds(
-                    word.BoundingRect.X * scaleX,
-                    word.BoundingRect.Y * scaleY,
-                    word.BoundingRect.Width * scaleX,
-                    word.BoundingRect.Height * scaleY))).ToArray();
-            return new OcrTextLine(currentLineIndex, line.Text, CombineBounds(words.Select(word => word.Bounds)), words);
-        }).ToArray();
-        return BuildResult(
-            lines,
-            engine.RecognizerLanguage.DisplayName,
-            engine.RecognizerLanguage.LanguageTag,
-            sourceWidth,
-            sourceHeight,
-            recognitionWidth,
-            recognitionHeight);
-    }
-
     private void EnsureAdvancedEngine()
     {
         if (_advancedEngine is not null)
@@ -512,8 +357,9 @@ public sealed class OcrService : IDisposable
             return;
         }
 
-        _advancedEngine = AdvancedOcrRuntimeLoader.Create();
-        _advancedEngine.Initialize(_modelManager.GetPaths());
+        _advancedEngine = AdvancedOcrRuntimeLoader.Create(_settingsService.DataDirectory);
+        _advancedEngine.Initialize(_modelManager.GetPaths(SelectedModel));
+        _loadedModel = SelectedModel;
         _lastAdvancedUseUtc = DateTime.UtcNow;
     }
 
@@ -535,35 +381,6 @@ public sealed class OcrService : IDisposable
             recognitionWidth,
             recognitionHeight,
             lines);
-
-    private static OcrTextBounds CombineBounds(IEnumerable<OcrTextBounds> bounds)
-    {
-        var items = bounds.ToArray();
-        if (items.Length == 0)
-        {
-            return new OcrTextBounds(0, 0, 0, 0);
-        }
-
-        var left = items.Min(item => item.X);
-        var top = items.Min(item => item.Y);
-        var right = items.Max(item => item.Right);
-        var bottom = items.Max(item => item.Bottom);
-        return new OcrTextBounds(left, top, right - left, bottom - top);
-    }
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (IOException)
-        {
-        }
-        catch (UnauthorizedAccessException)
-        {
-        }
-    }
 
     public void Dispose()
     {
@@ -599,6 +416,7 @@ public sealed class OcrService : IDisposable
                 {
                     _advancedEngine.Dispose();
                     _advancedEngine = null;
+                    _loadedModel = null;
                     lock (_warmupSync)
                     {
                         _warmupTask = null;

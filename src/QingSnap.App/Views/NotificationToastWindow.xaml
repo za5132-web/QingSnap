@@ -1,0 +1,91 @@
+<Window x:Class="QingSnap.App.Views.NotificationToastWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="142"
+        Height="116"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Opacity="0"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True">
+    <Border x:Name="ToastCard"
+            Margin="1"
+            Background="#F2383D42"
+            BorderBrush="#334FDDEC"
+            BorderThickness="1"
+            CornerRadius="9"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <TranslateTransform x:Name="ToastTranslate" Y="-7" />
+        </Border.RenderTransform>
+        <Grid Margin="10,11,10,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="56" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="SuccessGlyph"
+                  Width="54"
+                  Height="54"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center">
+                <Ellipse Stroke="#496FDFEE" StrokeThickness="1" />
+                <Path Data="M 13,28 L 23,38 L 43,16"
+                      Stroke="#FFE8FAFC"
+                      StrokeThickness="3.2"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round" />
+            </Grid>
+
+            <Grid x:Name="WarningGlyph"
+                  Width="54"
+                  Height="54"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Visibility="Collapsed">
+                <Ellipse Stroke="#CCFFB45A" StrokeThickness="2" />
+                <TextBlock Text="!"
+                           Foreground="#FFFFD79A"
+                           FontFamily="Segoe UI"
+                           FontSize="31"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Margin="0,-3,0,0" />
+            </Grid>
+
+            <Grid x:Name="CountdownGlyph"
+                  Width="54"
+                  Height="54"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  Visibility="Collapsed">
+                <Ellipse Stroke="#9976DFEE" StrokeThickness="2" />
+                <Path Data="M 27,13 L 27,28 L 38,34"
+                      Stroke="#FFE8FAFC"
+                      StrokeThickness="2.6"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round" />
+            </Grid>
+
+            <TextBlock x:Name="MessageText"
+                       Grid.Row="1"
+                       Margin="0,7,0,0"
+                       Foreground="#FFF7FAFC"
+                       FontFamily="Microsoft YaHei UI"
+                       FontSize="12"
+                       FontWeight="Medium"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+        </Grid>
+    </Border>
+</Window>

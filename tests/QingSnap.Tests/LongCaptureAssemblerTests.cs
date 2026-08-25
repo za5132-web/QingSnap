@@ -162,6 +162,151 @@ public sealed class LongCaptureAssemblerTests
     }
 
     [Fact]
+    public void NewSettingsStartWithoutOcr()
+    {
+        var normalized = AppSettingsService.Normalize(new AppSettings());
+
+        Assert.Equal("None", normalized.OcrEngine);
+        Assert.Equal(OcrModelManager.NoModel, normalized.OcrModel);
+    }
+
+    [Fact]
+    public void LegacyAdvancedOcrSettingMigratesToSmallModel()
+    {
+        var normalized = AppSettingsService.Normalize(new AppSettings
+        {
+            OcrEngine = "Advanced",
+            OcrModel = string.Empty
+        });
+
+        Assert.Equal("Advanced", normalized.OcrEngine);
+        Assert.Equal(OcrModelManager.SmallModel, normalized.OcrModel);
+    }
+
+    [Theory]
+    [InlineData("Tiny", "Tiny")]
+    [InlineData("tiny", "Tiny")]
+    [InlineData("Small", "Small")]
+    [InlineData("invalid", "None")]
+    public void SettingsNormalizeOcrModel(string input, string expected)
+    {
+        var normalized = AppSettingsService.Normalize(new AppSettings { OcrModel = input });
+
+        Assert.Equal(expected, normalized.OcrModel);
+    }
+
+    [Fact]
+    public async Task OcrRuntimeModuleCanBeInstalledAndRemoved()
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-ocr-runtime-test-{Guid.NewGuid():N}");
+        var packagePath = Path.Combine(Path.GetTempPath(), $"QingSnap-OCR-Module-test-{Guid.NewGuid():N}.zip");
+        string[] requiredFiles =
+        [
+            "QingSnap.AdvancedOcr.dll",
+            "QingSnap.AdvancedOcr.deps.json",
+            "Clipper2Lib.dll",
+            "RapidOcrNet.dll",
+            "Microsoft.ML.OnnxRuntime.dll",
+            "onnxruntime.dll",
+            "onnxruntime_providers_shared.dll",
+            "SkiaSharp.dll",
+            "libSkiaSharp.dll",
+            "System.Numerics.Tensors.dll"
+        ];
+        try
+        {
+            using (var archive = ZipFile.Open(packagePath, ZipArchiveMode.Create))
+            {
+                foreach (var file in requiredFiles)
+                {
+                    archive.CreateEntry(file);
+                }
+            }
+
+            var manager = new OcrRuntimeManager(dataDirectory);
+            await manager.InstallAsync(packagePath);
+
+            Assert.True(manager.IsInstalled);
+            Assert.All(requiredFiles, file =>
+                Assert.True(File.Exists(Path.Combine(manager.RuntimeDirectory, file))));
+
+            await manager.DeleteAsync();
+            Assert.False(Directory.Exists(manager.RuntimeDirectory));
+        }
+        finally
+        {
+            File.Delete(packagePath);
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void OcrModelsExposeIndependentDownloadSizes()
+    {
+        var manager = new OcrModelManager(Path.Combine(Path.GetTempPath(), $"QingSnap-ocr-model-test-{Guid.NewGuid():N}"));
+
+        Assert.InRange(manager.GetDownloadSize(OcrModelManager.TinyModel), 7_000_000, 8_000_000);
+        Assert.InRange(manager.GetDownloadSize(OcrModelManager.SmallModel), 32_000_000, 33_000_000);
+        Assert.True(manager.GetDownloadSize(OcrModelManager.TinyModel) < manager.GetDownloadSize(OcrModelManager.SmallModel));
+    }
+
+    [Fact]
+    public void OcrTextSelectionPreservesEnglishWordsFromCharacterBoxes()
+    {
+        const string expected = "Tiny 不能共用 Small 的字典。RapidOcrNet";
+        var words = expected
+            .Where(character => !char.IsWhiteSpace(character))
+            .Select((character, index) => new OcrTextWord(
+                index,
+                0,
+                character.ToString(),
+                new OcrTextBounds(index * 8, 0, 7, 18)))
+            .ToArray();
+        var result = new OcrRecognitionResult(
+            expected,
+            "test",
+            "test",
+            1,
+            500,
+            100,
+            500,
+            100,
+            [new OcrTextLine(0, expected, new OcrTextBounds(0, 0, 500, 20), words)]);
+
+        var selected = words.Select(word => word.Index).ToHashSet();
+
+        Assert.Equal(expected, OcrTextSelectionBuilder.Build(result, selected));
+    }
+
+    [Fact]
+    public void OcrTextSelectionUsesGeometryWithoutSpacingAdjacentLettersOnFallback()
+    {
+        OcrTextWord[] words =
+        [
+            new(0, 0, "T", new OcrTextBounds(0, 0, 7, 18)),
+            new(1, 0, "i", new OcrTextBounds(8, 0, 4, 18)),
+            new(2, 0, "n", new OcrTextBounds(13, 0, 7, 18)),
+            new(3, 0, "y", new OcrTextBounds(21, 0, 7, 18)),
+            new(4, 0, "OCR", new OcrTextBounds(42, 0, 28, 18))
+        ];
+        var result = new OcrRecognitionResult(
+            "unmatched line",
+            "test",
+            "test",
+            1,
+            100,
+            30,
+            100,
+            30,
+            [new OcrTextLine(0, "unmatched line", new OcrTextBounds(0, 0, 100, 20), words)]);
+
+        Assert.Equal("Tiny OCR", OcrTextSelectionBuilder.Build(result, words.Select(word => word.Index).ToHashSet()));
+    }
+
+    [Fact]
     public void HistorySnapshotIncludesCachedOcrSearchText()
     {
         var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-history-test-{Guid.NewGuid():N}");

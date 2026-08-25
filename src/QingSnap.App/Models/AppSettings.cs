@@ -28,7 +28,9 @@ public sealed record AppSettings
 
     public string CloseInteraction { get; init; } = "Escape";
 
-    public string OcrEngine { get; init; } = "Advanced";
+    public string OcrEngine { get; init; } = "None";
+
+    public string OcrModel { get; init; } = string.Empty;
 
     public string OcrPerformanceMode { get; init; } = "Instant";
 

@@ -424,13 +424,29 @@ public sealed class CaptureCoordinator
         bool forceCopy = false)
     {
         var (imagePath, savedRegion) = SaveCaptureToHistory(image, region);
-        if (forceCopy || _settingsService.Current.AutoCopy)
+        var copyRequested = forceCopy || _settingsService.Current.AutoCopy;
+        var copiedToClipboard = false;
+        if (copyRequested)
         {
-            await _clipboardService.CopyCaptureImageAsync(image, savedRegion);
+            try
+            {
+                await _clipboardService.CopyCaptureImageAsync(image, savedRegion);
+                copiedToClipboard = true;
+            }
+            catch (Exception exception)
+            {
+                DiagnosticLog.Error("Clipboard", exception, "截图已保存，但复制到剪贴板失败。");
+            }
         }
         CaptureCompleted?.Invoke(
             this,
-            new CaptureResult(savedRegion, imagePath, image.PixelWidth, image.PixelHeight));
+            new CaptureResult(
+                savedRegion,
+                imagePath,
+                image.PixelWidth,
+                image.PixelHeight,
+                copyRequested,
+                copiedToClipboard));
     }
 
     private async Task HandleOverlayActionAsync(
@@ -625,6 +641,12 @@ public sealed class CaptureCoordinator
         System.Windows.Media.Imaging.BitmapSource? sourceImage,
         Task<OcrRecognitionResult>? prefetchedOcr)
     {
+        if (!_ocrService.IsOcrAvailable)
+        {
+            CaptureFailed?.Invoke(this, "OCR 组件尚未安装。请在设置的“OCR / 文字识别”中安装运行库并选择模型。");
+            return;
+        }
+
         try
         {
             var image = sourceImage ?? _historyService.LoadFullImage(imagePath);

@@ -17,8 +17,6 @@ public partial class OcrResultWindow : Window
     private Task<OcrRecognitionResult>? _prefetchedRecognition;
     private CancellationTokenSource? _recognitionCancellation;
     private string _recognitionStats = "等待识别";
-    private bool _isApplyingResult;
-    private bool _userEditedResult;
 
     public OcrResultWindow(
         string imagePath,
@@ -35,7 +33,6 @@ public partial class OcrResultWindow : Window
         _recognizedTextAvailable = recognizedTextAvailable;
         _prefetchedRecognition = prefetchedRecognition;
         InitializeComponent();
-        _userEditedResult = false;
 
         SourceImage.Source = sourceImage;
         SourceNameText.Text = Path.GetFileName(imagePath);
@@ -46,7 +43,6 @@ public partial class OcrResultWindow : Window
 
     private async Task RecognizeAsync()
     {
-        _userEditedResult = false;
         _recognitionCancellation?.Cancel();
         _recognitionCancellation?.Dispose();
         _recognitionCancellation = new CancellationTokenSource();
@@ -67,35 +63,7 @@ public partial class OcrResultWindow : Window
                 progress,
                 includeWordBoxes: false);
             _prefetchedRecognition = null;
-            if (!_ocrService.UsesAdvancedEngine)
-            {
-                ApplyResult(await accurateTask);
-                return;
-            }
-
-            var initialWait = Task.Delay(140, cancellationToken);
-            if (await Task.WhenAny(accurateTask, initialWait) == accurateTask)
-            {
-                ApplyResult(await accurateTask);
-                return;
-            }
-
-            var fastTask = _ocrService.RecognizeFastAsync(_sourceImage, cancellationToken);
-            var firstResult = await Task.WhenAny(accurateTask, fastTask);
-            if (firstResult == accurateTask)
-            {
-                ApplyResult(await accurateTask);
-                return;
-            }
-
-            ApplyResult(await fastTask, refining: true);
-            LoadingPanel.Visibility = Visibility.Collapsed;
-            var accurateResult = await accurateTask;
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!_userEditedResult)
-            {
-                ApplyResult(accurateResult);
-            }
+            ApplyResult(await accurateTask);
         }
         catch (OperationCanceledException)
         {
@@ -118,33 +86,21 @@ public partial class OcrResultWindow : Window
         }
     }
 
-    private void ApplyResult(OcrRecognitionResult result, bool refining = false)
+    private void ApplyResult(OcrRecognitionResult result)
     {
-        if (!refining && !string.IsNullOrWhiteSpace(result.Text))
+        if (!string.IsNullOrWhiteSpace(result.Text))
         {
             _recognizedTextAvailable?.Invoke(result.Text);
         }
 
-        _isApplyingResult = true;
-        try
-        {
-            OcrTextBox.Text = result.Text;
-        }
-        finally
-        {
-            _isApplyingResult = false;
-        }
+        OcrTextBox.Text = result.Text;
         _recognitionStats = $"{result.LanguageName} · {result.LineCount:N0} 行 · {result.ElapsedMilliseconds / 1000:0.00} 秒";
-        TitleStatusText.Text = refining
-            ? $"快速识别 · {result.LanguageTag}"
-            : $"高精度识别 · {result.LanguageTag}";
-        FooterStatusText.Text = refining
-            ? "文字已显示，正在后台进行高精度校准…"
-            : result.Text.Length == 0
-                ? "没有识别到文字，可以换一张更清晰的截图后重试。"
-                : result.SourceWidth == result.RecognitionWidth && result.SourceHeight == result.RecognitionHeight
-                    ? "识别完成，结果可以直接校对和编辑。"
-                    : $"识别完成；原图已等比缩放至 {result.RecognitionWidth} × {result.RecognitionHeight} px。";
+        TitleStatusText.Text = $"本地识别 · {result.LanguageTag}";
+        FooterStatusText.Text = result.Text.Length == 0
+            ? "没有识别到文字，可以换一张更清晰的截图后重试。"
+            : result.SourceWidth == result.RecognitionWidth && result.SourceHeight == result.RecognitionHeight
+                ? "识别完成，结果可以直接校对和编辑。"
+                : $"识别完成；原图已等比缩放至 {result.RecognitionWidth} × {result.RecognitionHeight} px。";
         CopyAllButton.IsEnabled = result.Text.Length > 0;
         UpdateEditorStats();
 
@@ -157,10 +113,6 @@ public partial class OcrResultWindow : Window
 
     private void OnOcrTextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
     {
-        if (!_isApplyingResult)
-        {
-            _userEditedResult = true;
-        }
         UpdateEditorStats();
         CopyAllButton.IsEnabled = !string.IsNullOrEmpty(OcrTextBox.Text);
     }
