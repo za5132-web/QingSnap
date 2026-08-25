@@ -3,7 +3,7 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
-## [Preview v49] - 2026-08-25
+## [1.0.0] - 2026-08-25
 
 ### 截图工作台界面 / Capture workspace UI
 
@@ -196,7 +196,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
-[Preview v49]: https://github.com/za5132-web/QingSnap/compare/preview-v48...preview-v49
+[1.0.0]: https://github.com/za5132-web/QingSnap/compare/preview-v48...v1.0.0
 [Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47
 [Preview v46]: https://github.com/za5132-web/QingSnap/compare/preview-v45...preview-v46
 [Preview v45]: https://github.com/za5132-web/QingSnap/compare/preview-v44...preview-v45
