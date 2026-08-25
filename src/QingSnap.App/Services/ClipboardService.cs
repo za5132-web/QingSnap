@@ -1,5 +1,6 @@
 using System.IO;
 using System.ComponentModel;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media.Imaging;
@@ -7,7 +8,7 @@ using QingSnap.App.Models;
 
 namespace QingSnap.App.Services;
 
-public sealed class ClipboardService
+public sealed class ClipboardService : IDisposable
 {
     private const string CaptureRegionFormat = "QingSnap.CaptureRegion.v1";
     private const int ClipboardRetryCount = 12;
@@ -17,18 +18,36 @@ public sealed class ClipboardService
     {
         ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".tif", ".tiff"
     };
+    private readonly StaClipboardQueue _queue = new();
+
+    public Task CopyImageAsync(BitmapSource image) =>
+        _queue.InvokeAsync(() => SetImage(FreezeImage(image), null));
+
+    public Task CopyCaptureImageAsync(BitmapSource image, CaptureRegion region) =>
+        _queue.InvokeAsync(() => SetImage(FreezeImage(image), region));
+
+    public Task<ClipboardImageContent?> TryGetImageAsync() =>
+        _queue.InvokeAsync(TryGetImageCore);
+
+    public Task CopyTextAsync(string text) =>
+        _queue.InvokeAsync(() => CopyTextWithRetry(text));
 
     public void CopyImage(BitmapSource image)
     {
-        SetImage(image, null);
+        CopyImageAsync(image).GetAwaiter().GetResult();
     }
 
     public void CopyCaptureImage(BitmapSource image, CaptureRegion region)
     {
-        SetImage(image, region);
+        CopyCaptureImageAsync(image, region).GetAwaiter().GetResult();
     }
 
     public ClipboardImageContent? TryGetImage()
+    {
+        return TryGetImageAsync().GetAwaiter().GetResult();
+    }
+
+    private static ClipboardImageContent? TryGetImageCore()
     {
         COMException? lastException = null;
         for (var attempt = 1; attempt <= ClipboardRetryCount; attempt++)
@@ -162,7 +181,7 @@ public sealed class ClipboardService
 
     public void CopyText(string text)
     {
-        CopyTextWithRetry(text);
+        CopyTextAsync(text).GetAwaiter().GetResult();
     }
 
     internal static void CopyTextWithRetry(string text)
@@ -251,6 +270,83 @@ public sealed class ClipboardService
 
     private static InvalidOperationException CreateClipboardBusyException(Exception? exception) =>
         new("剪贴板暂时被其他程序占用，请稍后再试。", exception);
+
+    public void Dispose() => _queue.Dispose();
+
+    private sealed class StaClipboardQueue : IDisposable
+    {
+        private readonly BlockingCollection<Action> _workItems = new();
+        private readonly Thread _thread;
+        private bool _disposed;
+
+        public StaClipboardQueue()
+        {
+            _thread = new Thread(Run)
+            {
+                IsBackground = true,
+                Name = "QingSnap Clipboard"
+            };
+            _thread.SetApartmentState(ApartmentState.STA);
+            _thread.Start();
+        }
+
+        public Task InvokeAsync(Action action) => InvokeAsync(() =>
+        {
+            action();
+            return true;
+        });
+
+        public Task<T> InvokeAsync<T>(Func<T> action)
+        {
+            if (_disposed)
+            {
+                return Task.FromException<T>(new ObjectDisposedException(nameof(StaClipboardQueue)));
+            }
+
+            var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                _workItems.Add(() =>
+                {
+                    try
+                    {
+                        completion.TrySetResult(action());
+                    }
+                    catch (Exception exception)
+                    {
+                        completion.TrySetException(exception);
+                    }
+                });
+            }
+            catch (InvalidOperationException)
+            {
+                completion.TrySetException(new ObjectDisposedException(nameof(StaClipboardQueue)));
+            }
+
+            return completion.Task;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _workItems.CompleteAdding();
+            _thread.Join(TimeSpan.FromSeconds(1));
+            _workItems.Dispose();
+        }
+
+        private void Run()
+        {
+            foreach (var workItem in _workItems.GetConsumingEnumerable())
+            {
+                workItem();
+            }
+        }
+    }
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool OpenClipboard(IntPtr owner);

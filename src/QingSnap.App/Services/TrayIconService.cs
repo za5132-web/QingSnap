@@ -34,6 +34,7 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add(CreateItem("打开记录文件夹", (_, _) => _captureCoordinator.OpenHistoryDirectory()));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(CreateItem("设置", (_, _) => openSettings()));
+        menu.Items.Add(CreateItem("导出诊断信息", (_, _) => _captureCoordinator.ExportDiagnostics()));
         menu.Items.Add(CreateItem("退出 QingSnap", (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty)));
 
         _notifyIcon = new NotifyIcon

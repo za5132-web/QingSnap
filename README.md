@@ -11,11 +11,11 @@ QingSnap is a lightweight screenshot utility for Windows 10/11. It brings smart 
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `Preview v44` |
+| 当前版本 / Current version | `Preview v45` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
-| OCR | PP-OCRv6 Small（离线）· Windows OCR 回退 / offline with Windows OCR fallback |
-| 发布形式 / Distribution | 免安装 ZIP / Portable ZIP |
+| OCR | 可选 PP-OCRv6 Small 扩展（离线）· Windows OCR 回退 / optional offline PP-OCRv6 extension with Windows OCR fallback |
+| 发布形式 / Distribution | 完整包 + 轻量包 / Full and Lite portable packages |
 
 ## 产品截图 / Product tour
 
@@ -128,18 +128,36 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 ### 6. 截图历史与桌面工作流 / History and desktop workflow
 
 - 截图可自动复制并保存到历史记录。
-- 历史窗口提供缩略图、全部/今天/最近 7 天筛选、刷新与打开记录目录。
+- 历史窗口提供虚拟化缩略图、日期/长图/收藏筛选、OCR 文字搜索、刷新与打开记录目录。
 - 每张历史图片都可贴图、OCR、打开、复制或删除。
 - 支持 PNG、JPG、BMP 输出，可设置 JPG 质量、记录目录和自动清理天数。
 - 系统托盘可启动区域截图、自动/手动长截图、重复上次范围、贴图、历史和设置。
+- 系统托盘可导出本地诊断包；日志只保留 7 天，并且不包含截图或 OCR 正文。
 - 单实例运行，可选择登录 Windows 后自动启动。
 
 - Copy captures automatically and keep them in screenshot history.
-- Browse thumbnails, filter by all/today/last 7 days, refresh, or open the history directory.
+- Browse virtualized thumbnails; filter by date, long captures, or favorites; search recognized text; refresh; or open the history directory.
 - Pin, OCR, open, copy, or delete any saved image.
 - Save as PNG, JPG, or BMP, with configurable JPG quality, history location, and retention period.
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
+
+## Preview v45 优化 / What’s new in Preview v45
+
+- 长截图只保留最近 3 个撤销检查点，生成最终图片时不再分配一份完整的中间像素数组。
+  Scrolling capture now keeps only the three latest undo checkpoints and writes the final bitmap without allocating a second full-size pixel buffer.
+- OCR 新增“极速后台预热”和“节能闲置释放”，并可跨图片对象复用内容缓存。
+  OCR adds instant background warm-up, energy-saving idle release, and content-based result reuse across image objects.
+- 高精度 OCR 拆分为可选扩展，轻量包仍可使用完整截图、贴图、长截图与 Windows OCR。
+  High-accuracy OCR is now an optional extension; the Lite package retains capture, pinning, scrolling capture, history, and Windows OCR.
+- 剪贴板重试迁移到独立 STA 队列，系统剪贴板被占用时不再阻塞截图界面。
+  Clipboard retries now run on a dedicated STA queue, so a busy system clipboard no longer freezes the capture interface.
+- 历史记录新增收藏、长图筛选和已识别文字搜索，并启用回收式界面虚拟化。
+  History adds favorites, long-capture filtering, recognized-text search, and recycling virtualization.
+- 新增滚动拼接、缓存释放、贴图停靠、设置归一化、OCR 缓存和历史索引自动测试。
+  Added automated coverage for scrolling assembly, cache release, pin docking, settings normalization, OCR caching, and the history text index.
+
+[阅读 v45 优化报告 / Read the v45 optimization report](docs/V45_OPTIMIZATION_REPORT.md)
 
 ## Preview v44 新功能 / What’s new in Preview v44
 

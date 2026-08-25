@@ -7,12 +7,13 @@ namespace QingSnap.App.Services;
 public sealed class LongCaptureAssembler
 {
     private const int MaximumFrames = 80;
+    private const int MaximumUndoCheckpoints = 3;
     private const int MaximumOutputHeight = 60_000;
     private const long MaximumOutputBytes = 256L * 1024L * 1024L;
 
     private readonly LongCaptureFrameAnalyzer _analyzer;
     private readonly List<FrameSegment> _segments = [];
-    private readonly Stack<AssemblerCheckpoint> _checkpoints = new();
+    private readonly List<AssemblerCheckpoint> _checkpoints = [];
     private LongCaptureFrame? _firstFrame;
     private LongCaptureFrame? _lastFrame;
     private FrameSegment? _fixedBottom;
@@ -26,6 +27,15 @@ public sealed class LongCaptureAssembler
     public int OutputHeight { get; private set; }
 
     public bool CanUndo => _checkpoints.Count > 0;
+
+    public long EstimatedRetainedBytes =>
+        _segments.Sum(segment => (long)segment.Pixels.Length) +
+        (_fixedBottom?.Pixels.LongLength ?? 0) +
+        (_firstFrame?.Pixels.LongLength ?? 0) +
+        (_lastFrame?.Pixels.LongLength ?? 0) +
+        _checkpoints.Sum(checkpoint =>
+            checkpoint.LastFrame.Pixels.LongLength +
+            (checkpoint.FixedBottom?.Pixels.LongLength ?? 0));
 
     public LongCaptureAssembler(int minimumOverlapPercent = 20)
     {
@@ -113,7 +123,7 @@ public sealed class LongCaptureAssembler
                 analysis.UsedRobustFallback);
         }
 
-        _checkpoints.Push(new AssemblerCheckpoint(
+        _checkpoints.Add(new AssemblerCheckpoint(
             [.. _segments],
             _lastFrame,
             _fixedBottom,
@@ -121,10 +131,15 @@ public sealed class LongCaptureAssembler
             _layoutInitialized,
             FrameCount,
             OutputHeight));
+        if (_checkpoints.Count > MaximumUndoCheckpoints)
+        {
+            _checkpoints.RemoveAt(0);
+        }
 
         if (!_layoutInitialized)
         {
             InitializeLayout(frame, analysis.Region, analysis.Displacement);
+            _firstFrame = null;
         }
         else
         {
@@ -152,14 +167,19 @@ public sealed class LongCaptureAssembler
 
     public bool UndoLastFrame()
     {
-        if (!_checkpoints.TryPop(out var checkpoint))
+        if (_checkpoints.Count == 0)
         {
             return false;
         }
 
+        var checkpointIndex = _checkpoints.Count - 1;
+        var checkpoint = _checkpoints[checkpointIndex];
+        _checkpoints.RemoveAt(checkpointIndex);
+
         _segments.Clear();
         _segments.AddRange(checkpoint.Segments);
         _lastFrame = checkpoint.LastFrame;
+        _firstFrame = checkpoint.LayoutInitialized ? null : checkpoint.LastFrame;
         _fixedBottom = checkpoint.FixedBottom;
         _scrollRegion = checkpoint.ScrollRegion;
         _layoutInitialized = checkpoint.LayoutInitialized;
@@ -170,42 +190,67 @@ public sealed class LongCaptureAssembler
 
     public BitmapSource BuildImage()
     {
+        return BuildImageCore(false);
+    }
+
+    public BitmapSource BuildImageAndRelease()
+    {
+        return BuildImageCore(true);
+    }
+
+    private BitmapSource BuildImageCore(bool releaseBuffers)
+    {
         if (_segments.Count == 0 || OutputWidth <= 0 || OutputHeight <= 0)
         {
             throw new InvalidOperationException("还没有可拼接的长截图画面。");
         }
 
         var stride = checked(OutputWidth * 4);
-        var output = new byte[checked(stride * OutputHeight)];
-        var offset = 0;
-        foreach (var segment in _segments)
-        {
-            Buffer.BlockCopy(segment.Pixels, 0, output, offset, segment.Pixels.Length);
-            offset += segment.Pixels.Length;
-        }
-
-        if (_fixedBottom is not null)
-        {
-            Buffer.BlockCopy(_fixedBottom.Pixels, 0, output, offset, _fixedBottom.Pixels.Length);
-            offset += _fixedBottom.Pixels.Length;
-        }
-
-        if (offset != output.Length)
-        {
-            throw new InvalidOperationException("长截图内部布局不一致，请重新截取。");
-        }
-
-        var bitmap = BitmapSource.Create(
+        var output = new WriteableBitmap(
             OutputWidth,
             OutputHeight,
             96,
             96,
             PixelFormats.Bgra32,
-            null,
-            output,
-            stride);
-        bitmap.Freeze();
-        return bitmap;
+            null);
+        var top = 0;
+        foreach (var segment in _segments)
+        {
+            output.WritePixels(
+                new System.Windows.Int32Rect(0, top, OutputWidth, segment.Height),
+                segment.Pixels,
+                stride,
+                0);
+            top += segment.Height;
+        }
+
+        if (_fixedBottom is not null)
+        {
+            output.WritePixels(
+                new System.Windows.Int32Rect(0, top, OutputWidth, _fixedBottom.Height),
+                _fixedBottom.Pixels,
+                stride,
+                0);
+            top += _fixedBottom.Height;
+        }
+
+        if (top != OutputHeight)
+        {
+            throw new InvalidOperationException("长截图内部布局不一致，请重新截取。");
+        }
+
+        output.Freeze();
+        if (releaseBuffers)
+        {
+            _segments.Clear();
+            _checkpoints.Clear();
+            _firstFrame = null;
+            _lastFrame = null;
+            _fixedBottom = null;
+            _scrollRegion = null;
+        }
+
+        return output;
     }
 
     public static double MeasureVisualDifference(BitmapSource first, BitmapSource second)

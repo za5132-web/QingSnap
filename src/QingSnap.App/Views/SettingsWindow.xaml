@@ -511,6 +511,11 @@
                                         <ComboBoxItem Content="高精度 · PP-OCRv6" Tag="Advanced" />
                                         <ComboBoxItem Content="Windows OCR" Tag="Windows" />
                                     </ComboBox>
+                                    <TextBlock Margin="0,12,0,0" Style="{StaticResource FieldLabel}" Text="性能策略" />
+                                    <ComboBox x:Name="OcrPerformanceCombo" SelectionChanged="OnOcrEngineChanged">
+                                        <ComboBoxItem Content="极速 · 后台预热" Tag="Instant" />
+                                        <ComboBoxItem Content="节能 · 闲置释放" Tag="Balanced" />
+                                    </ComboBox>
                                 </StackPanel>
                                 <Border Grid.Column="2" Padding="14,11" Background="#FF0B171E" BorderBrush="#48536A76" BorderThickness="1" CornerRadius="6">
                                     <Grid>

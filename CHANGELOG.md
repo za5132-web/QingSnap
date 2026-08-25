@@ -3,6 +3,43 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [Preview v45] - 2026-08-25
+
+### 性能与体积 / Performance and size
+
+- 高精度 PP-OCRv6 运行库改为可选扩展；轻量包主程序由 52.34 MB 降至 24.74 MB，同时保留 Windows OCR。
+  The high-accuracy PP-OCRv6 runtime is now optional. The Lite app shrinks from 52.34 MB to 24.74 MB while retaining Windows OCR.
+- 长截图撤销检查点限制为最近 3 步，完成导出时直接写入最终位图并释放拼接缓存。
+  Scrolling capture keeps only the three latest undo checkpoints, writes directly to the final bitmap, and releases assembly caches after export.
+- OCR 图像直接写入原生识别缓冲区，去掉一次整图托管内存复制。
+  OCR pixels now write directly into the native recognition buffer, removing one full-image managed-memory copy.
+- 历史缩略图降低解码尺寸，列表改用回收式虚拟化。
+  History thumbnails decode at a smaller size and the list now uses recycling virtualization.
+
+### 新增 / Added
+
+- OCR 性能策略：极速后台预热、节能闲置 5 分钟释放。
+  OCR performance modes: background warm-up for Instant mode and release after five idle minutes for Balanced mode.
+- 跨 `BitmapSource` 的内容指纹 OCR 缓存。
+  Content-fingerprint OCR caching across different `BitmapSource` objects.
+- 历史记录收藏、长图筛选和已识别文字搜索。
+  History favorites, long-capture filtering, and recognized-text search.
+- 本地滚动诊断日志和托盘“导出诊断信息”。
+  Local rolling diagnostics and an “Export diagnostics” tray action.
+- 可选 `portable.flag` 真正便携数据模式。
+  Optional `portable.flag` support for a truly self-contained data mode.
+- 13 项自动回归测试，覆盖长截图、缓存释放、贴图停靠、设置、诊断和历史 OCR 索引。
+  Thirteen automated regression tests covering scrolling capture, cache release, pin docking, settings, diagnostics, and the history OCR index.
+
+### 改进 / Improved
+
+- 图片和文字剪贴板操作统一进入独立 STA 队列，重试过程不再阻塞主界面。
+  Image and text clipboard operations now share a dedicated STA queue, so retries do not block the interface.
+- 贴图边缘停靠位置计算提取为独立模块并加入 DPI 边界测试。
+  Pin edge-docking geometry is now an isolated module with DPI boundary tests.
+- OCR 模型、运行时、缓存与生命周期分离，轻量包和完整包使用同一主程序代码。
+  OCR models, runtime, cache, and lifecycle are separated while Lite and Full packages share the same app code.
+
 ## [Preview v44] - 2026-08-24
 
 ### 新增 / Added
@@ -41,5 +78,6 @@ This file documents notable changes in each public QingSnap preview release.
 - 包含区域截图、智能选区、自动与手动长截图、离线 OCR、截图标注、贴图、历史记录和系统托盘支持。
   Included region capture, smart selection, automatic and manual scrolling capture, offline OCR, annotation, pinned images, history, and system tray support.
 
+[Preview v45]: https://github.com/za5132-web/QingSnap/compare/preview-v44...preview-v45
 [Preview v44]: https://github.com/za5132-web/QingSnap/compare/preview-v34...preview-v44
 [Preview v34]: https://github.com/za5132-web/QingSnap/releases/tag/preview-v34

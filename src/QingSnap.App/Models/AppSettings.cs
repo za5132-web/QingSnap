@@ -30,6 +30,8 @@ public sealed record AppSettings
 
     public string OcrEngine { get; init; } = "Advanced";
 
+    public string OcrPerformanceMode { get; init; } = "Instant";
+
     public int LongScrollWheelDelta { get; init; } = 720;
 
     public int LongMatchRetryCount { get; init; } = 3;

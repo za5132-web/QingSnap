@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>QingSnap.AdvancedOcr</AssemblyName>
+    <RootNamespace>QingSnap.AdvancedOcr</RootNamespace>
+    <Version>0.45.0-preview</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\QingSnap.App\QingSnap.App.csproj" Private="false" />
+    <PackageReference Include="RapidOcrNet" Version="4.0.2" ExcludeAssets="build" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <Target Name="RemoveHostOnlyPublishFiles" AfterTargets="Publish">
+    <ItemGroup>
+      <HostOnlyPublishFile Include="$(PublishDir)Microsoft.Windows.SDK.NET.dll" />
+      <HostOnlyPublishFile Include="$(PublishDir)WinRT.Runtime.dll" />
+      <HostOnlyPublishFile Include="$(PublishDir)onnxruntime.lib" />
+      <HostOnlyPublishFile Include="$(PublishDir)onnxruntime_providers_shared.lib" />
+    </ItemGroup>
+    <Delete Files="@(HostOnlyPublishFile)" />
+  </Target>
+
+</Project>

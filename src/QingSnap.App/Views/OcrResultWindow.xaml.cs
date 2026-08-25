@@ -13,6 +13,7 @@ public partial class OcrResultWindow : Window
     private readonly BitmapSource _sourceImage;
     private readonly OcrService _ocrService;
     private readonly ClipboardService _clipboardService;
+    private readonly Action<string>? _recognizedTextAvailable;
     private Task<OcrRecognitionResult>? _prefetchedRecognition;
     private CancellationTokenSource? _recognitionCancellation;
     private string _recognitionStats = "等待识别";
@@ -24,12 +25,14 @@ public partial class OcrResultWindow : Window
         BitmapSource sourceImage,
         OcrService ocrService,
         ClipboardService clipboardService,
-        Task<OcrRecognitionResult>? prefetchedRecognition = null)
+        Task<OcrRecognitionResult>? prefetchedRecognition = null,
+        Action<string>? recognizedTextAvailable = null)
     {
         _imagePath = imagePath;
         _sourceImage = sourceImage;
         _ocrService = ocrService;
         _clipboardService = clipboardService;
+        _recognizedTextAvailable = recognizedTextAvailable;
         _prefetchedRecognition = prefetchedRecognition;
         InitializeComponent();
         _userEditedResult = false;
@@ -117,6 +120,11 @@ public partial class OcrResultWindow : Window
 
     private void ApplyResult(OcrRecognitionResult result, bool refining = false)
     {
+        if (!refining && !string.IsNullOrWhiteSpace(result.Text))
+        {
+            _recognizedTextAvailable?.Invoke(result.Text);
+        }
+
         _isApplyingResult = true;
         try
         {
@@ -159,7 +167,7 @@ public partial class OcrResultWindow : Window
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => _ = RecognizeAsync();
 
-    private void OnCopyAllClick(object sender, RoutedEventArgs e)
+    private async void OnCopyAllClick(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrEmpty(OcrTextBox.Text))
         {
@@ -168,7 +176,7 @@ public partial class OcrResultWindow : Window
 
         try
         {
-            _clipboardService.CopyText(OcrTextBox.Text);
+            await _clipboardService.CopyTextAsync(OcrTextBox.Text);
             FooterStatusText.Text = "全文已复制到剪贴板。";
         }
         catch (Exception exception)

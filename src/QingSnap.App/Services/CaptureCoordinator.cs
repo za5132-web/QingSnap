@@ -45,6 +45,7 @@ public sealed class CaptureCoordinator
         }
 
         var delaySeconds = _settingsService.Current.CaptureDelaySeconds;
+        DiagnosticLog.Info("Capture", $"Region capture requested; delay={delaySeconds}s.");
         if (delaySeconds > 0)
         {
             _isCapturing = true;
@@ -83,7 +84,8 @@ public sealed class CaptureCoordinator
                     : "双击 / ENTER 开始手动长截图  ·  ESC 取消",
                 false,
                 recallLocalRegion,
-                _settingsService.Current);
+                _settingsService.Current,
+                clipboardService: _clipboardService);
             var sessionStarted = false;
 
             overlay.SelectionConfirmed += (_, localRegion) =>
@@ -168,6 +170,38 @@ public sealed class CaptureCoordinator
 
     public void OpenHistoryDirectory() => _historyService.OpenHistoryDirectory();
 
+    public void ExportDiagnostics()
+    {
+        try
+        {
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "导出 QingSnap 诊断包",
+                Filter = "ZIP 压缩包 (*.zip)|*.zip",
+                DefaultExt = ".zip",
+                AddExtension = true,
+                FileName = $"QingSnap-Diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.zip"
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                return;
+            }
+
+            DiagnosticLog.ExportBundle(dialog.FileName, _settingsService.Current);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{dialog.FileName}\"",
+                UseShellExecute = true
+            });
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("Diagnostics", exception, "Failed to export diagnostics bundle.");
+            CaptureFailed?.Invoke(this, $"导出诊断包失败：{exception.Message}");
+        }
+    }
+
     public void PinLatestCapture()
     {
         if (_isCapturing)
@@ -192,7 +226,7 @@ public sealed class CaptureCoordinator
         }
     }
 
-    public void PinClipboardImage()
+    public async void PinClipboardImage()
     {
         if (_isCapturing)
         {
@@ -201,7 +235,7 @@ public sealed class CaptureCoordinator
 
         try
         {
-            var clipboardImage = _clipboardService.TryGetImage();
+            var clipboardImage = await _clipboardService.TryGetImageAsync();
             if (clipboardImage is null)
             {
                 PinLatestCapture();
@@ -275,10 +309,11 @@ public sealed class CaptureCoordinator
                 initialLocalRegion,
                 recallLocalRegion: recallLocalRegion,
                 settings: _settingsService.Current,
-                ocrService: _ocrService);
+                ocrService: _ocrService,
+                clipboardService: _clipboardService);
             var longCaptureStarted = false;
 
-            overlay.ActionRequested += (_, request) =>
+            overlay.ActionRequested += async (_, request) =>
             {
                 var globalRegion = new DrawingRectangle(
                     snapshot.Bounds.X + request.LocalRegion.X,
@@ -292,7 +327,7 @@ public sealed class CaptureCoordinator
                     overlay.Hide();
                     var targetWindow = FindTargetWindow(globalRegion);
                     overlay.Close();
-                    System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    _ = System.Windows.Application.Current.Dispatcher.BeginInvoke(
                         () => OpenLongCaptureSession(
                             globalRegion,
                             LongCaptureMode.Automatic,
@@ -324,7 +359,7 @@ public sealed class CaptureCoordinator
                 overlay.Close();
                 try
                 {
-                    HandleOverlayAction(request, globalRegion);
+                    await HandleOverlayActionAsync(request, globalRegion);
                 }
                 catch (Exception exception)
                 {
@@ -332,7 +367,7 @@ public sealed class CaptureCoordinator
                 }
             };
 
-            overlay.SelectionConfirmed += (_, localRegion) =>
+            overlay.SelectionConfirmed += async (_, localRegion) =>
             {
                 var globalRegion = new DrawingRectangle(
                     snapshot.Bounds.X + localRegion.X,
@@ -344,7 +379,7 @@ public sealed class CaptureCoordinator
                 {
                     var image = overlay.CreateSelectedImage();
                     overlay.Close();
-                    CompleteCapture(image, globalRegion);
+                    await CompleteCaptureAsync(image, globalRegion);
                 }
                 catch (Exception exception)
                 {
@@ -383,7 +418,7 @@ public sealed class CaptureCoordinator
         }
     }
 
-    private void CompleteCapture(
+    private async Task CompleteCaptureAsync(
         System.Windows.Media.Imaging.BitmapSource image,
         DrawingRectangle region,
         bool forceCopy = false)
@@ -391,14 +426,14 @@ public sealed class CaptureCoordinator
         var (imagePath, savedRegion) = SaveCaptureToHistory(image, region);
         if (forceCopy || _settingsService.Current.AutoCopy)
         {
-            _clipboardService.CopyCaptureImage(image, savedRegion);
+            await _clipboardService.CopyCaptureImageAsync(image, savedRegion);
         }
         CaptureCompleted?.Invoke(
             this,
             new CaptureResult(savedRegion, imagePath, image.PixelWidth, image.PixelHeight));
     }
 
-    private void HandleOverlayAction(
+    private async Task HandleOverlayActionAsync(
         CaptureOverlayActionEventArgs request,
         DrawingRectangle globalRegion)
     {
@@ -417,7 +452,7 @@ public sealed class CaptureCoordinator
                     break;
                 }
             case CaptureOverlayAction.Copy:
-                CompleteCapture(request.Image, globalRegion, true);
+                await CompleteCaptureAsync(request.Image, globalRegion, true);
                 break;
             case CaptureOverlayAction.Save:
                 SaveImageAs(request.Image);
@@ -433,6 +468,9 @@ public sealed class CaptureCoordinator
         var savedRegion = CaptureRegion.FromRectangle(region);
         _stateStore.SaveLastRegion(savedRegion);
         _historyWindow?.RefreshHistory();
+        DiagnosticLog.Info(
+            "Capture",
+            $"Saved {image.PixelWidth}x{image.PixelHeight} capture to history; format={_settingsService.Current.OutputFormat}.");
         return (imagePath, savedRegion);
     }
 
@@ -486,11 +524,11 @@ public sealed class CaptureCoordinator
                 mode,
                 targetWindow,
                 _settingsService.Current);
-            session.CaptureCompleted += (_, result) =>
+            session.CaptureCompleted += async (_, result) =>
             {
                 try
                 {
-                    CompleteCapture(result.Image, region);
+                    await CompleteCaptureAsync(result.Image, region);
                 }
                 catch (Exception exception)
                 {
@@ -595,7 +633,12 @@ public sealed class CaptureCoordinator
                 image,
                 _ocrService,
                 _clipboardService,
-                prefetchedOcr);
+                prefetchedOcr,
+                text =>
+                {
+                    _historyService.SaveOcrText(imagePath, text);
+                    _historyWindow?.RefreshHistory();
+                });
             ocrWindow.Show();
         }
         catch (Exception exception)

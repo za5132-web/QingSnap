@@ -32,6 +32,7 @@ public partial class CaptureOverlayWindow : Window
     private readonly bool _showActionToolbar;
     private readonly AppSettings _settings;
     private readonly OcrService? _ocrService;
+    private readonly ClipboardService? _clipboardService;
     private readonly Rectangle[] _cornerMarks;
     private readonly CaptureAnnotationController _annotationController;
     private readonly DispatcherTimer _adjustmentBadgeTimer = new()
@@ -65,7 +66,8 @@ public partial class CaptureOverlayWindow : Window
         bool showActionToolbar = true,
         DrawingRectangle? recallLocalRegion = null,
         AppSettings? settings = null,
-        OcrService? ocrService = null)
+        OcrService? ocrService = null,
+        ClipboardService? clipboardService = null)
     {
         _snapshot = snapshot;
         _initialLocalRegion = initialLocalRegion;
@@ -73,6 +75,7 @@ public partial class CaptureOverlayWindow : Window
         _showActionToolbar = showActionToolbar;
         _settings = settings ?? new AppSettings();
         _ocrService = ocrService;
+        _clipboardService = clipboardService;
         InitializeComponent();
         _annotationController = new CaptureAnnotationController(AnnotationLayer, snapshot, _settings);
         _annotationController.Changed += (_, _) =>
@@ -443,14 +446,8 @@ public partial class CaptureOverlayWindow : Window
 
         if (key == Key.I && Keyboard.Modifiers == ModifierKeys.None && _settings.ShowMagnifier)
         {
-            try
-            {
-                ClipboardService.CopyTextWithRetry(
-                    $"#{_currentPixelColor.R:X2}{_currentPixelColor.G:X2}{_currentPixelColor.B:X2}");
-            }
-            catch
-            {
-            }
+            var colorText = $"#{_currentPixelColor.R:X2}{_currentPixelColor.G:X2}{_currentPixelColor.B:X2}";
+            _ = CopyColorAsync(colorText);
 
             e.Handled = true;
             return;
@@ -498,6 +495,25 @@ public partial class CaptureOverlayWindow : Window
         {
             ConfirmSelection();
             e.Handled = true;
+        }
+    }
+
+    private async Task CopyColorAsync(string colorText)
+    {
+        try
+        {
+            if (_clipboardService is not null)
+            {
+                await _clipboardService.CopyTextAsync(colorText);
+            }
+            else
+            {
+                ClipboardService.CopyTextWithRetry(colorText);
+            }
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Warning("Clipboard", $"Color copy failed: {exception.Message}");
         }
     }
 

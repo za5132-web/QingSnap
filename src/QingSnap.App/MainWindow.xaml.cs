@@ -9,6 +9,7 @@ public partial class MainWindow : Window
     private readonly CaptureCoordinator _captureCoordinator;
     private readonly AppSettingsService _settingsService;
     private readonly OcrService _ocrService;
+    private readonly ClipboardService _clipboardService;
     private GlobalHotkeyService? _hotkeys;
     private TrayIconService? _tray;
     private SettingsWindow? _settingsWindow;
@@ -19,13 +20,13 @@ public partial class MainWindow : Window
 
         _settingsService = new AppSettingsService();
         var captureService = new ScreenCaptureService();
-        var clipboardService = new ClipboardService();
+        _clipboardService = new ClipboardService();
         var stateStore = new AppStateStore();
         var historyService = new CaptureHistoryService(_settingsService);
         _ocrService = new OcrService(_settingsService);
         _captureCoordinator = new CaptureCoordinator(
             captureService,
-            clipboardService,
+            _clipboardService,
             stateStore,
             historyService,
             _ocrService,
@@ -113,7 +114,7 @@ public partial class MainWindow : Window
     {
         ConfigureHotkeys();
         ConfigureTray();
-        _ = _ocrService.WarmUpAsync();
+        _ = _ocrService.ApplySettingsAsync();
     }
 
     private void CloseApplication()
@@ -130,6 +131,7 @@ public partial class MainWindow : Window
         _tray?.Dispose();
         _hotkeys?.Dispose();
         _ocrService.Dispose();
+        _clipboardService.Dispose();
         _settingsService.SettingsChanged -= OnSettingsChanged;
     }
 }

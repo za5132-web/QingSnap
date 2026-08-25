@@ -548,7 +548,7 @@ public partial class StickyImageWindow : Window
         RenderTextOverlay();
     }
 
-    private void CopySelectedText()
+    private async void CopySelectedText()
     {
         var selectedText = BuildSelectedText();
         if (string.IsNullOrWhiteSpace(selectedText))
@@ -559,7 +559,7 @@ public partial class StickyImageWindow : Window
 
         try
         {
-            _clipboardService.CopyText(selectedText);
+            await _clipboardService.CopyTextAsync(selectedText);
             ShowFeedback($"已复制 {selectedText.Length:N0} 个字符");
         }
         catch (Exception exception)
@@ -901,20 +901,21 @@ public partial class StickyImageWindow : Window
         var workArea = System.Windows.Forms.Screen.FromRectangle(
             new DrawingRectangle(bounds.Left, bounds.Top, bounds.Width, bounds.Height)).WorkingArea;
         var dpi = VisualTreeHelper.GetDpi(this);
-        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
-        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
         var useLeftEdge = bounds.Left + bounds.Width / 2 < workArea.Left + workArea.Width / 2;
+        var layout = PinDockLayoutCalculator.Calculate(
+            workArea,
+            bounds.Width,
+            bounds.Height,
+            bounds.Top,
+            useLeftEdge,
+            dpi.DpiScaleX,
+            dpi.DpiScaleY);
         _collapsedDockWorkArea = workArea;
         _collapsedDockUsesLeftEdge = useLeftEdge;
         _isCollapsedDockRevealed = false;
         UpdateCollapsedDockBadgePosition();
-        var left = useLeftEdge
-            ? workArea.Left - bounds.Width + peekWidth
-            : workArea.Right - peekWidth;
-        var top = Math.Clamp(
-            bounds.Top,
-            workArea.Top + verticalMargin,
-            Math.Max(workArea.Top + verticalMargin, workArea.Bottom - bounds.Height - verticalMargin));
+        var left = layout.RestingBounds.Left;
+        var top = layout.RestingBounds.Top;
         NativeMethods.SetWindowPos(
             handle,
             nint.Zero,
@@ -951,14 +952,15 @@ public partial class StickyImageWindow : Window
             ? _collapsedDockWorkArea
             : System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
         var dpi = VisualTreeHelper.GetDpi(this);
-        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
-        var left = reveal
-            ? _collapsedDockUsesLeftEdge
-                ? workArea.Left
-                : workArea.Right - bounds.Width
-            : _collapsedDockUsesLeftEdge
-                ? workArea.Left - bounds.Width + peekWidth
-                : workArea.Right - peekWidth;
+        var layout = PinDockLayoutCalculator.Calculate(
+            workArea,
+            bounds.Width,
+            bounds.Height,
+            bounds.Top,
+            _collapsedDockUsesLeftEdge,
+            dpi.DpiScaleX,
+            dpi.DpiScaleY);
+        var left = reveal ? layout.RevealedBounds.Left : layout.RestingBounds.Left;
         _isCollapsedDockRevealed = reveal;
         NativeMethods.SetWindowPos(
             handle,
@@ -1029,18 +1031,17 @@ public partial class StickyImageWindow : Window
         var dpi = VisualTreeHelper.GetDpi(this);
         var width = Math.Max(46, (int)Math.Round(58 * dpi.DpiScaleX));
         var height = Math.Max(36, (int)Math.Round(44 * dpi.DpiScaleY));
-        var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
-        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
-        var top = Math.Clamp(
+        var layout = PinDockLayoutCalculator.Calculate(
+            workArea,
+            width,
+            height,
             cursor.Y - height / 2,
-            workArea.Top + verticalMargin,
-            Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
-        var restingLeft = useLeftEdge
-            ? workArea.Left - width + peekWidth
-            : workArea.Right - peekWidth;
-        var revealedLeft = useLeftEdge
-            ? workArea.Left
-            : workArea.Right - width;
+            useLeftEdge,
+            dpi.DpiScaleX,
+            dpi.DpiScaleY);
+        var top = layout.RestingBounds.Top;
+        var restingLeft = layout.RestingBounds.Left;
+        var revealedLeft = layout.RevealedBounds.Left;
 
         _expandedBounds = restoreBounds;
         _collapsedDockWorkArea = workArea;
@@ -1171,7 +1172,6 @@ public partial class StickyImageWindow : Window
 
         _expandedBounds = currentBounds;
         var dpi = VisualTreeHelper.GetDpi(this);
-        var verticalMargin = Math.Max(2, (int)Math.Round(4 * dpi.DpiScaleY));
         DrawingRectangle workArea;
         int width;
         int height;
@@ -1187,26 +1187,34 @@ public partial class StickyImageWindow : Window
             height = restingBounds.Height;
             useLeftEdge = _collapsedDockUsesLeftEdge;
             left = restingBounds.Left;
-            top = Math.Clamp(
+            var layout = PinDockLayoutCalculator.Calculate(
+                workArea,
+                width,
+                height,
                 restingBounds.Top,
-                workArea.Top + verticalMargin,
-                Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
+                useLeftEdge,
+                dpi.DpiScaleX,
+                dpi.DpiScaleY);
+            left = layout.RestingBounds.Left;
+            top = layout.RestingBounds.Top;
         }
         else
         {
             workArea = System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
             width = Math.Max(46, (int)Math.Round(58 * dpi.DpiScaleX));
             height = Math.Max(36, (int)Math.Round(44 * dpi.DpiScaleY));
-            var peekWidth = Math.Max(14, (int)Math.Round(18 * dpi.DpiScaleX));
             useLeftEdge = currentBounds.Left + currentBounds.Width / 2 <
                           workArea.Left + workArea.Width / 2;
-            left = useLeftEdge
-                ? workArea.Left - width + peekWidth
-                : workArea.Right - peekWidth;
-            top = Math.Clamp(
+            var layout = PinDockLayoutCalculator.Calculate(
+                workArea,
+                width,
+                height,
                 currentBounds.Top,
-                workArea.Top + verticalMargin,
-                Math.Max(workArea.Top + verticalMargin, workArea.Bottom - height - verticalMargin));
+                useLeftEdge,
+                dpi.DpiScaleX,
+                dpi.DpiScaleY);
+            left = layout.RestingBounds.Left;
+            top = layout.RestingBounds.Top;
         }
 
         _collapsedDockWorkArea = workArea;
@@ -1323,11 +1331,11 @@ public partial class StickyImageWindow : Window
         PinCloseButton.BeginAnimation(OpacityProperty, fade, HandoffBehavior.SnapshotAndReplace);
     }
 
-    private void CopyImage()
+    private async void CopyImage()
     {
         try
         {
-            _clipboardService.CopyImage(_image);
+            await _clipboardService.CopyImageAsync(_image);
             ShowFeedback("已复制到剪贴板");
         }
         catch (Exception exception)

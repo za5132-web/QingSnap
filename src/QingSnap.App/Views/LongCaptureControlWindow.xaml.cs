@@ -154,6 +154,7 @@ public partial class LongCaptureControlWindow : Window
             await WaitForWindowToDisappearAsync();
             var frame = _captureService.CaptureRegion(_captureRegion).Image;
             var result = await Task.Run(() => _assembler.AddFrame(frame));
+            LogFrameResult(result);
             if (revealAfterCapture)
             {
                 RevealControlWindow();
@@ -227,6 +228,7 @@ public partial class LongCaptureControlWindow : Window
                 }
 
                 var result = await Task.Run(() => _assembler.AddFrame(frame));
+                LogFrameResult(result);
                 ApplyFrameResult(result);
 
                 if (result.Accepted)
@@ -470,6 +472,15 @@ public partial class LongCaptureControlWindow : Window
         StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 170, 157));
     }
 
+    private void LogFrameResult(LongCaptureFrameResult result)
+    {
+        DiagnosticLog.Info(
+            "LongCapture",
+            $"frame={_assembler.FrameCount}; accepted={result.Accepted}; duplicate={result.IsDuplicate}; " +
+            $"displacement={result.AppendedHeight}; output={_assembler.OutputWidth}x{_assembler.OutputHeight}; " +
+            $"confidence={result.MatchConfidence:0.000}; retained={_assembler.EstimatedRetainedBytes / (1024D * 1024D):0.0}MB");
+    }
+
     private async void OnNextClick(object sender, RoutedEventArgs e)
     {
         if (_isAutomaticRunning)
@@ -493,7 +504,7 @@ public partial class LongCaptureControlWindow : Window
         StatusText.Text = "正在生成长截图…";
         try
         {
-            var image = await Task.Run(_assembler.BuildImage);
+            var image = await Task.Run(_assembler.BuildImageAndRelease);
             CaptureCompleted?.Invoke(this, new LongCaptureCompletedEventArgs(image));
         }
         catch (Exception exception)

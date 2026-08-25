@@ -169,7 +169,7 @@
                                    FontFamily="{StaticResource UiFont}"
                                    FontSize="13"
                                    Foreground="#FF687783"
-                                   Text="搜索截图文件名" />
+                                   Text="搜索文件名、尺寸或已识别文字" />
                     </Grid>
                     <ComboBox x:Name="DateFilter"
                               Grid.Column="1"
@@ -184,6 +184,8 @@
                         <ComboBoxItem Content="全部日期" />
                         <ComboBoxItem Content="今天" />
                         <ComboBoxItem Content="最近 7 天" />
+                        <ComboBoxItem Content="长截图" />
+                        <ComboBoxItem Content="已收藏" />
                     </ComboBox>
                     <Button Grid.Column="2"
                             Style="{StaticResource ActionButton}"
@@ -198,9 +200,25 @@
             </Border>
 
             <Grid Grid.Row="2" Margin="20,0,20,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="HistoryItemsControl" ItemsSource="{Binding VisibleItems, Mode=OneWay}">
-                        <ItemsControl.ItemTemplate>
+                <ListBox x:Name="HistoryItemsControl"
+                         ItemsSource="{Binding VisibleItems, Mode=OneWay}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="BorderThickness" Value="0" />
+                            <Setter Property="Focusable" Value="False" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Margin="0,0,0,12"
                                         Padding="18"
@@ -242,6 +260,7 @@
                                                            TextTrimming="CharacterEllipsis" />
                                             </StackPanel>
                                             <StackPanel Grid.Row="3" Orientation="Horizontal">
+                                                <Button Style="{StaticResource ActionButton}" Content="{Binding FavoriteText, Mode=OneWay}" Tag="{Binding Mode=OneWay}" Click="OnFavoriteItemClick" />
                                                 <Button Style="{StaticResource PinButton}" Content="贴图" Tag="{Binding Mode=OneWay}" Click="OnPinItemClick" />
                                                 <Button Style="{StaticResource OcrButton}" Content="识字" Tag="{Binding Mode=OneWay}" Click="OnOcrItemClick" />
                                                 <Button Style="{StaticResource ActionButton}" Content="打开" Tag="{Binding Mode=OneWay}" Click="OnOpenItemClick" />
@@ -274,9 +293,8 @@
                                     </Grid>
                                 </Border>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
+                        </ListBox.ItemTemplate>
+                </ListBox>
 
                 <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
                     <Border Width="48" Height="48" Background="#FF17232C" BorderBrush="#5576DFEE" BorderThickness="1" CornerRadius="24">

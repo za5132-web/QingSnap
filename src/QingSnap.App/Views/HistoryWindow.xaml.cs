@@ -102,11 +102,15 @@ public partial class HistoryWindow : Window
         var filteredItems = _loadedItems.Where(item =>
         {
             var matchesQuery = string.IsNullOrEmpty(query) ||
-                               item.FileName.Contains(query, StringComparison.OrdinalIgnoreCase);
+                               item.FileName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                               item.DimensionsText.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                               item.SearchText.Contains(query, StringComparison.OrdinalIgnoreCase);
             var matchesDate = dateFilterIndex switch
             {
                 1 => item.CreatedAt.Date == today,
                 2 => item.CreatedAt >= today.AddDays(-6),
+                3 => item.PixelHeight / (double)Math.Max(1, item.PixelWidth) >= 2.15,
+                4 => item.IsFavorite,
                 _ => true
             };
             return matchesQuery && matchesDate;
@@ -145,7 +149,7 @@ public partial class HistoryWindow : Window
         }
     }
 
-    private void OnCopyItemClick(object sender, RoutedEventArgs e)
+    private async void OnCopyItemClick(object sender, RoutedEventArgs e)
     {
         if (sender is not WpfButton { Tag: HistoryItem item })
         {
@@ -154,7 +158,7 @@ public partial class HistoryWindow : Window
 
         try
         {
-            _clipboardService.CopyImage(_historyService.LoadFullImage(item.FilePath));
+            await _clipboardService.CopyImageAsync(_historyService.LoadFullImage(item.FilePath));
             StatusText.Text = $"已复制：{item.FileName}";
         }
         catch (Exception exception)
@@ -172,6 +176,18 @@ public partial class HistoryWindow : Window
 
         _pinImage(item.FilePath);
         StatusText.Text = $"已贴到桌面：{item.FileName}";
+    }
+
+    private void OnFavoriteItemClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not WpfButton { Tag: HistoryItem item })
+        {
+            return;
+        }
+
+        var isFavorite = _historyService.ToggleFavorite(item.FilePath);
+        StatusText.Text = isFavorite ? $"已收藏：{item.FileName}" : $"已取消收藏：{item.FileName}";
+        RefreshHistory();
     }
 
     private void OnOcrItemClick(object sender, RoutedEventArgs e)

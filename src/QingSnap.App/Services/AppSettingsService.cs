@@ -10,15 +10,19 @@ public sealed class AppSettingsService
 
     private readonly string _settingsPath;
 
-    public AppSettingsService()
+    public AppSettingsService(string? dataDirectory = null)
     {
-        var appDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "QingSnap");
-        Directory.CreateDirectory(appDirectory);
-        _settingsPath = Path.Combine(appDirectory, "settings.json");
+        DataDirectory = string.IsNullOrWhiteSpace(dataDirectory)
+            ? ResolveDataDirectory()
+            : Path.GetFullPath(dataDirectory);
+        Directory.CreateDirectory(DataDirectory);
+        _settingsPath = Path.Combine(DataDirectory, "settings.json");
         Current = Load();
     }
+
+    public string DataDirectory { get; }
+
+    public bool IsPortableMode => File.Exists(Path.Combine(AppContext.BaseDirectory, "portable.flag"));
 
     public AppSettings Current { get; private set; }
 
@@ -26,7 +30,7 @@ public sealed class AppSettingsService
 
     public void Save(AppSettings settings)
     {
-        var normalized = Normalize(settings);
+        var normalized = Normalize(settings, DataDirectory);
         var temporaryPath = _settingsPath + ".tmp";
         File.WriteAllText(temporaryPath, JsonSerializer.Serialize(normalized, JsonOptions));
         File.Move(temporaryPath, _settingsPath, true);
@@ -41,25 +45,26 @@ public sealed class AppSettingsService
         {
             if (!File.Exists(_settingsPath))
             {
-                return Normalize(new AppSettings());
+                return Normalize(new AppSettings(), DataDirectory);
             }
 
             return Normalize(
                 JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_settingsPath), JsonOptions) ??
-                new AppSettings());
+                new AppSettings(),
+                DataDirectory);
         }
         catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
         {
-            return Normalize(new AppSettings());
+            return Normalize(new AppSettings(), DataDirectory);
         }
     }
 
-    private static AppSettings Normalize(AppSettings settings)
+    internal static AppSettings Normalize(AppSettings settings) =>
+        Normalize(settings, ResolveDataDirectory());
+
+    private static AppSettings Normalize(AppSettings settings, string dataDirectory)
     {
-        var defaultHistoryDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "QingSnap",
-            "History");
+        var defaultHistoryDirectory = Path.Combine(dataDirectory, "History");
         return settings with
         {
             CaptureHotkey = NormalizeHotkey(settings.CaptureHotkey, "F1"),
@@ -83,6 +88,12 @@ public sealed class AppSettingsService
             OcrEngine = string.Equals(settings.OcrEngine, "Windows", StringComparison.OrdinalIgnoreCase)
                 ? "Windows"
                 : "Advanced",
+            OcrPerformanceMode = string.Equals(
+                settings.OcrPerformanceMode,
+                "Balanced",
+                StringComparison.OrdinalIgnoreCase)
+                ? "Balanced"
+                : "Instant",
             LongScrollWheelDelta = Math.Clamp(settings.LongScrollWheelDelta / 120 * 120, 120, 1200),
             LongMatchRetryCount = Math.Clamp(settings.LongMatchRetryCount, 1, 6),
             LongMinimumOverlapPercent = Math.Clamp(settings.LongMinimumOverlapPercent, 12, 50),
@@ -132,4 +143,11 @@ public sealed class AppSettingsService
             }
         }
     }
+
+    private static string ResolveDataDirectory() =>
+        File.Exists(Path.Combine(AppContext.BaseDirectory, "portable.flag"))
+            ? Path.Combine(AppContext.BaseDirectory, "Data")
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "QingSnap");
 }

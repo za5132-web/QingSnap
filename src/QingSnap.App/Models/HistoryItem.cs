@@ -9,11 +9,14 @@ public sealed record HistoryItem(
     int PixelWidth,
     int PixelHeight,
     long FileSize,
-    BitmapSource Thumbnail)
+    BitmapSource Thumbnail,
+    bool IsFavorite,
+    string SearchText)
 {
     public string DateText => CreatedAt.ToString("yyyy-MM-dd  HH:mm:ss");
     public string DimensionsText => $"{PixelWidth} × {PixelHeight} px";
     public string FileSizeText => FormatBytes(FileSize);
+    public string FavoriteText => IsFavorite ? "已收藏" : "收藏";
 
     private static string FormatBytes(long bytes)
     {

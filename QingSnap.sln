@@ -7,6 +7,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{006E3316-9F0
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QingSnap.App", "src\QingSnap.App\QingSnap.App.csproj", "{3A54E93B-CBFD-4293-9C0B-3BACAEA8A15F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QingSnap.Tests", "tests\QingSnap.Tests\QingSnap.Tests.csproj", "{7E842F18-43EC-47E8-9974-E730CA526DF2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QingSnap.AdvancedOcr", "src\QingSnap.AdvancedOcr\QingSnap.AdvancedOcr.csproj", "{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +24,17 @@ Global
 		{3A54E93B-CBFD-4293-9C0B-3BACAEA8A15F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A54E93B-CBFD-4293-9C0B-3BACAEA8A15F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A54E93B-CBFD-4293-9C0B-3BACAEA8A15F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E842F18-43EC-47E8-9974-E730CA526DF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E842F18-43EC-47E8-9974-E730CA526DF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E842F18-43EC-47E8-9974-E730CA526DF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E842F18-43EC-47E8-9974-E730CA526DF2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3A54E93B-CBFD-4293-9C0B-3BACAEA8A15F} = {006E3316-9F01-4C9C-9EF6-DB339361C94B}
+		{6B14D6AA-2491-4EA3-B7C0-9D20C42A998A} = {006E3316-9F01-4C9C-9EF6-DB339361C94B}
 	EndGlobalSection
 EndGlobal

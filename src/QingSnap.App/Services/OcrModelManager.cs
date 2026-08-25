@@ -36,11 +36,12 @@ public sealed class OcrModelManager
 
     private readonly SemaphoreSlim _installLock = new(1, 1);
 
-    public OcrModelManager()
+    public OcrModelManager(string? dataDirectory = null)
     {
         ModelDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "QingSnap",
+            dataDirectory ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "QingSnap"),
             "Models",
             "PP-OCRv6-small");
     }

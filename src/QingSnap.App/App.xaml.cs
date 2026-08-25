@@ -1,6 +1,7 @@
 using System.Windows;
 using System.IO;
 using System.Windows.Threading;
+using QingSnap.App.Services;
 
 namespace QingSnap.App;
 
@@ -19,6 +20,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        DiagnosticLog.Initialize();
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
         base.OnStartup(e);
@@ -27,11 +29,13 @@ public partial class App : System.Windows.Application
         _ownsSingleInstanceMutex = isFirstInstance;
         if (!isFirstInstance)
         {
+            DiagnosticLog.Info("Application", "A second instance was rejected.");
             Shutdown();
             return;
         }
 
         _hostWindow = new MainWindow();
+        DiagnosticLog.Info("Application", "Main window and tray host created.");
         MainWindow = _hostWindow;
         _hostWindow.Show();
 
@@ -67,6 +71,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        DiagnosticLog.Info("Application", $"Application exiting with code {e.ApplicationExitCode}.");
         if (_ownsSingleInstanceMutex)
         {
             _singleInstanceMutex?.ReleaseMutex();
@@ -92,6 +97,7 @@ public partial class App : System.Windows.Application
 
     private static void WriteCrashLog(string source, Exception exception)
     {
+        DiagnosticLog.Error(source, exception, "Unhandled exception.");
         try
         {
             File.AppendAllText(

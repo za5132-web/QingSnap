@@ -41,7 +41,10 @@ public partial class SettingsWindow : Window
         SmartSelectionCheck.IsChecked = settings.SmartWindowSelection;
         MagnifierCheck.IsChecked = settings.ShowMagnifier;
         SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
-        SelectComboByTag(OcrEngineCombo, settings.OcrEngine);
+        SelectComboByTag(
+            OcrEngineCombo,
+            _ocrService.IsAdvancedRuntimeAvailable ? settings.OcrEngine : "Windows");
+        SelectComboByTag(OcrPerformanceCombo, settings.OcrPerformanceMode);
         LongWheelBox.Text = settings.LongScrollWheelDelta.ToString();
         LongRetryBox.Text = settings.LongMatchRetryCount.ToString();
         LongOverlapBox.Text = settings.LongMinimumOverlapPercent.ToString();
@@ -85,6 +88,7 @@ public partial class SettingsWindow : Window
                 ShowMagnifier = MagnifierCheck.IsChecked == true,
                 CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
                 OcrEngine = SelectedTag(OcrEngineCombo, "Advanced"),
+                OcrPerformanceMode = SelectedTag(OcrPerformanceCombo, "Instant"),
                 LongScrollWheelDelta = ParseInt(LongWheelBox, "长截图滚动步长"),
                 LongMatchRetryCount = ParseInt(LongRetryBox, "长截图重试次数"),
                 LongMinimumOverlapPercent = ParseInt(LongOverlapBox, "长截图最小重叠"),
@@ -202,20 +206,34 @@ public partial class SettingsWindow : Window
             "Advanced",
             StringComparison.OrdinalIgnoreCase);
         var installed = _ocrService.AreAdvancedModelsInstalled;
+        var runtimeAvailable = _ocrService.IsAdvancedRuntimeAvailable;
+        var instantMode = string.Equals(
+            SelectedTag(OcrPerformanceCombo, "Instant"),
+            "Instant",
+            StringComparison.OrdinalIgnoreCase);
         OcrEngineDescriptionText.Text = advancedSelected
-            ? "中文与混排文字识别更准确；模型只需下载一次，之后完全离线运行。"
+            ? !runtimeAvailable
+                ? "当前为轻量包，未包含高精度 OCR 扩展；Windows OCR 仍可直接使用。"
+                : instantMode
+                ? "中文与混排识别更准确；后台预热引擎，优先保证首次识别接近无感。"
+                : "中文与混排识别更准确；闲置 5 分钟释放引擎，降低常驻内存。"
             : "使用系统自带识别，无需下载模型；中文复杂页面的识别率相对较低。";
-        OcrModelStatusText.Text = installed
+        OcrModelStatusText.Text = !runtimeAvailable
+            ? "高精度 OCR 扩展 · 未包含"
+            : installed
             ? "PP-OCRv6 Small · 已就绪"
             : "PP-OCRv6 Small · 未安装";
-        OcrStatusRail.Background = new System.Windows.Media.SolidColorBrush(installed
+        OcrStatusRail.Background = new System.Windows.Media.SolidColorBrush(installed && runtimeAvailable
             ? System.Windows.Media.Color.FromRgb(118, 223, 238)
             : System.Windows.Media.Color.FromRgb(255, 178, 92));
         OcrInstallButton.Content = installed ? "重新校验" : "立即下载";
-        OcrDeleteButton.IsEnabled = installed;
+        OcrInstallButton.IsEnabled = runtimeAvailable;
+        OcrDeleteButton.IsEnabled = installed && runtimeAvailable;
         if (string.IsNullOrWhiteSpace(OcrDownloadStatusText.Text))
         {
-            OcrDownloadStatusText.Text = installed
+            OcrDownloadStatusText.Text = !runtimeAvailable
+                ? "轻量包已省去 OCR 运行库；如需 PP-OCRv6，请使用完整包。"
+                : installed
                 ? $"模型保存在 {_ocrService.AdvancedModelDirectory}"
                 : $"首次识别会自动下载约 {_ocrService.AdvancedModelDownloadSize / 1024D / 1024D:0.0} MB。";
         }
@@ -223,9 +241,10 @@ public partial class SettingsWindow : Window
 
     private void SetOcrControlsBusy(bool busy)
     {
-        OcrInstallButton.IsEnabled = !busy;
-        OcrDeleteButton.IsEnabled = !busy && _ocrService.AreAdvancedModelsInstalled;
+        OcrInstallButton.IsEnabled = !busy && _ocrService.IsAdvancedRuntimeAvailable;
+        OcrDeleteButton.IsEnabled = !busy && _ocrService.IsAdvancedRuntimeAvailable && _ocrService.AreAdvancedModelsInstalled;
         OcrEngineCombo.IsEnabled = !busy;
+        OcrPerformanceCombo.IsEnabled = !busy;
     }
 
     private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
