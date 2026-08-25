@@ -56,7 +56,7 @@ public partial class CaptureOverlayWindow : Window
     private WpfRect _pendingSmartSelection;
     private bool _dragMoved;
     private MediaColor _currentPixelColor;
-    private CaptureAnnotationTool _lineTool = CaptureAnnotationTool.Line;
+    private CaptureAnnotationTool _arrowTool = CaptureAnnotationTool.Arrow;
     private CaptureAnnotationTool _regionTool = CaptureAnnotationTool.Rectangle;
 
     public CaptureOverlayWindow(
@@ -1174,10 +1174,13 @@ public partial class CaptureOverlayWindow : Window
     private void OnPenClick(object sender, RoutedEventArgs e) =>
         ActivateAnnotationTool(CaptureAnnotationTool.Pen, sender, supportsColor: true);
 
-    private void OnLineClick(object sender, RoutedEventArgs e)
+    private void OnLineClick(object sender, RoutedEventArgs e) =>
+        ActivateAnnotationTool(CaptureAnnotationTool.Line, sender, supportsColor: true);
+
+    private void OnArrowClick(object sender, RoutedEventArgs e)
     {
-        SetAnnotationTool(_lineTool);
-        ShowLineToolPopup();
+        SetAnnotationTool(_arrowTool);
+        ShowArrowToolPopup();
     }
 
     private void OnRectangleClick(object sender, RoutedEventArgs e)
@@ -1202,7 +1205,7 @@ public partial class CaptureOverlayWindow : Window
     {
         SetAnnotationTool(tool);
         RegionToolPopup.IsOpen = false;
-        LineToolPopup.IsOpen = false;
+        ArrowToolPopup.IsOpen = false;
         if (supportsColor && sender is WpfButton button)
         {
             ShowAnnotationPalette(button);
@@ -1223,63 +1226,60 @@ public partial class CaptureOverlayWindow : Window
     private void ShowRegionToolPopup()
     {
         AnnotationPalettePopup.IsOpen = false;
-        LineToolPopup.IsOpen = false;
+        ArrowToolPopup.IsOpen = false;
         UpdateRegionToolPopup();
         RegionToolPopup.PlacementTarget = RectangleButton;
         RegionToolPopup.IsOpen = true;
     }
 
-    private void ShowLineToolPopup()
+    private void ShowArrowToolPopup()
     {
         AnnotationPalettePopup.IsOpen = false;
         RegionToolPopup.IsOpen = false;
-        UpdateLineToolPopup();
-        LineToolPopup.PlacementTarget = LineButton;
-        LineToolPopup.IsOpen = true;
+        UpdateArrowToolPopup();
+        ArrowToolPopup.PlacementTarget = ArrowButton;
+        ArrowToolPopup.IsOpen = true;
     }
 
-    private void OnLineModeClick(object sender, RoutedEventArgs e)
+    private void OnArrowModeClick(object sender, RoutedEventArgs e)
     {
         if (sender is not WpfButton { Tag: string toolName } ||
             !Enum.TryParse(toolName, out CaptureAnnotationTool tool) ||
-            tool is not (CaptureAnnotationTool.Line or
-                         CaptureAnnotationTool.Arrow or
+            tool is not (CaptureAnnotationTool.Arrow or
                          CaptureAnnotationTool.DoubleArrow))
         {
             return;
         }
 
-        _lineTool = tool;
-        UpdateLineToolButton();
+        _arrowTool = tool;
+        UpdateArrowToolButton();
         SetAnnotationTool(tool);
-        UpdateLineToolPopup();
+        UpdateArrowToolPopup();
     }
 
-    private void UpdateLineToolButton()
+    private void UpdateArrowToolButton()
     {
-        LineToolIcon.Kind = _lineTool switch
+        ArrowToolIcon.Kind = _arrowTool switch
         {
-            CaptureAnnotationTool.Arrow => QingSnapIconKind.Arrow,
             CaptureAnnotationTool.DoubleArrow => QingSnapIconKind.DoubleArrow,
-            _ => QingSnapIconKind.Line
+            _ => QingSnapIconKind.Arrow
         };
-        LineButton.ToolTip = _lineTool switch
+        ArrowButton.ToolTip = _arrowTool switch
         {
-            CaptureAnnotationTool.Arrow => "线型工具：单头箭头",
-            CaptureAnnotationTool.DoubleArrow => "线型工具：双头箭头",
-            _ => "线型工具：直线"
+            CaptureAnnotationTool.DoubleArrow => "箭头工具：双头箭头",
+            _ => "箭头工具：单头箭头"
         };
     }
 
-    private void UpdateLineToolPopup()
+    private void UpdateArrowToolPopup()
     {
         var inactive = new SolidColorBrush(Colors.Transparent);
         var active = new SolidColorBrush(MediaColor.FromRgb(49, 71, 84));
-        foreach (var button in LineModePanel.Children.OfType<WpfButton>())
+        foreach (var button in ArrowModePanel.Children.OfType<WpfButton>())
         {
             var selected = button.Tag is string value &&
                            Enum.TryParse(value, out CaptureAnnotationTool tool) &&
-                           tool == _lineTool;
+                           tool == _arrowTool;
             button.Background = selected ? active : inactive;
         }
 
@@ -1352,7 +1352,7 @@ public partial class CaptureOverlayWindow : Window
         UpdatePaletteSelection();
         AnnotationPalettePopup.IsOpen = false;
         RegionToolPopup.IsOpen = false;
-        LineToolPopup.IsOpen = false;
+        ArrowToolPopup.IsOpen = false;
         Focus();
     }
 
@@ -1376,7 +1376,7 @@ public partial class CaptureOverlayWindow : Window
             button.BorderThickness = new Thickness(selected ? 2 : 1);
         }
 
-        foreach (var button in LineColorPanel.Children.OfType<WpfButton>())
+        foreach (var button in ArrowColorPanel.Children.OfType<WpfButton>())
         {
             var selected = button.Tag is string value &&
                            (MediaColor)System.Windows.Media.ColorConverter.ConvertFromString(value) == _annotationController.CurrentColor;
@@ -1391,7 +1391,7 @@ public partial class CaptureOverlayWindow : Window
         if (CaptureToolbar.IsMouseOver ||
             AnnotationPalettePopup.Child is UIElement { IsMouseOver: true } ||
             RegionToolPopup.Child is UIElement { IsMouseOver: true } ||
-            LineToolPopup.Child is UIElement { IsMouseOver: true } ||
+            ArrowToolPopup.Child is UIElement { IsMouseOver: true } ||
             GeometryEditor.IsMouseOver)
         {
             return;
@@ -1571,7 +1571,7 @@ public partial class CaptureOverlayWindow : Window
         {
             AnnotationPalettePopup.IsOpen = false;
             RegionToolPopup.IsOpen = false;
-            LineToolPopup.IsOpen = false;
+            ArrowToolPopup.IsOpen = false;
         }
         Surface.Cursor = tool == CaptureAnnotationTool.None
             ? WpfCursors.Cross
@@ -1596,10 +1596,9 @@ public partial class CaptureOverlayWindow : Window
             button.Background = _annotationController.ActiveTool == tool ? active : inactive;
         }
 
-        LineButton.Background = _annotationController.ActiveTool is
-            CaptureAnnotationTool.Line or CaptureAnnotationTool.Arrow or CaptureAnnotationTool.DoubleArrow
-            ? active
-            : inactive;
+        LineButton.Background = _annotationController.ActiveTool == CaptureAnnotationTool.Line ? active : inactive;
+        ArrowButton.Background = _annotationController.ActiveTool is
+            CaptureAnnotationTool.Arrow or CaptureAnnotationTool.DoubleArrow ? active : inactive;
         RectangleButton.Background = _annotationController.ActiveTool is
             CaptureAnnotationTool.Rectangle or CaptureAnnotationTool.Mosaic or
             CaptureAnnotationTool.Highlight or CaptureAnnotationTool.Blur

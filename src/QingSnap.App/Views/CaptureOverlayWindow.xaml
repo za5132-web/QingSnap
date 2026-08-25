@@ -106,55 +106,104 @@
             <Setter Property="Padding" Value="8,0" />
         </Style>
         <Style x:Key="AnnotationMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Height" Value="36" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="#FFE7F0F4" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
                         <Border x:Name="MenuChrome"
-                                Margin="3,1"
-                                Padding="{TemplateBinding Padding}"
+                                Margin="0,1"
                                 Background="{TemplateBinding Background}"
                                 CornerRadius="4">
                             <Grid>
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="3" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <ContentPresenter ContentSource="Header" />
-                                <TextBlock Grid.Column="1" Margin="24,0,0,0"
+                                <Border x:Name="MenuAccent"
+                                        Width="3"
+                                        Background="#FF76DFEE"
+                                        CornerRadius="2"
+                                        Opacity="0" />
+                                <ContentPresenter Grid.Column="1"
+                                                  Margin="11,0,14,0"
+                                                  VerticalAlignment="Center"
+                                                  ContentSource="Header"
+                                                  RecognizesAccessKey="True" />
+                                <TextBlock Grid.Column="2" Margin="0,0,11,0"
                                            VerticalAlignment="Center"
                                            FontFamily="{StaticResource DataFont}"
-                                           FontSize="10" Foreground="#FF7F929D"
+                                           FontSize="10"
+                                           FontWeight="Normal"
+                                           Foreground="#FF8FA0AA"
                                            Text="{TemplateBinding InputGestureText}" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="MenuChrome" Property="Background" Value="#FF23333E" />
-                                <Setter Property="Foreground" Value="#FF76DFEE" />
+                                <Setter TargetName="MenuAccent" Property="Opacity" Value="1" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.35" />
+                                <Setter TargetName="MenuChrome" Property="Opacity" Value="0.38" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="AnnotationMenuSeparatorStyle" TargetType="Separator">
+            <Setter Property="Height" Value="7" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Margin="12,3" Background="#334D5C65" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="AnnotationContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="Width" Value="224" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="OverridesDefaultStyle" Value="True" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Padding="5"
+                                Background="#F70D171E"
+                                BorderBrush="#6676DFEE"
+                                BorderThickness="1"
+                                CornerRadius="7">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#FF000000"
+                                                  BlurRadius="16"
+                                                  ShadowDepth="4"
+                                                  Opacity="0.55" />
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True"
+                                        KeyboardNavigation.DirectionalNavigation="Cycle" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <ContextMenu x:Key="AnnotationContextMenu"
-                     MinWidth="188" Padding="3"
-                     Background="#FC0E171F"
-                     BorderBrush="#6676DFEE"
-                     BorderThickness="1"
-                     HasDropShadow="True">
+                     Style="{StaticResource AnnotationContextMenuStyle}">
             <MenuItem Header="编辑文字" InputGestureText="双击 / F2"
                       Style="{StaticResource AnnotationMenuItemStyle}"
                       Click="OnEditAnnotationTextClick" />
-            <Separator Margin="8,3" Background="#334F616B" />
+            <Separator Style="{StaticResource AnnotationMenuSeparatorStyle}" />
             <MenuItem Header="置于顶层" InputGestureText="Ctrl+Shift+]"
                       Style="{StaticResource AnnotationMenuItemStyle}"
                       Click="OnBringAnnotationToFrontClick" />
@@ -167,7 +216,7 @@
             <MenuItem Header="置于底层" InputGestureText="Ctrl+Shift+["
                       Style="{StaticResource AnnotationMenuItemStyle}"
                       Click="OnSendAnnotationToBackClick" />
-            <Separator Margin="8,3" Background="#334F616B" />
+            <Separator Style="{StaticResource AnnotationMenuSeparatorStyle}" />
             <MenuItem Header="复制标注" InputGestureText="Ctrl+C / Ctrl+V"
                       Style="{StaticResource AnnotationMenuItemStyle}"
                       Click="OnCopyAnnotationClick" />
@@ -271,20 +320,25 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Border Background="#FF76DFEE" CornerRadius="6,0,0,6" />
-                    <Border Grid.Column="1" Width="84" Margin="6,5,4,5" Padding="6,0"
+                    <Border Grid.Column="1" MinWidth="116" Margin="6,5,4,5" Padding="8,0"
                             Background="#B314222C" CornerRadius="4"
                             Cursor="Hand" ToolTip="点击输入坐标和尺寸"
                             MouseLeftButtonDown="OnToolbarSizeMouseLeftButtonDown">
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Grid VerticalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
                             <icons:QingSnapIcon Kind="Geometry" Width="17" Height="17" Foreground="#FF76DFEE" />
-                            <TextBlock x:Name="ToolbarSizeText"
+                            <TextBlock x:Name="ToolbarSizeText" Grid.Column="1"
                                        Margin="7,0,0,0"
                                        VerticalAlignment="Center"
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10"
                                        Foreground="#FFC5D2D8"
+                                       TextWrapping="NoWrap"
                                        Text="0 × 0" />
-                        </StackPanel>
+                        </Grid>
                     </Border>
                     <StackPanel Grid.Column="2" Margin="0,5,6,5" Orientation="Horizontal">
                         <Button x:Name="PenButton"
@@ -298,10 +352,18 @@
                         <Button x:Name="LineButton"
                                 Style="{StaticResource CaptureAnnotationButton}"
                                 Width="32"
-                                ToolTip="线型工具：直线"
-                                AutomationProperties.Name="线型工具"
+                                ToolTip="直线"
+                                AutomationProperties.Name="直线"
                                 Click="OnLineClick">
-                            <icons:QingSnapIcon x:Name="LineToolIcon" Kind="Line" />
+                            <icons:QingSnapIcon Kind="Line" />
+                        </Button>
+                        <Button x:Name="ArrowButton"
+                                Style="{StaticResource CaptureAnnotationButton}"
+                                Width="32"
+                                ToolTip="箭头工具：单头箭头"
+                                AutomationProperties.Name="箭头工具"
+                                Click="OnArrowClick">
+                            <icons:QingSnapIcon x:Name="ArrowToolIcon" Kind="Arrow" />
                         </Button>
                         <Button x:Name="RectangleButton"
                                 Style="{StaticResource CaptureAnnotationButton}"
@@ -480,7 +542,7 @@
             </StackPanel>
         </Popup>
 
-        <Popup x:Name="LineToolPopup"
+        <Popup x:Name="ArrowToolPopup"
                Placement="Bottom"
                VerticalOffset="5"
                AllowsTransparency="True"
@@ -499,25 +561,20 @@
                         BorderThickness="1"
                         CornerRadius="6">
                     <StackPanel>
-                        <StackPanel x:Name="LineModePanel" Orientation="Horizontal">
-                            <Button Style="{StaticResource RegionModeButton}"
-                                    Tag="Line" ToolTip="直线"
-                                    Click="OnLineModeClick">
-                                <icons:QingSnapIcon Kind="Line" />
-                            </Button>
+                        <StackPanel x:Name="ArrowModePanel" Orientation="Horizontal">
                             <Button Style="{StaticResource RegionModeButton}"
                                     Tag="Arrow" ToolTip="单头箭头"
-                                    Click="OnLineModeClick">
+                                    Click="OnArrowModeClick">
                                 <icons:QingSnapIcon Kind="Arrow" />
                             </Button>
                             <Button Style="{StaticResource RegionModeButton}"
                                     Tag="DoubleArrow" ToolTip="双头箭头"
-                                    Click="OnLineModeClick">
+                                    Click="OnArrowModeClick">
                                 <icons:QingSnapIcon Kind="DoubleArrow" />
                             </Button>
                         </StackPanel>
                         <Border Height="1" Margin="5,4,5,3" Background="#3DFFFFFF" />
-                        <StackPanel x:Name="LineColorPanel" Orientation="Horizontal">
+                        <StackPanel x:Name="ArrowColorPanel" Orientation="Horizontal">
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFFD054" Tag="#FFFFD054" ToolTip="黄色" Click="OnPaletteColorClick" />

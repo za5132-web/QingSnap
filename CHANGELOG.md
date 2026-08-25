@@ -3,6 +3,17 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [Preview v49] - 2026-08-25
+
+### 截图工作台界面 / Capture workspace UI
+
+- 截图工具栏重新拆分“直线”和“箭头”：直线作为独立工具，箭头面板只保留单头与双头箭头。  Line and arrow annotations are separate again, with single-head and double-head choices contained in the arrow palette.
+- 工具栏尺寸区改为内容自适应宽度，四位数宽高不再被后续按钮遮挡。  The selection size tile now measures its content so four-digit dimensions remain fully visible.
+- 重画自由画笔图标，使用带笔尖和笔身的清晰轮廓。  The freehand tool now uses a recognizable pencil-shaped icon.
+- 截图记录窗口移除原生白色顶边，日期筛选下拉框与滚动区域统一为深色风格。  History removes the native white top edge and brings the date selector and scrolling surface into the dark visual system.
+- 重做标注选择工具的右键菜单，移除原生白色栏并修复文字、快捷键和悬停状态的裁切。  The annotation context menu now uses a fully custom dark template without the native white gutter or clipped labels.
+- 自动化测试保持 27 项全部通过。  All 27 automated tests pass.
+
 ## [Preview v48] - 2026-08-25
 
 ### 识字找图 / Search by text
@@ -185,6 +196,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[Preview v49]: https://github.com/za5132-web/QingSnap/compare/preview-v48...preview-v49
 [Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47
 [Preview v46]: https://github.com/za5132-web/QingSnap/compare/preview-v45...preview-v46
 [Preview v45]: https://github.com/za5132-web/QingSnap/compare/preview-v44...preview-v45

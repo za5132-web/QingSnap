@@ -71,9 +71,11 @@ public sealed class QingSnapIcon : Control
         switch (Kind)
         {
             case QingSnapIconKind.Pen:
-                Line(dc, pen, 5, 18.5, 17.8, 5.7);
-                Line(dc, pen, 14.8, 4.8, 18.8, 8.8);
-                Line(dc, pen, 4.4, 19.6, 8.2, 18.8);
+                dc.DrawGeometry(null, pen, Geometry.Parse(
+                    "M5,19 L6.2,14.7 L15.9,5 A1.7,1.7 0 0 1 18.3,5 L19,5.7 A1.7,1.7 0 0 1 19,8.1 L9.3,17.8 Z"));
+                Line(dc, pen, 6.4, 14.8, 9.2, 17.6);
+                Line(dc, pen, 15.1, 5.9, 18.1, 8.9);
+                dc.DrawGeometry(brush, null, Geometry.Parse("M5,19 L6.3,15.3 L8.7,17.7 Z"));
                 break;
             case QingSnapIconKind.Arrow:
                 dc.DrawGeometry(brush, null, Geometry.Parse("M3.5,19.5 L15.2,8.4 L12.7,6.5 L20.5,3.5 L17.3,11.2 L15.4,8.8 Z"));
