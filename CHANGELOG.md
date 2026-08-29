@@ -3,6 +3,21 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.0.1] - 2026-08-29
+
+### 首次使用、反馈与标注 / Onboarding, feedback, and annotations
+
+- 首次启动新增七步交互式使用教程，并可在设置中随时重新播放。  First launch now includes a seven-step interactive guide that can be replayed from Settings.
+- 设置页新增问题反馈入口，可填写描述、选择是否附带最近七天日志，并生成可检查的 ZIP 后打开 GitHub 反馈页。  Settings now creates a reviewable feedback ZIP with optional recent logs and opens the GitHub issue page.
+- 序号标注支持双击、`F2` 或右键修改为指定数字，后续序号会从当前最大值继续。  Numbered annotations can be changed by double-click, `F2`, or the context menu, and new markers continue after the current maximum.
+- `F2` 形成连续工作流：在任意绘制工具中先切换到选择工具，在选择工具中再次按下即可编辑选中的文字或序号。  `F2` now switches any drawing tool to Select, then edits the selected text or number when pressed again.
+
+### 剪贴板兼容性 / Clipboard compatibility
+
+- 修复部分外部程序复制的 DIB 图片按 `F3` 贴出后整张变黑的问题；优先读取 PNG，并校正全零透明通道，同时保留正常透明图片。  Fixed externally copied DIB images appearing black when pinned with `F3` by preferring PNG data and repairing invalid all-zero alpha without damaging valid transparency.
+- 反馈窗口主按钮改为更紧凑的“生成并前往反馈”，避免文字贴边。  The feedback action now uses a shorter label with balanced spacing.
+- 自动化测试增至 30 项，构建保持 0 警告、0 错误。  Automated coverage increases to 30 passing tests with zero build warnings and errors.
+
 ## [1.0.0] - 2026-08-25
 
 ### 截图工作台界面 / Capture workspace UI
@@ -196,6 +211,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[1.0.1]: https://github.com/za5132-web/QingSnap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/za5132-web/QingSnap/compare/preview-v48...v1.0.0
 [Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47
 [Preview v46]: https://github.com/za5132-web/QingSnap/compare/preview-v45...preview-v46

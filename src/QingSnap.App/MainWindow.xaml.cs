@@ -14,6 +14,7 @@ public partial class MainWindow : Window
     private GlobalHotkeyService? _hotkeys;
     private TrayIconService? _tray;
     private SettingsWindow? _settingsWindow;
+    private FirstRunTutorialWindow? _tutorialWindow;
 
     public MainWindow()
     {
@@ -39,6 +40,11 @@ public partial class MainWindow : Window
         ContentRendered += (_, _) =>
         {
             Hide();
+            if (!_settingsService.Current.HasCompletedFirstRunTutorial)
+            {
+                Dispatcher.BeginInvoke(() => OpenTutorialWindow(markCompletedOnClose: true));
+            }
+
             Dispatcher.BeginInvoke(
                 () => _ = _ocrService.WarmUpAsync(),
                 System.Windows.Threading.DispatcherPriority.ApplicationIdle);
@@ -68,9 +74,36 @@ public partial class MainWindow : Window
             return;
         }
 
-        _settingsWindow = new SettingsWindow(_settingsService, _ocrService);
+        _settingsWindow = new SettingsWindow(
+            _settingsService,
+            _ocrService,
+            () => OpenTutorialWindow(markCompletedOnClose: false));
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
+    }
+
+    private void OpenTutorialWindow(bool markCompletedOnClose)
+    {
+        if (_tutorialWindow is not null)
+        {
+            _tutorialWindow.Activate();
+            return;
+        }
+
+        _tutorialWindow = new FirstRunTutorialWindow();
+        _tutorialWindow.Closed += (_, _) =>
+        {
+            _tutorialWindow = null;
+            if (markCompletedOnClose && !_settingsService.Current.HasCompletedFirstRunTutorial)
+            {
+                _settingsService.Save(_settingsService.Current with
+                {
+                    HasCompletedFirstRunTutorial = true
+                });
+            }
+        };
+        _tutorialWindow.Show();
+        _tutorialWindow.Activate();
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)

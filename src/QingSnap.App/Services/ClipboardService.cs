@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using QingSnap.App.Models;
 
@@ -62,11 +63,11 @@ public sealed class ClipboardService : IDisposable
             }
 
             var preferredRegion = ParseCaptureRegion(data.GetData(CaptureRegionFormat) as string);
-            var clipboardImage = System.Windows.Clipboard.GetImage();
+            var clipboardImage = TryReadClipboardImage(data);
             if (clipboardImage is not null)
             {
                 return new ClipboardImageContent(
-                    FreezeImage(clipboardImage),
+                    clipboardImage,
                     preferredRegion is null ? "剪贴板图片" : "QingSnap 截图",
                     preferredRegion);
             }
@@ -85,6 +86,95 @@ public sealed class ClipboardService : IDisposable
 
             return null;
         }, ClipboardReadTimeout, "读取图片");
+    }
+
+    private static BitmapSource? TryReadClipboardImage(System.Windows.IDataObject data)
+    {
+        foreach (var format in data.GetFormats(false).Where(format =>
+                     string.Equals(format, "PNG", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(format, "image/png", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                if (TryDecodeClipboardStream(data.GetData(format, false)) is { } encodedImage)
+                {
+                    return NormalizeClipboardImage(encodedImage);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or NotSupportedException or ArgumentException)
+            {
+                DiagnosticLog.Warning("Clipboard", $"剪贴板 {format} 数据无法解码，已回退到位图格式：{exception.Message}");
+            }
+        }
+
+        var bitmap = data.GetData(System.Windows.DataFormats.Bitmap, false) as BitmapSource ??
+                     System.Windows.Clipboard.GetImage();
+        return bitmap is null ? null : NormalizeClipboardImage(bitmap);
+    }
+
+    private static BitmapSource? TryDecodeClipboardStream(object? value)
+    {
+        if (value is not Stream && value is not byte[])
+        {
+            return null;
+        }
+
+        using var ownedStream = value is byte[] bytes ? new MemoryStream(bytes, writable: false) : null;
+        var stream = ownedStream ?? (Stream)value;
+        if (stream.CanSeek)
+        {
+            stream.Position = 0;
+        }
+
+        var decoder = BitmapDecoder.Create(
+            stream,
+            BitmapCreateOptions.PreservePixelFormat,
+            BitmapCacheOption.OnLoad);
+        return decoder.Frames.Count == 0 ? null : decoder.Frames[0];
+    }
+
+    internal static BitmapSource NormalizeClipboardImage(BitmapSource image)
+    {
+        BitmapSource converted = image.Format == PixelFormats.Bgra32
+            ? image
+            : new FormatConvertedBitmap(image, PixelFormats.Bgra32, null, 0);
+        var stride = checked(converted.PixelWidth * 4);
+        var pixels = new byte[checked(stride * converted.PixelHeight)];
+        converted.CopyPixels(pixels, stride, 0);
+
+        var hasVisibleAlpha = false;
+        for (var index = 3; index < pixels.Length; index += 4)
+        {
+            if (pixels[index] != 0)
+            {
+                hasVisibleAlpha = true;
+                break;
+            }
+        }
+
+        if (!hasVisibleAlpha)
+        {
+            for (var index = 3; index < pixels.Length; index += 4)
+            {
+                pixels[index] = byte.MaxValue;
+            }
+
+            DiagnosticLog.Info("Clipboard", "检测到外部 DIB 的透明通道全为 0，已按不透明图片修复。");
+        }
+
+        var dpiX = double.IsFinite(converted.DpiX) && converted.DpiX > 0 ? converted.DpiX : 96;
+        var dpiY = double.IsFinite(converted.DpiY) && converted.DpiY > 0 ? converted.DpiY : 96;
+        var normalized = BitmapSource.Create(
+            converted.PixelWidth,
+            converted.PixelHeight,
+            dpiX,
+            dpiY,
+            PixelFormats.Bgra32,
+            null,
+            pixels,
+            stride);
+        normalized.Freeze();
+        return normalized;
     }
 
     private static void SetImage(BitmapSource image, CaptureRegion? region)

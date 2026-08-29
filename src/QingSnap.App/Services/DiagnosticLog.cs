@@ -49,7 +49,11 @@ public static class DiagnosticLog
     public static void Error(string category, Exception exception, string? message = null) =>
         Write("ERR", category, message ?? exception.Message, exception);
 
-    public static string ExportBundle(string destinationPath, AppSettings settings)
+    public static string ExportBundle(
+        string destinationPath,
+        AppSettings settings,
+        string? feedbackText = null,
+        bool includeLogs = true)
     {
         lock (Sync)
         {
@@ -60,9 +64,19 @@ public static class DiagnosticLog
             }
 
             using var archive = ZipFile.Open(destinationPath, ZipArchiveMode.Create);
-            foreach (var logPath in Directory.EnumerateFiles(LogDirectory, "*.log"))
+            if (includeLogs)
             {
-                archive.CreateEntryFromFile(logPath, $"logs/{Path.GetFileName(logPath)}", CompressionLevel.Optimal);
+                foreach (var logPath in Directory.EnumerateFiles(LogDirectory, "*.log"))
+                {
+                    archive.CreateEntryFromFile(logPath, $"logs/{Path.GetFileName(logPath)}", CompressionLevel.Optimal);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(feedbackText))
+            {
+                var feedbackEntry = archive.CreateEntry("feedback.txt", CompressionLevel.Optimal);
+                using var feedbackWriter = new StreamWriter(feedbackEntry.Open(), new UTF8Encoding(false));
+                feedbackWriter.Write(feedbackText.Trim());
             }
 
             var systemEntry = archive.CreateEntry("system.json", CompressionLevel.Optimal);

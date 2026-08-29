@@ -24,6 +24,7 @@ namespace QingSnap.App.Views;
 
 internal sealed class CaptureAnnotationController
 {
+    private const string NumberAnnotationTag = "QingSnap.NumberAnnotation";
     private readonly Canvas _layer;
     private readonly ScreenSnapshot _snapshot;
     private readonly List<FrameworkElement> _annotations = [];
@@ -79,6 +80,8 @@ internal sealed class CaptureAnnotationController
     public bool HasSelection => _selectedElement is not null;
 
     public bool CanEditSelectedText => _selectedElement is TextBlock;
+
+    public bool CanEditSelectedNumber => TryGetNumberBadge(_selectedElement, out _, out _);
 
     public Color CurrentColor => (_annotationBrush as SolidColorBrush)?.Color ?? Color.FromRgb(255, 78, 91);
 
@@ -592,6 +595,7 @@ internal sealed class CaptureAnnotationController
     {
         var badge = new Border
         {
+            Tag = NumberAnnotationTag,
             Width = 28,
             Height = 28,
             CornerRadius = new CornerRadius(14),
@@ -616,6 +620,61 @@ internal sealed class CaptureAnnotationController
         _annotations.Add(badge);
         RefreshAnnotationZOrder();
         Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public bool TryGetSelectedNumber(out int value)
+    {
+        if (TryGetNumberBadge(_selectedElement, out _, out var label) &&
+            int.TryParse(label.Text, out value))
+        {
+            return true;
+        }
+
+        value = 0;
+        return false;
+    }
+
+    public bool SetSelectedNumber(int value)
+    {
+        if (value is < 1 or > 9999 ||
+            !TryGetNumberBadge(_selectedElement, out _, out var label))
+        {
+            return false;
+        }
+
+        label.Text = value.ToString();
+        _numberSequence = Math.Max(
+            1,
+            _annotations
+                .Select(annotation => TryGetNumberBadge(annotation, out _, out var numberLabel) &&
+                                      int.TryParse(numberLabel.Text, out var number)
+                    ? number
+                    : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1);
+        UpdateSelectionAdorners();
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    private static bool TryGetNumberBadge(
+        FrameworkElement? element,
+        out Border badge,
+        out TextBlock label)
+    {
+        if (element is Border candidate &&
+            candidate.Child is TextBlock candidateLabel &&
+            (string.Equals(candidate.Tag as string, NumberAnnotationTag, StringComparison.Ordinal) ||
+             int.TryParse(candidateLabel.Text, out _)))
+        {
+            badge = candidate;
+            label = candidateLabel;
+            return true;
+        }
+
+        badge = null!;
+        label = null!;
+        return false;
     }
 
     public bool IsEndpointAt(WpfPoint surfacePoint)

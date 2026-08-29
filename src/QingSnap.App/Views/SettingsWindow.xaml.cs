@@ -14,12 +14,17 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettingsService _settingsService;
     private readonly OcrService _ocrService;
+    private readonly Action _openTutorial;
     private CancellationTokenSource? _ocrOperationCancellation;
 
-    public SettingsWindow(AppSettingsService settingsService, OcrService ocrService)
+    public SettingsWindow(
+        AppSettingsService settingsService,
+        OcrService ocrService,
+        Action openTutorial)
     {
         _settingsService = settingsService;
         _ocrService = ocrService;
+        _openTutorial = openTutorial;
         InitializeComponent();
         LoadSettings(settingsService.Current);
         RefreshOcrStatus();
@@ -125,6 +130,17 @@ public partial class SettingsWindow : Window
     }
 
     private void OnCancelClick(object sender, RoutedEventArgs e) => Close();
+
+    private void OnReplayTutorialClick(object sender, RoutedEventArgs e) => _openTutorial();
+
+    private void OnOpenFeedbackClick(object sender, RoutedEventArgs e)
+    {
+        var window = new FeedbackWindow(_settingsService)
+        {
+            Owner = this
+        };
+        window.ShowDialog();
+    }
 
     private void OnOcrEngineChanged(object sender, SelectionChangedEventArgs e)
     {

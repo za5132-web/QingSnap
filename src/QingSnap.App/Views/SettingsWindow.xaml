@@ -628,7 +628,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Padding="18" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
+                    <Border Padding="18" Margin="0,0,0,14" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
                         <StackPanel>
                             <TextBlock Style="{StaticResource SectionLabel}" Text="LONG CAPTURE  /  长截图" />
                             <Grid>
@@ -645,6 +645,50 @@
                             </Grid>
                             <CheckBox x:Name="StartupCheck" Margin="0,16,0,0" Content="登录 Windows 后自动启动 QingSnap" />
                         </StackPanel>
+                    </Border>
+
+                    <Border Padding="18" Margin="0,0,0,14" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource SectionLabel}" Text="GUIDE  /  使用教程" />
+                                <TextBlock Margin="0,1,18,0"
+                                           FontSize="10.5"
+                                           Foreground="{StaticResource TextMuted}"
+                                           Text="重新查看截图、长截图、贴图、文字选取与截图记录的交互演示。" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Margin="0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource ActionButton}"
+                                    Content="重新播放教程"
+                                    Click="OnReplayTutorialClick" />
+                        </Grid>
+                    </Border>
+
+                    <Border Padding="18" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Style="{StaticResource SectionLabel}" Text="FEEDBACK  /  问题反馈" />
+                                <TextBlock Margin="0,1,18,0"
+                                           FontSize="10.5"
+                                           Foreground="{StaticResource TextMuted}"
+                                           Text="描述问题并生成包含可选日志的反馈包，然后前往反馈页面提交。" />
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Margin="0"
+                                    VerticalAlignment="Center"
+                                    Style="{StaticResource ActionButton}"
+                                    Content="发送反馈"
+                                    Click="OnOpenFeedbackClick" />
+                        </Grid>
                     </Border>
                 </StackPanel>
             </ScrollViewer>

@@ -7,11 +7,11 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区�
 
 QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[当前正式版 v1.0.0 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-v1.0.0.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.0.0 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.0.0) · [完整更新日志 / Changelog](CHANGELOG.md)
+[当前正式版 v1.0.1 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.0.1/QingSnap-v1.0.1.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.0.1 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.0.1) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `v1.0.0` |
+| 当前版本 / Current version | `v1.0.1` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
 | OCR | 可选运行库 + PP-OCRv6 Tiny / Small 模型（离线） / optional runtime and Tiny or Small model |
@@ -144,6 +144,17 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
 
+## v1.0.1 正式版 / Stable release
+
+- 首次启动显示七步使用教程，并可从设置页重新播放。
+  A seven-step first-run guide introduces the main workflow and can be replayed from Settings.
+- 外部复制的图片可可靠地通过 `F3` 贴出，不再因异常透明通道显示为黑图。
+  Clipboard images from external apps pin reliably with `F3` instead of turning black because of invalid alpha data.
+- 序号标注可以手动改号；`F2` 可从绘制工具进入选择工具，再次按下编辑选中的文字或序号。
+  Numbered markers are editable, while `F2` moves from drawing to selection and then edits the selected text or number.
+- 设置新增反馈入口，可生成包含文字与可选日志的反馈包并前往 GitHub 提交。
+  Settings can generate a feedback bundle with text and optional logs, then open GitHub for submission.
+
 ## v1.0.0 正式版 / Stable release
 
 - 截图工具栏重新拆分直线与箭头，箭头面板内提供单头、双头两种样式。
@@ -217,12 +228,13 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 
 ## 完整版本历程 / Complete version history
 
-下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
+下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0–v1.0.1。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
 
-The table follows Preview v1–v48 and the stable v1.0.0 release. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
+The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.1. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
 
 | 版本 / Version | 日期 / Date | 本次更新 / Changes |
 | --- | --- | --- |
+| v1.0.1 | 2026-08-29 | 新增首次使用教程、设置反馈入口和序号改号；`F2` 串联选择与编辑；修复外部剪贴板图片贴出变黑，并收紧反馈按钮文字。<br>Added onboarding, feedback, editable number markers, an F2 select/edit flow, fixed black external clipboard pins, and tightened the feedback action label. |
 | v1.0.0 | 2026-08-25 | 首个正式版：直线与箭头重新拆分；箭头面板保留单头/双头；修复四位数尺寸裁切、画笔图标、截图记录白边/日期控件及标注右键菜单。<br>First stable release: separated line and arrow tools; retained single/double arrow choices; fixed four-digit size clipping, the pen icon, History chrome/date selector, and annotation context menu. |
 | v48 | 2026-08-25 | 新截图自动建立 OCR 搜索索引；截图记录后台补齐旧图索引，搜索结果实时更新，并复用截图阶段预识别。<br>Automatically indexes new captures, backfills missing history OCR indexes, updates search results live, and reuses capture-time prefetch. |
 | v47 | 2026-08-25 | 统一为无 OCR 基础包；设置页一键安装/卸载 OCR 运行库与 Tiny/Small 模型；修复 Tiny 字典乱码和英文选区空格；新增多尺寸程序图标。<br>Unified the OCR-free base package; added one-click runtime and Tiny/Small model management; fixed Tiny dictionary decoding and selection spacing; added multi-size app icons. |

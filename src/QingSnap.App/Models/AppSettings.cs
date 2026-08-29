@@ -2,6 +2,8 @@ namespace QingSnap.App.Models;
 
 public sealed record AppSettings
 {
+    public bool HasCompletedFirstRunTutorial { get; init; }
+
     public string CaptureHotkey { get; init; } = "F1";
 
     public string PinHotkey { get; init; } = "F3";

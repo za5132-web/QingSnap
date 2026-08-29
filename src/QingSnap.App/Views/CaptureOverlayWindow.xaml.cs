@@ -214,7 +214,8 @@ public partial class CaptureOverlayWindow : Window
         {
             if (_annotationController.ActiveTool == CaptureAnnotationTool.Select &&
                 e.ClickCount >= 2 &&
-                _annotationController.BeginEditTextAt(point))
+                _annotationController.SelectAt(point) &&
+                BeginEditSelectedAnnotation())
             {
                 e.Handled = true;
                 return;
@@ -386,6 +387,23 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
+        if (_showActionToolbar &&
+            key == Key.F2 &&
+            Keyboard.Modifiers == ModifierKeys.None)
+        {
+            if (_annotationController.ActiveTool == CaptureAnnotationTool.Select)
+            {
+                BeginEditSelectedAnnotation();
+            }
+            else
+            {
+                ActivateAnnotationTool(CaptureAnnotationTool.Select, SelectButton, supportsColor: false);
+            }
+
+            e.Handled = true;
+            return;
+        }
+
         if (_showActionToolbar && _annotationController.ActiveTool == CaptureAnnotationTool.Select)
         {
             if (key == Key.Delete)
@@ -405,13 +423,6 @@ public partial class CaptureOverlayWindow : Window
             if (key == Key.V && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
                 _annotationController.PasteSelected();
-                e.Handled = true;
-                return;
-            }
-
-            if (key == Key.F2)
-            {
-                _annotationController.BeginEditSelectedText();
                 e.Handled = true;
                 return;
             }
@@ -551,9 +562,14 @@ public partial class CaptureOverlayWindow : Window
             if (_annotationController.SelectAt(point) &&
                 FindResource("AnnotationContextMenu") is ContextMenu menu)
             {
-                if (menu.Items.OfType<MenuItem>().FirstOrDefault() is { } editItem)
+                foreach (var item in menu.Items.OfType<MenuItem>())
                 {
-                    editItem.IsEnabled = _annotationController.CanEditSelectedText;
+                    item.IsEnabled = item.Tag?.ToString() switch
+                    {
+                        "EditText" => _annotationController.CanEditSelectedText,
+                        "EditNumber" => _annotationController.CanEditSelectedNumber,
+                        _ => true
+                    };
                 }
                 menu.PlacementTarget = Surface;
                 menu.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
@@ -1435,6 +1451,34 @@ public partial class CaptureOverlayWindow : Window
     private void OnEditAnnotationTextClick(object sender, RoutedEventArgs e)
     {
         _annotationController.BeginEditSelectedText();
+    }
+
+    private void OnEditAnnotationNumberClick(object sender, RoutedEventArgs e) =>
+        BeginEditSelectedNumber();
+
+    private bool BeginEditSelectedAnnotation() =>
+        _annotationController.CanEditSelectedNumber
+            ? BeginEditSelectedNumber()
+            : _annotationController.BeginEditSelectedText();
+
+    private bool BeginEditSelectedNumber()
+    {
+        if (!_annotationController.TryGetSelectedNumber(out var currentValue))
+        {
+            return false;
+        }
+
+        var dialog = new NumberAnnotationEditWindow(currentValue)
+        {
+            Owner = this
+        };
+        if (dialog.ShowDialog() == true && _annotationController.SetSelectedNumber(dialog.Value))
+        {
+            ShowAdjustmentBadge(Mouse.GetPosition(Root), $"序号已改为 {dialog.Value}");
+        }
+
+        Activate();
+        return true;
     }
 
     private void OnBringAnnotationToFrontClick(object sender, RoutedEventArgs e) =>

@@ -88,6 +88,24 @@ public sealed class LongCaptureAssemblerTests
         }
     }
 
+    [Fact]
+    public void DiagnosticBundleCanIncludeFeedbackWithoutLogs()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"QingSnap-feedback-test-{Guid.NewGuid():N}.zip");
+        try
+        {
+            DiagnosticLog.ExportBundle(path, new AppSettings(), "测试反馈内容", includeLogs: false);
+            using var archive = ZipFile.OpenRead(path);
+            Assert.Contains(archive.Entries, entry => entry.FullName == "system.json");
+            Assert.Contains(archive.Entries, entry => entry.FullName == "feedback.txt");
+            Assert.DoesNotContain(archive.Entries, entry => entry.FullName.StartsWith("logs/", StringComparison.Ordinal));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

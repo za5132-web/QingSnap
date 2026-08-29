@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using QingSnap.App.Services;
 using Xunit;
 
@@ -25,5 +27,41 @@ public sealed class ClipboardServiceTests
 
         Assert.True(ClipboardService.IsClipboardContentionException(exception));
         Assert.False(ClipboardService.IsClipboardContentionException(new InvalidOperationException()));
+    }
+
+    [Fact]
+    public void NormalizeClipboardImage_AllZeroAlpha_BecomesOpaqueWithoutChangingRgb()
+    {
+        byte[] pixels =
+        [
+            10, 20, 30, 0,
+            40, 50, 60, 0
+        ];
+        var source = BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgra32, null, pixels, 8);
+
+        var normalized = ClipboardService.NormalizeClipboardImage(source);
+        var actual = new byte[8];
+        normalized.CopyPixels(actual, 8, 0);
+
+        Assert.Equal(PixelFormats.Bgra32, normalized.Format);
+        Assert.Equal(new byte[] { 10, 20, 30, 255, 40, 50, 60, 255 }, actual);
+        Assert.True(normalized.IsFrozen);
+    }
+
+    [Fact]
+    public void NormalizeClipboardImage_RealTransparency_IsPreserved()
+    {
+        byte[] pixels =
+        [
+            10, 20, 30, 0,
+            40, 50, 60, 128
+        ];
+        var source = BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgra32, null, pixels, 8);
+
+        var normalized = ClipboardService.NormalizeClipboardImage(source);
+        var actual = new byte[8];
+        normalized.CopyPixels(actual, 8, 0);
+
+        Assert.Equal(pixels, actual);
     }
 }

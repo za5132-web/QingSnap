@@ -200,9 +200,12 @@
         </Style>
         <ContextMenu x:Key="AnnotationContextMenu"
                      Style="{StaticResource AnnotationContextMenuStyle}">
-            <MenuItem Header="编辑文字" InputGestureText="双击 / F2"
+            <MenuItem Header="编辑文字" InputGestureText="双击 / F2" Tag="EditText"
                       Style="{StaticResource AnnotationMenuItemStyle}"
                       Click="OnEditAnnotationTextClick" />
+            <MenuItem Header="修改序号" InputGestureText="双击 / F2" Tag="EditNumber"
+                      Style="{StaticResource AnnotationMenuItemStyle}"
+                      Click="OnEditAnnotationNumberClick" />
             <Separator Style="{StaticResource AnnotationMenuSeparatorStyle}" />
             <MenuItem Header="置于顶层" InputGestureText="Ctrl+Shift+]"
                       Style="{StaticResource AnnotationMenuItemStyle}"
@@ -400,7 +403,7 @@
                         <Button x:Name="SelectButton"
                                 Style="{StaticResource CaptureAnnotationButton}"
                                 Width="32"
-                                ToolTip="选择、缩放标注；双击编辑文字；右键调整图层"
+                                ToolTip="选择、缩放标注；F2 切换选择或编辑标注；右键调整图层"
                                 AutomationProperties.Name="选择并编辑标注"
                                 Click="OnSelectClick">
                             <icons:QingSnapIcon Kind="Select" />

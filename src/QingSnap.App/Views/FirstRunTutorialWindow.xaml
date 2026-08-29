@@ -1,0 +1,386 @@
+<Window x:Class="QingSnap.App.Views.FirstRunTutorialWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:QingSnap.App.Controls"
+        Title="QingSnap 使用向导"
+        Icon="pack://application:,,,/QingSnap;component/Assets/QingSnap.ico"
+        Width="760"
+        Height="680"
+        MinWidth="720"
+        MinHeight="640"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Foreground="#FFF3F7F9"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        PreviewKeyDown="OnPreviewKeyDown">
+    <Window.Resources>
+        <SolidColorBrush x:Key="GuideWindow" Color="#FF091017" />
+        <SolidColorBrush x:Key="GuideTitle" Color="#FF0C151D" />
+        <SolidColorBrush x:Key="GuidePanel" Color="#FF101B23" />
+        <SolidColorBrush x:Key="GuideLine" Color="#46536A76" />
+        <SolidColorBrush x:Key="GuideAccent" Color="#FF76DFEE" />
+        <SolidColorBrush x:Key="GuideText" Color="#FFF3F7F9" />
+        <SolidColorBrush x:Key="GuideMuted" Color="#FF8FA2AD" />
+
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+        </Style>
+
+        <Style x:Key="GuideStep" TargetType="RadioButton">
+            <Setter Property="Height" Value="61" />
+            <Setter Property="Margin" Value="0,0,0,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Shell" Background="Transparent" CornerRadius="7">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="6" />
+                                    <ColumnDefinition Width="42" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border x:Name="Rail" Width="4" Height="40" HorizontalAlignment="Left" Background="{StaticResource GuideAccent}" CornerRadius="2" Opacity="0" />
+                                <Border x:Name="Marker" Grid.Column="1" Width="29" Height="29" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent" BorderBrush="#FF3F6070" BorderThickness="1" CornerRadius="15">
+                                    <TextBlock x:Name="StepNumber" HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12" Foreground="#FF9BB0BA" Text="{TemplateBinding Tag}" />
+                                </Border>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock x:Name="StepTitle" FontSize="13" Foreground="#FFDCE8EC" Text="{TemplateBinding Content}" />
+                                    <TextBlock x:Name="StepHint" Margin="0,3,0,0" FontSize="10.5" Foreground="#FF71909F" Text="{TemplateBinding ToolTip}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="#FF10212A" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Shell" Property="Background" Value="#FF132A35" />
+                                <Setter TargetName="Rail" Property="Opacity" Value="1" />
+                                <Setter TargetName="Marker" Property="Background" Value="{StaticResource GuideAccent}" />
+                                <Setter TargetName="Marker" Property="BorderBrush" Value="{StaticResource GuideAccent}" />
+                                <Setter TargetName="StepNumber" Property="Foreground" Value="#FF09202A" />
+                                <Setter TargetName="StepTitle" Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="StepTitle" Property="FontWeight" Value="SemiBold" />
+                                <Setter TargetName="StepHint" Property="Foreground" Value="#FFA7C2CD" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GuideButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="84" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="Padding" Value="18,0" />
+            <Setter Property="Foreground" Value="#FFC7D8DF" />
+            <Setter Property="Background" Value="#FF0B151C" />
+            <Setter Property="BorderBrush" Value="#FF31505E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shell" Property="Background" Value="#FF142630" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Shell" Property="Opacity" Value="0.76" /></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.34" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GuidePrimaryButton" TargetType="Button" BasedOn="{StaticResource GuideButton}">
+            <Setter Property="Foreground" Value="#FF09202A" />
+            <Setter Property="Background" Value="{StaticResource GuideAccent}" />
+            <Setter Property="BorderBrush" Value="{StaticResource GuideAccent}" />
+        </Style>
+
+        <Style x:Key="GuideTitleButton" TargetType="Button">
+            <Setter Property="Height" Value="48" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="#FF9EB5BF" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Shell" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Shell" Property="Background" Value="#FF172630" /><Setter Property="Foreground" Value="#FFFFFFFF" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="7" Background="{StaticResource GuideWindow}" BorderBrush="#FF3A5967" BorderThickness="1" CornerRadius="12">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="22" Opacity="0.42" ShadowDepth="5" Color="#FF000000" />
+        </Border.Effect>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource GuideTitle}" BorderBrush="{StaticResource GuideLine}" BorderThickness="0,0,0,1" CornerRadius="11,11,0,0" MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="18,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="30" Height="30" Background="#FF132A35" CornerRadius="8">
+                            <icons:QingSnapIcon Kind="Capture" Width="17" Height="17" Foreground="{StaticResource GuideAccent}" />
+                        </Border>
+                        <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="QingSnap 使用向导" />
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12" Foreground="#FF77909C" Text="v1.0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Style="{StaticResource GuideTitleButton}" Content="跳过教程" Click="OnFinishClick" />
+                        <Button Width="44" Style="{StaticResource GuideTitleButton}" ToolTip="关闭" Click="OnFinishClick">
+                            <icons:QingSnapIcon Kind="Close" Width="15" Height="15" />
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220" />
+                    <ColumnDefinition Width="1" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Grid Grid.Column="0" Margin="17,25,11,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Margin="9,0,0,16" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource GuideAccent}" Text="FIRST FLIGHT / 初次上手" />
+                    <StackPanel Grid.Row="1">
+                        <RadioButton x:Name="Step0" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="1" Content="开始截图" ToolTip="F1 唤出准星" IsChecked="True" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step1" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="2" Content="重用选区" ToolTip="R 读取上次范围" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step2" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="3" Content="标注重点" ToolTip="画笔与图形" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step3" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="4" Content="截取长图" ToolTip="自动滚动拼接" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step4" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="5" Content="贴到桌面" ToolTip="F3 随取随用" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step5" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="6" Content="选取文字" ToolTip="直接拖选复制" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step6" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="7" Content="截图记录" ToolTip="搜索与再次使用" Checked="OnStepChecked" />
+                    </StackPanel>
+                    <Border Grid.Row="2" Margin="9,10,8,0" Padding="0,13,0,0" BorderBrush="{StaticResource GuideLine}" BorderThickness="0,1,0,0">
+                        <TextBlock FontSize="10.5" Foreground="#FF75909C" TextWrapping="Wrap" Text="以后可在“设置 → 使用教程”重新播放。" />
+                    </Border>
+                </Grid>
+
+                <Border Grid.Column="1" Background="{StaticResource GuideLine}" />
+
+                <Grid Grid.Column="2" Margin="32,26,32,24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Border Padding="10,5" Background="{StaticResource GuideAccent}" CornerRadius="5">
+                            <TextBlock x:Name="StepKeyText" FontFamily="Consolas" FontSize="11" FontWeight="SemiBold" Foreground="#FF09202A" Text="F1" />
+                        </Border>
+                        <TextBlock x:Name="StepKickerText" Margin="9,0,0,0" VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource GuideAccent}" Text="截图从这里开始" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="0,12,0,16">
+                        <TextBlock x:Name="StepTitleText" FontSize="21" FontWeight="SemiBold" Text="按 F1，框住你想要的内容" />
+                        <TextBlock x:Name="StepDescriptionText" Margin="0,5,0,0" FontSize="12.5" Foreground="#FFA7BDC6" TextWrapping="Wrap" Text="移动鼠标自动识别窗口，也可以自由拖出选区；W/A/S/D 可以逐像素微调准星。" />
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Background="#FFDCE7EA" BorderBrush="#FF6B8D9A" BorderThickness="1" CornerRadius="8" ClipToBounds="True">
+                        <Grid x:Name="DemoHost">
+                            <Grid x:Name="Demo0" Background="#FF60686D">
+                                <Border Margin="27,20" Background="#FFF8FAFB" CornerRadius="4">
+                                    <StackPanel Margin="26,20">
+                                        <Border Width="155" Height="12" HorizontalAlignment="Left" Background="#FFBAC9CF" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,15,0,0" Background="#FFD8E1E5" CornerRadius="3" />
+                                        <Border Width="250" Height="7" Margin="0,10,0,0" HorizontalAlignment="Left" Background="#FFD8E1E5" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,10,0,0" Background="#FFD8E1E5" CornerRadius="3" />
+                                        <Border Width="230" Height="7" Margin="0,10,0,0" HorizontalAlignment="Left" Background="#FFD8E1E5" CornerRadius="3" />
+                                    </StackPanel>
+                                </Border>
+                                <Canvas ClipToBounds="True">
+                                    <Border x:Name="CaptureSelection" Canvas.Left="73" Canvas.Top="48" Width="1" Height="1" Background="#FFF8FAFB" BorderBrush="{StaticResource GuideAccent}" BorderThickness="2" ClipToBounds="True">
+                                        <StackPanel Margin="20,18">
+                                            <Border Width="130" Height="10" HorizontalAlignment="Left" Background="#FFBAC9CF" CornerRadius="3" />
+                                            <Border Height="7" Margin="0,13,0,0" Background="#FFD8E1E5" CornerRadius="3" />
+                                            <Border Width="200" Height="7" Margin="0,10,0,0" HorizontalAlignment="Left" Background="#FFD8E1E5" CornerRadius="3" />
+                                            <Border Height="7" Margin="0,10,0,0" Background="#FFD8E1E5" CornerRadius="3" />
+                                        </StackPanel>
+                                    </Border>
+                                    <Path x:Name="CaptureCursor" Canvas.Left="70" Canvas.Top="45" Width="24" Height="24" Stretch="Uniform" Fill="#FFF7FBFC" Stroke="#FF26333A" StrokeThickness="1" Data="M2,1 L2,20 L7.3,15.1 L11.2,22 L14.2,20.4 L10.4,13.5 L17.5,13.1 Z" />
+                                    <Border x:Name="CaptureSize" Canvas.Left="73" Canvas.Top="270" Padding="8,5" Background="#FF0A1720" CornerRadius="4" Opacity="0">
+                                        <TextBlock FontFamily="Consolas" FontSize="12" Foreground="{StaticResource GuideAccent}" Text="680 × 453 px" />
+                                    </Border>
+                                </Canvas>
+                            </Grid>
+
+                            <Grid x:Name="Demo1" Visibility="Collapsed" Background="#FF60686D">
+                                <Border Margin="27,20" Background="#FFF8FAFB" CornerRadius="4" />
+                                <Border x:Name="RepeatSelection" Margin="78,53,91,64" Background="#FFF8FAFB" BorderBrush="{StaticResource GuideAccent}" BorderThickness="2" RenderTransformOrigin="0.5,0.5">
+                                    <Border.RenderTransform><ScaleTransform x:Name="RepeatScale" /></Border.RenderTransform>
+                                    <StackPanel Margin="22">
+                                        <Border Width="142" Height="11" HorizontalAlignment="Left" Background="#FFBAC9CF" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,14,0,0" Background="#FFD8E1E5" CornerRadius="3" />
+                                        <Border Width="210" Height="7" Margin="0,10,0,0" HorizontalAlignment="Left" Background="#FFD8E1E5" CornerRadius="3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border x:Name="RepeatBadge" Margin="91,0,0,51" Padding="8,5" HorizontalAlignment="Left" VerticalAlignment="Bottom" Background="#FF0A1720" CornerRadius="4">
+                                    <TextBlock FontFamily="Consolas" FontSize="11" Foreground="{StaticResource GuideAccent}" Text="R · LAST REGION" />
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="Demo2" Visibility="Collapsed" Background="#FFF8FAFB">
+                                <Canvas>
+                                    <Border Canvas.Left="68" Canvas.Top="48" Width="315" Height="178" BorderBrush="#FF76DFEE" BorderThickness="1" />
+                                    <Path x:Name="AnnotationArrow" Canvas.Left="126" Canvas.Top="74" Width="170" Height="102" Stretch="Fill" Fill="#FFFF4E5B" Data="M1,98 L127,20 L119,9 L169,1 L143,45 L135,32 Z" RenderTransformOrigin="0,1">
+                                        <Path.RenderTransform><ScaleTransform x:Name="AnnotationScale" ScaleX="0" /></Path.RenderTransform>
+                                    </Path>
+                                    <Border Canvas.Left="258" Canvas.Top="60" Width="93" Height="53" BorderBrush="#FFFF4E5B" BorderThickness="3" CornerRadius="2" />
+                                </Canvas>
+                                <Border Height="45" Margin="20,0,20,16" VerticalAlignment="Bottom" Background="#FF0B171F" BorderBrush="#FF355665" BorderThickness="1" CornerRadius="6">
+                                    <StackPanel HorizontalAlignment="Center" Orientation="Horizontal">
+                                        <icons:QingSnapIcon Kind="Pen" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Line" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Arrow" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Rectangle" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Text" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Mosaic" Margin="11" Width="19" Height="19" Foreground="#FFFF6470" />
+                                        <icons:QingSnapIcon Kind="Confirm" Margin="11" Width="19" Height="19" Foreground="{StaticResource GuideAccent}" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="Demo3" Visibility="Collapsed" Background="#FFEAF0F2">
+                                <Border Margin="48,22" Background="#FFF8FAFB" CornerRadius="5" ClipToBounds="True">
+                                    <StackPanel x:Name="LongPage" Margin="22,16">
+                                        <StackPanel.RenderTransform><TranslateTransform x:Name="LongTranslate" /></StackPanel.RenderTransform>
+                                        <Border Width="210" Height="12" HorizontalAlignment="Left" Background="#FF708691" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,14,0,0" Background="#FFD4DFE3" CornerRadius="3" />
+                                        <Border Height="74" Margin="0,14,0,0" Background="#FFB9D7DE" CornerRadius="4" />
+                                        <TextBlock Margin="0,16,0,5" FontWeight="SemiBold" Foreground="#FF26363E" Text="滚滚长江东逝水" />
+                                        <Border Height="7" Margin="0,8,0,0" Background="#FFD4DFE3" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,8,0,0" Background="#FFD4DFE3" CornerRadius="3" />
+                                        <Border Height="92" Margin="0,16,0,0" Background="#FFC8D7DD" CornerRadius="4" />
+                                        <TextBlock Margin="0,16,0,5" FontWeight="SemiBold" Foreground="#FF26363E" Text="浪花淘尽英雄" />
+                                        <Border Height="7" Margin="0,8,0,0" Background="#FFD4DFE3" CornerRadius="3" />
+                                        <Border Height="7" Margin="0,8,0,0" Background="#FFD4DFE3" CornerRadius="3" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Margin="0,0,58,30" Padding="10,6" HorizontalAlignment="Right" VerticalAlignment="Bottom" Background="#E60A1720" CornerRadius="5">
+                                    <StackPanel Orientation="Horizontal">
+                                        <icons:QingSnapIcon Kind="LongCapture" Width="16" Height="16" Foreground="{StaticResource GuideAccent}" />
+                                        <TextBlock Margin="7,0,0,0" FontSize="11" Foreground="#FFF3F7F9" Text="自动滚动拼接" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="Demo4" Visibility="Collapsed" Background="#FFCBD7DC">
+                                <Canvas>
+                                    <Border Canvas.Left="24" Canvas.Top="24" Width="410" Height="260" Background="#FFE6EDF0" CornerRadius="7" />
+                                    <Border x:Name="PinnedImage" Canvas.Left="105" Canvas.Top="53" Width="255" Height="190" Background="#FFF8FAFB" BorderBrush="{StaticResource GuideAccent}" BorderThickness="1" CornerRadius="4">
+                                        <Grid>
+                                            <StackPanel Margin="20">
+                                                <Border Width="130" Height="11" HorizontalAlignment="Left" Background="#FF7E939D" CornerRadius="3" />
+                                                <Border Height="7" Margin="0,14,0,0" Background="#FFD0DCE0" CornerRadius="3" />
+                                                <Border Height="7" Margin="0,10,0,0" Background="#FFD0DCE0" CornerRadius="3" />
+                                                <Border Height="55" Margin="0,15,0,0" Background="#FFBFD7DD" CornerRadius="3" />
+                                            </StackPanel>
+                                            <Border x:Name="PinBadge" Width="26" Height="26" Margin="0,5,5,0" HorizontalAlignment="Right" VerticalAlignment="Top" Background="#FFE84250" CornerRadius="13" Opacity="0">
+                                                <icons:QingSnapIcon Kind="Pin" Width="15" Height="15" Foreground="#FFFFFFFF" />
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </Canvas>
+                            </Grid>
+
+                            <Grid x:Name="Demo5" Visibility="Collapsed" Background="#FFDCE7EA">
+                                <Border Margin="42,20" Background="#FFF8FAFB" CornerRadius="5">
+                                    <Grid Margin="28,19">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TextBlock FontSize="9.5" Foreground="#FF657983" TextTrimming="CharacterEllipsis" Text="OCR · 感谢 RapidOCR.Net 与 PaddleOCR 开源项目" />
+                                        <StackPanel Grid.Row="1" Margin="0,15,0,0">
+                                            <TextBlock FontFamily="KaiTi" FontSize="18" Foreground="#FF27383F" Text="临江仙 · 滚滚长江东逝水" />
+                                            <Grid Margin="0,14,0,0">
+                                                <Border x:Name="OcrSelection" Width="1" Height="25" HorizontalAlignment="Left" Background="#4C76DFEE" BorderBrush="#FF76DFEE" BorderThickness="0,0,0,1" />
+                                                <TextBlock Margin="4,3,0,0" FontSize="12" Foreground="#FF25343B" Text="滚滚长江东逝水，浪花淘尽英雄。" />
+                                            </Grid>
+                                            <TextBlock Margin="4,9,0,0" FontSize="12" Foreground="#FF25343B" Text="是非成败转头空。" />
+                                            <TextBlock Margin="4,9,0,0" FontSize="12" Foreground="#FF25343B" Text="青山依旧在，几度夕阳红。" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="Demo6" Visibility="Collapsed" Background="#FFE0EAED">
+                                <Border Margin="25,18" Padding="14" Background="#FF0B171F" BorderBrush="#FF365563" BorderThickness="1" CornerRadius="7">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="42" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition Width="190" /></Grid.ColumnDefinitions>
+                                            <TextBlock VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="截图记录" />
+                                            <Border Grid.Column="1" Height="30" Background="#FF101E26" BorderBrush="#FF436574" BorderThickness="1" CornerRadius="4">
+                                                <StackPanel Margin="9,0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock FontSize="13" Foreground="#FF75909C" Text="⌕" />
+                                                    <TextBlock Margin="7,0,0,0" FontSize="10.5" Foreground="#FF75909C" Text="搜索文件名、尺寸或图片文字" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                        <StackPanel Grid.Row="1">
+                                            <Border Height="58" Margin="0,7,0,0" Padding="9" Background="#FF101E26" BorderBrush="#FF31505E" BorderThickness="1" CornerRadius="5">
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Background="#FF9FB4BD" CornerRadius="3"/><StackPanel Grid.Column="1" Margin="10,0"><TextBlock FontSize="11.5" FontWeight="SemiBold" Text="刚刚 · 680 × 453 px"/><TextBlock Margin="0,5,0,0" FontSize="10" Foreground="#FF75909C" Text="滚滚长江东逝水，浪花淘尽英雄…"/></StackPanel><StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Margin="5" Foreground="{StaticResource GuideAccent}" Text="☆"/><icons:QingSnapIcon Kind="Pin" Margin="5" Width="15" Height="15" Foreground="{StaticResource GuideAccent}"/></StackPanel></Grid>
+                                            </Border>
+                                            <Border Height="58" Margin="0,8,0,0" Padding="9" Background="#FF101E26" BorderBrush="#FF31505E" BorderThickness="1" CornerRadius="5">
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Background="#FF8199A4" CornerRadius="3"/><StackPanel Grid.Column="1" Margin="10,0"><TextBlock FontSize="11.5" FontWeight="SemiBold" Text="今天 09:42 · 长截图"/><TextBlock Margin="0,5,0,0" FontSize="10" Foreground="#FF75909C" Text="产品说明与功能记录"/></StackPanel><StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"><icons:QingSnapIcon Kind="Copy" Margin="5" Width="15" Height="15" Foreground="{StaticResource GuideAccent}"/><icons:QingSnapIcon Kind="Ocr" Margin="5" Width="15" Height="15" Foreground="{StaticResource GuideAccent}"/></StackPanel></Grid>
+                                            </Border>
+                                            <Border Height="58" Margin="0,8,0,0" Padding="9" Background="#FF101E26" BorderBrush="#FF31505E" BorderThickness="1" CornerRadius="5">
+                                                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="82"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><Border Background="#FFAEC0C7" CornerRadius="3"/><StackPanel Grid.Column="1" Margin="10,0"><TextBlock FontSize="11.5" FontWeight="SemiBold" Text="昨天 18:16 · 986 × 724 px"/><TextBlock Margin="0,5,0,0" FontSize="10" Foreground="#FF75909C" Text="已收藏"/></StackPanel><StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Margin="5" Foreground="{StaticResource GuideAccent}" Text="★"/><TextBlock Margin="5" Foreground="{StaticResource GuideAccent}" Text="□"/></StackPanel></Grid>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Row="3" Margin="0,20,0,0">
+                        <TextBlock x:Name="StepPositionText" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12" Foreground="#FF7893A0" Text="01 / 07" />
+                        <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                            <Button x:Name="PreviousButton" Style="{StaticResource GuideButton}" Content="上一步" IsEnabled="False" Click="OnPreviousClick" />
+                            <Button x:Name="NextButton" Style="{StaticResource GuidePrimaryButton}" Content="下一步" Click="OnNextClick" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
