@@ -28,7 +28,7 @@ public partial class CaptureOverlayWindow : Window
 
     private readonly ScreenSnapshot _snapshot;
     private readonly DrawingRectangle? _initialLocalRegion;
-    private readonly DrawingRectangle? _recallLocalRegion;
+    private readonly IReadOnlyList<DrawingRectangle?> _recallLocalRegions;
     private readonly bool _showActionToolbar;
     private readonly AppSettings _settings;
     private readonly OcrService? _ocrService;
@@ -58,20 +58,25 @@ public partial class CaptureOverlayWindow : Window
     private MediaColor _currentPixelColor;
     private CaptureAnnotationTool _arrowTool = CaptureAnnotationTool.Arrow;
     private CaptureAnnotationTool _regionTool = CaptureAnnotationTool.Rectangle;
+    private int _recallIndex;
 
     public CaptureOverlayWindow(
         ScreenSnapshot snapshot,
         DrawingRectangle? initialLocalRegion = null,
         string? confirmationHint = null,
         bool showActionToolbar = true,
-        DrawingRectangle? recallLocalRegion = null,
+        IReadOnlyList<DrawingRectangle?>? recallLocalRegions = null,
+        int recallIndex = -1,
         AppSettings? settings = null,
         OcrService? ocrService = null,
         ClipboardService? clipboardService = null)
     {
         _snapshot = snapshot;
         _initialLocalRegion = initialLocalRegion;
-        _recallLocalRegion = recallLocalRegion;
+        _recallLocalRegions = recallLocalRegions ?? [];
+        _recallIndex = recallIndex >= 0 && recallIndex < _recallLocalRegions.Count
+            ? recallIndex
+            : -1;
         _showActionToolbar = showActionToolbar;
         _settings = settings ?? new AppSettings();
         _ocrService = ocrService;
@@ -97,12 +102,12 @@ public partial class CaptureOverlayWindow : Window
             : Visibility.Collapsed;
         if (UsesCloseButton && _showActionToolbar)
         {
-            HintActionText.Text = "R 上次选区  ·  双击 / ENTER 复制  ·  ESC / × 关闭";
+            HintActionText.Text = "R 循环历史选区  ·  双击 / ENTER 复制  ·  ESC / × 关闭";
         }
 
         if (!string.IsNullOrWhiteSpace(confirmationHint))
         {
-            HintActionText.Text = $"R 上次选区  ·  {confirmationHint}";
+            HintActionText.Text = $"R 循环历史选区  ·  {confirmationHint}";
         }
         _cornerMarks =
         [
@@ -133,7 +138,7 @@ public partial class CaptureOverlayWindow : Window
     public event EventHandler<DrawingRectangle>? SelectionConfirmed;
     public event EventHandler? SelectionCancelled;
     public event EventHandler<CaptureOverlayActionEventArgs>? ActionRequested;
-    public event EventHandler? PreviousSelectionRequested;
+    public event EventHandler<PreviousSelectionRequestedEventArgs>? PreviousSelectionRequested;
 
     public void CloseAfterPinPresented()
     {
@@ -592,15 +597,24 @@ public partial class CaptureOverlayWindow : Window
 
     private void RecallPreviousSelection()
     {
-        if (_recallLocalRegion is not { Width: > 0, Height: > 0 } previousRegion)
+        var nextIndex = CaptureRegionHistory.NextIndex(_recallIndex, _recallLocalRegions.Count);
+        if (nextIndex < 0)
         {
-            PreviousSelectionRequested?.Invoke(this, EventArgs.Empty);
+            PreviousSelectionRequested?.Invoke(this, new PreviousSelectionRequestedEventArgs(-1));
+            return;
+        }
+
+        _recallIndex = nextIndex;
+        if (_recallLocalRegions[nextIndex] is not { Width: > 0, Height: > 0 } previousRegion)
+        {
+            PreviousSelectionRequested?.Invoke(this, new PreviousSelectionRequestedEventArgs(nextIndex));
             return;
         }
 
         SetAnnotationTool(CaptureAnnotationTool.None);
         _annotationController.Clear();
         LoadLocalSelection(previousRegion);
+        ShowAdjustmentBadge(Mouse.GetPosition(Root), $"历史选区 {nextIndex + 1}/{_recallLocalRegions.Count}");
     }
 
     private void LoadLocalSelection(DrawingRectangle region)
@@ -838,17 +852,31 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
-        var scaleX = _snapshot.Image.PixelWidth / Surface.ActualWidth;
-        var scaleY = _snapshot.Image.PixelHeight / Surface.ActualHeight;
-        var pixelX = Math.Clamp((int)Math.Round(point.X * scaleX), 0, _snapshot.Image.PixelWidth - 1);
-        var pixelY = Math.Clamp((int)Math.Round(point.Y * scaleY), 0, _snapshot.Image.PixelHeight - 1);
-        const int cropWidth = 15;
-        const int cropHeight = 11;
-        var cropX = Math.Clamp(pixelX - cropWidth / 2, 0, Math.Max(0, _snapshot.Image.PixelWidth - cropWidth));
-        var cropY = Math.Clamp(pixelY - cropHeight / 2, 0, Math.Max(0, _snapshot.Image.PixelHeight - cropHeight));
+        var pixelX = MagnifierPixelGrid.MapPointerToPixel(
+            point.X,
+            Surface.ActualWidth,
+            _snapshot.Image.PixelWidth);
+        var pixelY = MagnifierPixelGrid.MapPointerToPixel(
+            point.Y,
+            Surface.ActualHeight,
+            _snapshot.Image.PixelHeight);
+        const int cropWidth = MagnifierPixelGrid.Columns;
+        const int cropHeight = MagnifierPixelGrid.Rows;
+        var cropX = MagnifierPixelGrid.GetCropOrigin(pixelX, _snapshot.Image.PixelWidth, cropWidth);
+        var cropY = MagnifierPixelGrid.GetCropOrigin(pixelY, _snapshot.Image.PixelHeight, cropHeight);
         var width = Math.Min(cropWidth, _snapshot.Image.PixelWidth - cropX);
         var height = Math.Min(cropHeight, _snapshot.Image.PixelHeight - cropY);
         MagnifierImage.Source = new CroppedBitmap(_snapshot.Image, new Int32Rect(cropX, cropY, width, height));
+
+        // The reticle now sits on the top/left boundary of the sampled pixel. With
+        // the even 28 x 12 grid this is the exact centre during normal use, while
+        // remaining accurate when the crop is pushed against a screen edge.
+        var displayWidth = MagnifierImageHost.ActualWidth > 0 ? MagnifierImageHost.ActualWidth : 280;
+        var displayHeight = MagnifierImageHost.ActualHeight > 0 ? MagnifierImageHost.ActualHeight : 120;
+        var crosshairX = MagnifierPixelGrid.GetBoundaryOffset(pixelX, cropX, width, displayWidth);
+        var crosshairY = MagnifierPixelGrid.GetBoundaryOffset(pixelY, cropY, height, displayHeight);
+        MagnifierVerticalCrosshair.Margin = new Thickness(crosshairX - 0.5, 0, 0, 0);
+        MagnifierHorizontalCrosshair.Margin = new Thickness(0, crosshairY - 0.5, 0, 0);
 
         BitmapSource source = _snapshot.Image.Format == PixelFormats.Bgra32
             ? _snapshot.Image
@@ -1712,4 +1740,9 @@ public partial class CaptureOverlayWindow : Window
         BottomLeft,
         BottomRight
     }
+}
+
+public sealed class PreviousSelectionRequestedEventArgs(int historyIndex) : EventArgs
+{
+    public int HistoryIndex { get; } = historyIndex;
 }

@@ -206,7 +206,7 @@
             <Grid x:Name="ExpandedPinContent"
                   ClipToBounds="True">
             <Image x:Name="PinnedImage"
-                   Stretch="Fill"
+                   Stretch="Uniform"
                    SnapsToDevicePixels="True"
                    MouseLeftButtonDown="OnImageMouseLeftButtonDown" />
 

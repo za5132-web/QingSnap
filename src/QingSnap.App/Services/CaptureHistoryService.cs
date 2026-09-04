@@ -131,6 +131,16 @@ public sealed class CaptureHistoryService
 
     public string? FindLatestImagePath()
     {
+        return FindRecentImagePaths(1).FirstOrDefault();
+    }
+
+    public IReadOnlyList<string> FindRecentImagePaths(int maximumItems)
+    {
+        if (maximumItems <= 0)
+        {
+            return [];
+        }
+
         Directory.CreateDirectory(HistoryDirectory);
         return Directory
             .EnumerateFiles(HistoryDirectory, "*.*", System.IO.SearchOption.AllDirectories)
@@ -138,7 +148,8 @@ public sealed class CaptureHistoryService
             .Select(path => new FileInfo(path))
             .OrderByDescending(file => file.LastWriteTimeUtc)
             .Select(file => file.FullName)
-            .FirstOrDefault();
+            .Take(maximumItems)
+            .ToArray();
     }
 
     public void OpenFile(string filePath)

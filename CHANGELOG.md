@@ -3,6 +3,21 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.0.2] - 2026-09-04
+
+### 历史循环与像素精度 / History cycling and pixel precision
+
+- 截图界面连续按 `R` 可在最近五个不同选区之间循环，跨显示器选区也会自动切换到对应屏幕，并显示当前历史序号。  Press `R` repeatedly to cycle through the five most recent distinct capture regions, including regions on other monitors, with a visible history position.
+- `F3` 改为循环贴出最近五张图片；截图和外部剪贴板图片共用同一序列，重复内容会自动合并。  `F3` now cycles through the five most recent images, combining captures and external clipboard images in one deduplicated sequence.
+- 截图来源的贴图保持原截图位置，外部复制图片仍在鼠标位置出现。  Capture pins keep their original screen position, while externally copied images continue to open at the pointer.
+- 放大镜改用等比例像素网格，不再压扁画面；十字准星对齐像素边缘，并在高 DPI 与屏幕边缘保持准确。  The magnifier now uses a proportional pixel grid without squashing, and its crosshair aligns to pixel boundaries accurately at high DPI and screen edges.
+
+### 贴图缩放稳定性 / Pin scaling stability
+
+- 贴图放大或缩小到极限时始终使用统一缩放倍数，避免宽高分别触底造成比例变形。  Pins now use one uniform scale at both zoom limits, preventing aspect distortion from independent width and height clamping.
+- 遇到 Windows 窗口尺寸限制时会等比回退，并以等比渲染作为最终保护；同时移除缩放下限附近的滚轮空转区间。  Pins proportionally back off from Windows window-size limits, retain uniform rendering as a final safeguard, and remove the wheel dead zone near minimum zoom.
+- 自动化测试增至 46 项，构建保持 0 警告、0 错误。  Automated coverage increases to 46 passing tests with zero build warnings and errors.
+
 ## [1.0.1] - 2026-08-29
 
 ### 首次使用、反馈与标注 / Onboarding, feedback, and annotations
@@ -211,6 +226,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[1.0.2]: https://github.com/za5132-web/QingSnap/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/za5132-web/QingSnap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/za5132-web/QingSnap/compare/preview-v48...v1.0.0
 [Preview v47]: https://github.com/za5132-web/QingSnap/compare/preview-v46...preview-v47

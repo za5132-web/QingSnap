@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
 
 namespace QingSnap.App.Services;
@@ -62,6 +63,7 @@ public sealed class ClipboardService : IDisposable
                 return null;
             }
 
+            var sequenceNumber = NativeMethods.GetClipboardSequenceNumber();
             var preferredRegion = ParseCaptureRegion(data.GetData(CaptureRegionFormat) as string);
             var clipboardImage = TryReadClipboardImage(data);
             if (clipboardImage is not null)
@@ -69,7 +71,8 @@ public sealed class ClipboardService : IDisposable
                 return new ClipboardImageContent(
                     clipboardImage,
                     preferredRegion is null ? "剪贴板图片" : "QingSnap 截图",
-                    preferredRegion);
+                    preferredRegion,
+                    sequenceNumber);
             }
 
             if (data.GetData(System.Windows.DataFormats.FileDrop) is string[] paths)
@@ -79,7 +82,7 @@ public sealed class ClipboardService : IDisposable
                     var image = TryLoadImageFile(path);
                     if (image is not null)
                     {
-                        return new ClipboardImageContent(image, path, null);
+                        return new ClipboardImageContent(image, path, null, sequenceNumber);
                     }
                 }
             }
@@ -585,4 +588,5 @@ public sealed class ClipboardService : IDisposable
 public sealed record ClipboardImageContent(
     BitmapSource Image,
     string SourceName,
-    CaptureRegion? PreferredRegion);
+    CaptureRegion? PreferredRegion,
+    uint SequenceNumber);

@@ -149,7 +149,7 @@
                             <icons:QingSnapIcon Kind="Capture" Width="17" Height="17" Foreground="{StaticResource GuideAccent}" />
                         </Border>
                         <TextBlock Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Text="QingSnap 使用向导" />
-                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12" Foreground="#FF77909C" Text="v1.0" />
+                        <TextBlock Margin="7,0,0,0" VerticalAlignment="Center" FontFamily="Consolas" FontSize="12" Foreground="#FF77909C" Text="v1.0.2" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal">
                         <Button Style="{StaticResource GuideTitleButton}" Content="跳过教程" Click="OnFinishClick" />
@@ -176,10 +176,10 @@
                     <TextBlock Margin="9,0,0,16" FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource GuideAccent}" Text="FIRST FLIGHT / 初次上手" />
                     <StackPanel Grid.Row="1">
                         <RadioButton x:Name="Step0" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="1" Content="开始截图" ToolTip="F1 唤出准星" IsChecked="True" Checked="OnStepChecked" />
-                        <RadioButton x:Name="Step1" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="2" Content="重用选区" ToolTip="R 读取上次范围" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step1" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="2" Content="重用选区" ToolTip="R 循环最近 5 个范围" Checked="OnStepChecked" />
                         <RadioButton x:Name="Step2" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="3" Content="标注重点" ToolTip="画笔与图形" Checked="OnStepChecked" />
                         <RadioButton x:Name="Step3" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="4" Content="截取长图" ToolTip="自动滚动拼接" Checked="OnStepChecked" />
-                        <RadioButton x:Name="Step4" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="5" Content="贴到桌面" ToolTip="F3 随取随用" Checked="OnStepChecked" />
+                        <RadioButton x:Name="Step4" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="5" Content="贴到桌面" ToolTip="F3 循环最近 5 张图" Checked="OnStepChecked" />
                         <RadioButton x:Name="Step5" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="6" Content="选取文字" ToolTip="直接拖选复制" Checked="OnStepChecked" />
                         <RadioButton x:Name="Step6" Style="{StaticResource GuideStep}" GroupName="GuideSteps" Tag="7" Content="截图记录" ToolTip="搜索与再次使用" Checked="OnStepChecked" />
                     </StackPanel>

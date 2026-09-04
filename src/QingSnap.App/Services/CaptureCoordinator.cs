@@ -15,8 +15,11 @@ public sealed class CaptureCoordinator
     private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly OcrService _ocrService;
     private readonly AppSettingsService _settingsService;
+    private readonly PinHistoryBuffer _pinHistory = new();
+    private readonly SemaphoreSlim _pinRequestGate = new(1, 1);
     private HistoryWindow? _historyWindow;
     private bool _isCapturing;
+    private uint? _lastClipboardSequenceNumber;
 
     public CaptureCoordinator(
         ScreenCaptureService captureService,
@@ -64,7 +67,10 @@ public sealed class CaptureCoordinator
 
     public void StartManualLongCapture() => StartLongCapture(LongCaptureMode.Manual);
 
-    private void StartLongCapture(LongCaptureMode mode, CaptureRegion? initialRegion = null)
+    private void StartLongCapture(
+        LongCaptureMode mode,
+        CaptureRegion? initialRegion = null,
+        int recallHistoryIndex = -1)
     {
         if (_isCapturing)
         {
@@ -78,7 +84,8 @@ public sealed class CaptureCoordinator
                 ? _captureService.CaptureScreenContainingCursor()
                 : _captureService.CaptureScreenContainingRegion(initialRegion.ToRectangle());
             var initialLocalRegion = ToLocalRegion(initialRegion, snapshot.Bounds);
-            var recallLocalRegion = ToLocalRegion(_stateStore.LoadLastRegion(), snapshot.Bounds);
+            var recentRegions = _stateStore.LoadRecentRegions();
+            var recallLocalRegions = ToLocalRegions(recentRegions, snapshot.Bounds);
             var overlay = new CaptureOverlayWindow(
                 snapshot,
                 initialLocalRegion,
@@ -86,7 +93,8 @@ public sealed class CaptureCoordinator
                     ? "双击 / ENTER 开始自动长截图  ·  ESC 取消"
                     : "双击 / ENTER 开始手动长截图  ·  ESC 取消",
                 false,
-                recallLocalRegion,
+                recallLocalRegions,
+                recallHistoryIndex,
                 _settingsService.Current,
                 clipboardService: _clipboardService);
             var sessionStarted = false;
@@ -107,18 +115,18 @@ public sealed class CaptureCoordinator
             };
 
             overlay.SelectionCancelled += (_, _) => overlay.Close();
-            overlay.PreviousSelectionRequested += (_, _) =>
+            overlay.PreviousSelectionRequested += (_, request) =>
             {
-                var previousRegion = _stateStore.LoadLastRegion();
-                if (previousRegion is null)
+                if (request.HistoryIndex < 0 || request.HistoryIndex >= recentRegions.Count)
                 {
-                    CaptureFailed?.Invoke(this, "还没有上一次截图选区，请先完成一张截图。");
+                    CaptureFailed?.Invoke(this, "还没有历史截图选区，请先完成一张截图。");
                     return;
                 }
 
+                var previousRegion = recentRegions[request.HistoryIndex];
                 overlay.Close();
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
-                    () => StartLongCapture(mode, previousRegion));
+                    () => StartLongCapture(mode, previousRegion, request.HistoryIndex));
             };
             overlay.Closed += (_, _) =>
             {
@@ -138,14 +146,14 @@ public sealed class CaptureCoordinator
 
     public void RepeatLastCapture()
     {
-        var lastRegion = _stateStore.LoadLastRegion();
-        if (lastRegion is null)
+        var recentRegions = _stateStore.LoadRecentRegions();
+        if (recentRegions.Count == 0)
         {
             CaptureFailed?.Invoke(this, "还没有可重复的截图范围，请先按 F1 截图。");
             return;
         }
 
-        OpenCaptureOverlay(lastRegion);
+        OpenCaptureOverlay(recentRegions[0], recallHistoryIndex: 0);
     }
 
     public void OpenHistoryWindow()
@@ -215,14 +223,15 @@ public sealed class CaptureCoordinator
 
         try
         {
-            var latestImagePath = _historyService.FindLatestImagePath();
-            if (latestImagePath is null)
+            EnsurePinHistorySeeded();
+            var item = _pinHistory.SelectLatest();
+            if (item is null)
             {
                 CaptureFailed?.Invoke(this, "还没有可以贴出的截图，请先按 F1 截图。");
                 return;
             }
 
-            PinImage(latestImagePath, _stateStore.LoadLastRegion()?.ToRectangle());
+            ShowPinHistoryItem(item);
         }
         catch (Exception exception)
         {
@@ -237,34 +246,49 @@ public sealed class CaptureCoordinator
             return;
         }
 
+        await _pinRequestGate.WaitAsync();
         try
         {
-            var clipboardImage = await _clipboardService.TryGetImageAsync();
-            if (clipboardImage is null)
+            ClipboardImageContent? clipboardImage = null;
+            try
             {
-                PinLatestCapture();
+                clipboardImage = await _clipboardService.TryGetImageAsync();
+            }
+            catch (Exception exception)
+            {
+                DiagnosticLog.Warning("PinHistory", $"读取剪贴板失败，已继续使用贴图历史：{exception.Message}");
+            }
+
+            PinHistoryItem? item;
+            if (clipboardImage is not null &&
+                _lastClipboardSequenceNumber != clipboardImage.SequenceNumber)
+            {
+                _lastClipboardSequenceNumber = clipboardImage.SequenceNumber;
+                EnsurePinHistorySeeded();
+                _pinHistory.AddClipboard(clipboardImage);
+                item = _pinHistory.SelectLatest();
+            }
+            else
+            {
+                EnsurePinHistorySeeded();
+                item = _pinHistory.SelectNext();
+            }
+
+            if (item is null)
+            {
+                CaptureFailed?.Invoke(this, "还没有可以贴出的图片，请先截图或复制一张图片。");
                 return;
             }
 
-            System.Drawing.Point? initialPosition = null;
-            if (clipboardImage.PreferredRegion is null && NativeMethods.GetCursorPos(out var cursor))
-            {
-                initialPosition = new System.Drawing.Point(cursor.X, cursor.Y);
-            }
-
-            var stickyWindow = new StickyImageWindow(
-                clipboardImage.Image,
-                clipboardImage.SourceName,
-                _clipboardService,
-                _ocrService,
-                _settingsService.Current,
-                clipboardImage.PreferredRegion?.ToRectangle(),
-                initialPosition);
-            stickyWindow.Show();
+            ShowPinHistoryItem(item);
         }
         catch (Exception exception)
         {
             CaptureFailed?.Invoke(this, $"贴图失败：{exception.Message}");
+        }
+        finally
+        {
+            _pinRequestGate.Release();
         }
     }
 
@@ -287,7 +311,7 @@ public sealed class CaptureCoordinator
         }
     }
 
-    private void OpenCaptureOverlay(CaptureRegion? initialRegion)
+    private void OpenCaptureOverlay(CaptureRegion? initialRegion, int recallHistoryIndex = -1)
     {
         if (_isCapturing)
         {
@@ -307,11 +331,13 @@ public sealed class CaptureCoordinator
                     initialRegion.Y - snapshot.Bounds.Y,
                     initialRegion.Width,
                     initialRegion.Height);
-            var recallLocalRegion = ToLocalRegion(_stateStore.LoadLastRegion(), snapshot.Bounds);
+            var recentRegions = _stateStore.LoadRecentRegions();
+            var recallLocalRegions = ToLocalRegions(recentRegions, snapshot.Bounds);
             var overlay = new CaptureOverlayWindow(
                 snapshot,
                 initialLocalRegion,
-                recallLocalRegion: recallLocalRegion,
+                recallLocalRegions: recallLocalRegions,
+                recallIndex: recallHistoryIndex,
                 settings: _settingsService.Current,
                 ocrService: _ocrService,
                 clipboardService: _clipboardService);
@@ -396,18 +422,18 @@ public sealed class CaptureCoordinator
             };
 
             overlay.SelectionCancelled += (_, _) => overlay.Close();
-            overlay.PreviousSelectionRequested += (_, _) =>
+            overlay.PreviousSelectionRequested += (_, request) =>
             {
-                var previousRegion = _stateStore.LoadLastRegion();
-                if (previousRegion is null)
+                if (request.HistoryIndex < 0 || request.HistoryIndex >= recentRegions.Count)
                 {
-                    CaptureFailed?.Invoke(this, "还没有上一次截图选区，请先完成一张截图。");
+                    CaptureFailed?.Invoke(this, "还没有历史截图选区，请先完成一张截图。");
                     return;
                 }
 
+                var previousRegion = recentRegions[request.HistoryIndex];
                 overlay.Close();
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
-                    () => OpenCaptureOverlay(previousRegion));
+                    () => OpenCaptureOverlay(previousRegion, request.HistoryIndex));
             };
             overlay.Closed += (_, _) =>
             {
@@ -509,6 +535,7 @@ public sealed class CaptureCoordinator
         _historyOcrIndexer.EnqueueCapture(imagePath, prefetchedOcr);
         var savedRegion = CaptureRegion.FromRectangle(region);
         _stateStore.SaveLastRegion(savedRegion);
+        _pinHistory.AddCapture(image, imagePath, savedRegion);
         _historyWindow?.RefreshHistory();
         DiagnosticLog.Info(
             "Capture",
@@ -626,6 +653,58 @@ public sealed class CaptureCoordinator
             globalRegion.Y - screenBounds.Y,
             globalRegion.Width,
             globalRegion.Height);
+    }
+
+    private static IReadOnlyList<DrawingRectangle?> ToLocalRegions(
+        IReadOnlyList<CaptureRegion> regions,
+        DrawingRectangle screenBounds) =>
+        regions.Select(region => ToLocalRegion(region, screenBounds)).ToArray();
+
+    private void EnsurePinHistorySeeded()
+    {
+        if (_pinHistory.Count > 0)
+        {
+            return;
+        }
+
+        var paths = _historyService.FindRecentImagePaths(PinHistoryBuffer.Capacity);
+        var latestRegion = _stateStore.LoadLastRegion();
+        for (var index = paths.Count - 1; index >= 0; index--)
+        {
+            try
+            {
+                var image = _historyService.LoadFullImage(paths[index]);
+                _pinHistory.AddSavedImage(image, paths[index], index == 0 ? latestRegion : null);
+            }
+            catch (Exception exception) when (
+                exception is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                DiagnosticLog.Warning("PinHistory", $"无法载入贴图历史 {paths[index]}：{exception.Message}");
+            }
+        }
+    }
+
+    private void ShowPinHistoryItem(PinHistoryItem item)
+    {
+        var image = item.Image ??
+                    (item.ImagePath is not null
+                        ? _historyService.LoadFullImage(item.ImagePath)
+                        : throw new InvalidOperationException("贴图历史中的图片数据已不可用。"));
+        System.Drawing.Point? initialPosition = null;
+        if (item.PreferredRegion is null && NativeMethods.GetCursorPos(out var cursor))
+        {
+            initialPosition = new System.Drawing.Point(cursor.X, cursor.Y);
+        }
+
+        var stickyWindow = new StickyImageWindow(
+            image,
+            item.SourceName,
+            _clipboardService,
+            _ocrService,
+            _settingsService.Current,
+            item.PreferredRegion?.ToRectangle(),
+            initialPosition);
+        stickyWindow.Show();
     }
 
     private void PinImage(

@@ -30,7 +30,7 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add(CreateItem("长截图（手动滚动）", (_, _) => _captureCoordinator.StartManualLongCapture()));
         menu.Items.Add(CreateItem($"重复上次范围    {settingsService.Current.RepeatHotkey}", (_, _) => _captureCoordinator.RepeatLastCapture()));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(CreateItem($"贴出剪贴板图片    {settingsService.Current.PinHotkey}", (_, _) => _captureCoordinator.PinClipboardImage()));
+        menu.Items.Add(CreateItem($"循环贴图（最近 5 张）    {settingsService.Current.PinHotkey}", (_, _) => _captureCoordinator.PinClipboardImage()));
         menu.Items.Add(CreateItem("识别最近截图文字", (_, _) => _captureCoordinator.RecognizeLatestCapture()));
         menu.Items.Add(CreateItem("截图记录", (_, _) => _captureCoordinator.OpenHistoryWindow()));
         menu.Items.Add(CreateItem("打开记录文件夹", (_, _) => _captureCoordinator.OpenHistoryDirectory()));

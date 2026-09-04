@@ -1504,10 +1504,16 @@ public partial class StickyImageWindow : Window
     {
         var centerX = Left + ActualWidth / 2;
         var centerY = Top + ActualHeight / 2;
-        _scale = Math.Clamp(scale, MinimumScale, MaximumScale);
+        var size = StickyImageScaleCalculator.Calculate(
+            _imageWidthDip,
+            _imageHeightDip,
+            scale,
+            MinimumScale,
+            MaximumScale);
+        _scale = size.Scale;
 
-        Width = Math.Max(24, _imageWidthDip * _scale + 2);
-        Height = Math.Max(24, _imageHeightDip * _scale + 2);
+        Width = size.Width;
+        Height = size.Height;
         if (preserveCenter && IsLoaded)
         {
             Left = centerX - Width / 2;
@@ -1524,31 +1530,76 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        var nextScale = Math.Clamp(scale, MinimumScale, MaximumScale);
-        if (Math.Abs(nextScale - _scale) < 0.00001)
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
+        var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
+        var size = StickyImageScaleCalculator.Calculate(
+            _imageWidthDip,
+            _imageHeightDip,
+            scale,
+            MinimumScale,
+            MaximumScale,
+            dpi.DpiScaleX,
+            dpi.DpiScaleY,
+            borderX,
+            borderY);
+        if (Math.Abs(size.Scale - _scale) < 0.00001)
         {
             return;
         }
 
-        var dpi = VisualTreeHelper.GetDpi(this);
-        var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
-        var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
         var centerX = current.Left + current.Width / 2;
         var centerY = current.Top + current.Height / 2;
 
-        var width = Math.Max(24, (int)Math.Round(_imageWidthDip * nextScale * dpi.DpiScaleX) + borderX * 2);
-        var height = Math.Max(24, (int)Math.Round(_imageHeightDip * nextScale * dpi.DpiScaleY) + borderY * 2);
-        _scale = nextScale;
+        _scale = size.Scale;
         NativeMethods.SetWindowPos(
             handle,
             nint.Zero,
-            centerX - width / 2,
-            centerY - height / 2,
-            width,
-            height,
+            centerX - size.Width / 2,
+            centerY - size.Height / 2,
+            size.Width,
+            size.Height,
             NativeMethods.SwpNoActivate |
             NativeMethods.SwpNoZOrder |
             NativeMethods.SwpNoOwnerZOrder);
+
+        // Some Windows configurations independently cap very large window axes.
+        // If that happened, reduce the single scale and resize both axes together
+        // instead of allowing Stretch=Fill-style aspect distortion.
+        if (NativeMethods.GetWindowRect(handle, out var realized) &&
+            (Math.Abs(realized.Width - size.Width) > 1 || Math.Abs(realized.Height - size.Height) > 1))
+        {
+            var fittedScale = StickyImageScaleCalculator.ScaleThatFits(
+                _imageWidthDip,
+                _imageHeightDip,
+                realized.Width,
+                realized.Height,
+                dpi.DpiScaleX,
+                dpi.DpiScaleY,
+                borderX,
+                borderY);
+            var corrected = StickyImageScaleCalculator.Calculate(
+                _imageWidthDip,
+                _imageHeightDip,
+                Math.Min(_scale, fittedScale),
+                MinimumScale,
+                MaximumScale,
+                dpi.DpiScaleX,
+                dpi.DpiScaleY,
+                borderX,
+                borderY);
+            _scale = corrected.Scale;
+            NativeMethods.SetWindowPos(
+                handle,
+                nint.Zero,
+                centerX - corrected.Width / 2,
+                centerY - corrected.Height / 2,
+                corrected.Width,
+                corrected.Height,
+                NativeMethods.SwpNoActivate |
+                NativeMethods.SwpNoZOrder |
+                NativeMethods.SwpNoOwnerZOrder);
+        }
     }
 
     private void ShowFeedback(string message)

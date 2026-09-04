@@ -303,7 +303,7 @@
                                FontFamily="{StaticResource DataFont}"
                                FontSize="11"
                                Foreground="#FF76DFEE"
-                               Text="R 上次选区  ·  双击 / ENTER 复制  ·  ESC 取消" />
+                               Text="R 循环历史选区  ·  双击 / ENTER 复制  ·  ESC 取消" />
                 </StackPanel>
             </Border>
 
@@ -665,15 +665,19 @@
         </Border>
 
         <Border x:Name="MagnifierOverlay"
-                Width="286" Height="148" Padding="6"
+                Width="294" Height="168" Padding="6"
                 HorizontalAlignment="Left" VerticalAlignment="Top"
                 Visibility="Collapsed" IsHitTestVisible="False"
                 Background="#F20B151C" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="6">
-            <Grid><Grid.RowDefinitions><RowDefinition Height="100"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                <Grid ClipToBounds="True">
+            <Grid><Grid.RowDefinitions><RowDefinition Height="120"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid x:Name="MagnifierImageHost" ClipToBounds="True">
                     <Image x:Name="MagnifierImage" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
-                    <Rectangle Width="1" Fill="#FFFF5562" HorizontalAlignment="Center"/>
-                    <Rectangle Height="1" Fill="#FFFF5562" VerticalAlignment="Center"/>
+                    <Rectangle x:Name="MagnifierVerticalCrosshair"
+                               Width="1" Fill="#FFFF5562"
+                               HorizontalAlignment="Left"/>
+                    <Rectangle x:Name="MagnifierHorizontalCrosshair"
+                               Height="1" Fill="#FFFF5562"
+                               VerticalAlignment="Top"/>
                 </Grid>
                 <Grid Grid.Row="1" Margin="3,6,3,0">
                     <Grid.ColumnDefinitions>

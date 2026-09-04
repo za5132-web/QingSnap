@@ -7,11 +7,11 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区�
 
 QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[当前正式版 v1.0.1 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.0.1/QingSnap-v1.0.1.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.0.1 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.0.1) · [完整更新日志 / Changelog](CHANGELOG.md)
+[当前正式版 v1.0.2 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.0.2/QingSnap-v1.0.2.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.0.2 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.0.2) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `v1.0.1` |
+| 当前版本 / Current version | `v1.0.2` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
 | OCR | 可选运行库 + PP-OCRv6 Tiny / Small 模型（离线） / optional runtime and Tiny or Small model |
@@ -55,13 +55,13 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - 也可自由框选，通过四边、四角或 `X / Y / 宽 / 高` 数值精确调整。
 - 像素放大镜实时显示屏幕坐标与 HEX 颜色，按 `I` 复制当前颜色。
 - 使用 `W`、`A`、`S`、`D` 将截图十字准星每次移动 1 像素。
-- 按 `R` 重新载入上次选区，或用 `Shift+F1` 直接重复上次截图范围。
+- 连续按 `R` 循环载入最近五个选区，或用 `Shift+F1` 直接重复最近一次截图范围。
 
 - Detect windows and standard controls under the pointer, then click to use the suggested region.
 - Draw a free region or refine it from every edge and corner, including exact `X / Y / width / height` input.
 - Inspect coordinates and HEX colors in the live pixel magnifier; press `I` to copy the current color.
 - Nudge the crosshair one pixel at a time with `W`, `A`, `S`, and `D`.
-- Reload the previous region with `R`, or repeat it directly with `Shift+F1`.
+- Press `R` repeatedly to cycle through the five most recent regions, or repeat the latest one directly with `Shift+F1`.
 
 ### 2. 自动与手动长截图 / Automatic and manual scrolling capture
 
@@ -113,14 +113,14 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 
 ### 5. 可以收纳到屏幕边缘的贴图 / Pins that stay out of the way
 
-- 按 `F3` 贴出剪贴板图片；剪贴板没有图片时会使用最近一次截图。
+- 连续按 `F3` 循环贴出最近五张图片；截图与外部剪贴板图片共用同一序列。
 - 普通贴图支持拖动、滚轮缩放、适应屏幕、`1:1` 原始大小和再次复制。
 - 按 `M` 将普通或长图贴图暂存为屏幕侧边缩略标签，再次按 `M` 或单击即可原位恢复。
 - 缩略标签自动靠近最近的屏幕边缘，平时仅露出提示条，鼠标悬停时展开。
 - 将展开的贴图拖到屏幕左侧或右侧松开，可通过动画直接缩成当前位置的缩略窗。
 - 完整贴图与缩略标签的位置分别记忆，不打断当前桌面布局。
 
-- Press `F3` to pin a clipboard image, or use the latest capture when the clipboard has no image.
+- Press `F3` repeatedly to cycle through the five most recent captures and external clipboard images in one sequence.
 - Move, wheel-zoom, fit, view at `1:1`, and recopy normal pins.
 - Press `M` to stash normal or long-image pins as edge thumbnails; press `M` again or click to restore them in place.
 - Let thumbnail tabs snap to the nearest screen edge, peek while idle, and reveal on hover.
@@ -143,6 +143,15 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Save as PNG, JPG, or BMP, with configurable JPG quality, history location, and retention period.
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
+
+## v1.0.2 正式版 / Stable release
+
+- `R` 可循环最近五个截图选区，`F3` 可循环最近五张截图或外部剪贴板图片。
+  `R` cycles through five recent capture regions, while `F3` cycles through five recent captures or external clipboard images.
+- 放大镜保持像素正方形并将准星对齐像素边缘，适合精确选取颜色交界。
+  The magnifier keeps pixels square and aligns its crosshair to pixel boundaries for precise edge selection.
+- 贴图在极大、极小缩放下保持原始比例，并消除缩放下限附近的滚轮空转。
+  Pins retain their aspect ratio at both zoom extremes and no longer have a wheel dead zone near minimum size.
 
 ## v1.0.1 正式版 / Stable release
 
@@ -228,12 +237,13 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 
 ## 完整版本历程 / Complete version history
 
-下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0–v1.0.1。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
+下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0–v1.0.2。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
 
-The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.1. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
+The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.2. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
 
 | 版本 / Version | 日期 / Date | 本次更新 / Changes |
 | --- | --- | --- |
+| v1.0.2 | 2026-09-04 | `R`/`F3` 分别循环最近五个选区与图片；放大镜改为像素边缘对齐；修复贴图极端缩放比例变形。<br>Cycles five recent regions/images with `R` and `F3`, aligns the magnifier to pixel boundaries, and preserves pin aspect ratio at zoom limits. |
 | v1.0.1 | 2026-08-29 | 新增首次使用教程、设置反馈入口和序号改号；`F2` 串联选择与编辑；修复外部剪贴板图片贴出变黑，并收紧反馈按钮文字。<br>Added onboarding, feedback, editable number markers, an F2 select/edit flow, fixed black external clipboard pins, and tightened the feedback action label. |
 | v1.0.0 | 2026-08-25 | 首个正式版：直线与箭头重新拆分；箭头面板保留单头/双头；修复四位数尺寸裁切、画笔图标、截图记录白边/日期控件及标注右键菜单。<br>First stable release: separated line and arrow tools; retained single/double arrow choices; fixed four-digit size clipping, the pen icon, History chrome/date selector, and annotation context menu. |
 | v48 | 2026-08-25 | 新截图自动建立 OCR 搜索索引；截图记录后台补齐旧图索引，搜索结果实时更新，并复用截图阶段预识别。<br>Automatically indexes new captures, backfills missing history OCR indexes, updates search results live, and reuses capture-time prefetch. |
