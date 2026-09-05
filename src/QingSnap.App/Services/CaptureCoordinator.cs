@@ -14,6 +14,7 @@ public sealed class CaptureCoordinator
     private readonly CaptureHistoryService _historyService;
     private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly OcrService _ocrService;
+    private readonly QrCodeService _qrCodeService;
     private readonly AppSettingsService _settingsService;
     private readonly PinHistoryBuffer _pinHistory = new();
     private readonly SemaphoreSlim _pinRequestGate = new(1, 1);
@@ -28,6 +29,7 @@ public sealed class CaptureCoordinator
         CaptureHistoryService historyService,
         HistoryOcrIndexingService historyOcrIndexer,
         OcrService ocrService,
+        QrCodeService qrCodeService,
         AppSettingsService settingsService)
     {
         _captureService = captureService;
@@ -36,6 +38,7 @@ public sealed class CaptureCoordinator
         _historyService = historyService;
         _historyOcrIndexer = historyOcrIndexer;
         _ocrService = ocrService;
+        _qrCodeService = qrCodeService;
         _settingsService = settingsService;
     }
 
@@ -51,6 +54,7 @@ public sealed class CaptureCoordinator
         }
 
         var delaySeconds = _settingsService.Current.CaptureDelaySeconds;
+        ResourceDiagnostics.Sample("CaptureStarted", ("Recent", _pinHistory.Count));
         DiagnosticLog.Info("Capture", $"Region capture requested; delay={delaySeconds}s.");
         if (delaySeconds > 0)
         {
@@ -175,7 +179,8 @@ public sealed class CaptureCoordinator
             _historyOcrIndexer,
             _clipboardService,
             path => PinImage(path),
-            RecognizeImage);
+            RecognizeImage,
+            _qrCodeService);
         _historyWindow.Closed += (_, _) => _historyWindow = null;
         _historyWindow.Show();
     }
@@ -321,6 +326,7 @@ public sealed class CaptureCoordinator
         try
         {
             _isCapturing = true;
+            var initialSourceWindow = NativeMethods.GetForegroundWindow();
             var snapshot = initialRegion is null
                 ? _captureService.CaptureScreenContainingCursor()
                 : _captureService.CaptureScreenContainingRegion(initialRegion.ToRectangle());
@@ -340,7 +346,9 @@ public sealed class CaptureCoordinator
                 recallIndex: recallHistoryIndex,
                 settings: _settingsService.Current,
                 ocrService: _ocrService,
-                clipboardService: _clipboardService);
+                qrCodeService: _qrCodeService,
+                clipboardService: _clipboardService,
+                loadTagsAsync: _historyService.LoadAllTagsAsync);
             var longCaptureStarted = false;
 
             overlay.ActionRequested += async (_, request) =>
@@ -350,6 +358,10 @@ public sealed class CaptureCoordinator
                     snapshot.Bounds.Y + request.LocalRegion.Y,
                     request.LocalRegion.Width,
                     request.LocalRegion.Height);
+                var sourceMetadata = CaptureSourceMetadataService.Create(
+                    globalRegion,
+                    isLongCapture: false,
+                    initialSourceWindow);
 
                 if (request.Action == CaptureOverlayAction.AutomaticLongCapture)
                 {
@@ -361,7 +373,8 @@ public sealed class CaptureCoordinator
                         () => OpenLongCaptureSession(
                             globalRegion,
                             LongCaptureMode.Automatic,
-                            targetWindow));
+                            targetWindow,
+                            request.Tags));
                     return;
                 }
 
@@ -372,7 +385,9 @@ public sealed class CaptureCoordinator
                         var (imagePath, _) = SaveCaptureToHistory(
                             request.Image,
                             globalRegion,
-                            request.PrefetchedOcr);
+                            request.PrefetchedOcr,
+                            tags: request.Tags,
+                            sourceMetadata: sourceMetadata);
                         PinImage(
                             imagePath,
                             globalRegion,
@@ -392,7 +407,7 @@ public sealed class CaptureCoordinator
                 overlay.Close();
                 try
                 {
-                    await HandleOverlayActionAsync(request, globalRegion);
+                    await HandleOverlayActionAsync(request, globalRegion, sourceMetadata);
                 }
                 catch (Exception exception)
                 {
@@ -407,12 +422,20 @@ public sealed class CaptureCoordinator
                     snapshot.Bounds.Y + localRegion.Y,
                     localRegion.Width,
                     localRegion.Height);
+                var sourceMetadata = CaptureSourceMetadataService.Create(
+                    globalRegion,
+                    isLongCapture: false,
+                    initialSourceWindow);
 
                 try
                 {
                     var image = overlay.CreateSelectedImage();
                     overlay.Close();
-                    await CompleteCaptureAsync(image, globalRegion);
+                    await CompleteCaptureAsync(
+                        image,
+                        globalRegion,
+                        sourceMetadata: sourceMetadata,
+                        tags: overlay.SelectedTags);
                 }
                 catch (Exception exception)
                 {
@@ -455,9 +478,18 @@ public sealed class CaptureCoordinator
         System.Windows.Media.Imaging.BitmapSource image,
         DrawingRectangle region,
         bool forceCopy = false,
-        Task<OcrRecognitionResult>? prefetchedOcr = null)
+        Task<OcrRecognitionResult>? prefetchedOcr = null,
+        bool isLongCapture = false,
+        CaptureHistoryContext? sourceMetadata = null,
+        IReadOnlyList<string>? tags = null)
     {
-        var (imagePath, savedRegion) = SaveCaptureToHistory(image, region, prefetchedOcr);
+        var (imagePath, savedRegion) = SaveCaptureToHistory(
+            image,
+            region,
+            prefetchedOcr,
+            isLongCapture,
+            sourceMetadata,
+            tags);
         var copyRequested = forceCopy || _settingsService.Current.AutoCopy;
         var copiedToClipboard = false;
         if (copyRequested)
@@ -485,7 +517,8 @@ public sealed class CaptureCoordinator
 
     private async Task HandleOverlayActionAsync(
         CaptureOverlayActionEventArgs request,
-        DrawingRectangle globalRegion)
+        DrawingRectangle globalRegion,
+        CaptureHistoryContext sourceMetadata)
     {
         switch (request.Action)
         {
@@ -494,8 +527,20 @@ public sealed class CaptureCoordinator
                     var (imagePath, _) = SaveCaptureToHistory(
                         request.Image,
                         globalRegion,
-                        request.PrefetchedOcr);
+                        request.PrefetchedOcr,
+                        tags: request.Tags,
+                        sourceMetadata: sourceMetadata);
                     RecognizeImage(imagePath, request.Image, request.PrefetchedOcr);
+                    break;
+                }
+            case CaptureOverlayAction.QrCode:
+                {
+                    var (imagePath, _) = SaveCaptureToHistory(
+                        request.Image,
+                        globalRegion,
+                        tags: request.Tags,
+                        sourceMetadata: sourceMetadata);
+                    RecognizeQrCode(request.Image, imagePath);
                     break;
                 }
             case CaptureOverlayAction.Pin:
@@ -503,7 +548,9 @@ public sealed class CaptureCoordinator
                     var (imagePath, _) = SaveCaptureToHistory(
                         request.Image,
                         globalRegion,
-                        request.PrefetchedOcr);
+                        request.PrefetchedOcr,
+                        tags: request.Tags,
+                        sourceMetadata: sourceMetadata);
                     PinImage(imagePath, globalRegion, request.Image, request.PrefetchedOcr);
                     break;
                 }
@@ -512,13 +559,17 @@ public sealed class CaptureCoordinator
                     request.Image,
                     globalRegion,
                     true,
-                    request.PrefetchedOcr);
+                    request.PrefetchedOcr,
+                    sourceMetadata: sourceMetadata,
+                    tags: request.Tags);
                 break;
             case CaptureOverlayAction.Confirm:
                 await CompleteCaptureAsync(
                     request.Image,
                     globalRegion,
-                    prefetchedOcr: request.PrefetchedOcr);
+                    prefetchedOcr: request.PrefetchedOcr,
+                    sourceMetadata: sourceMetadata,
+                    tags: request.Tags);
                 break;
             case CaptureOverlayAction.Save:
                 SaveImageAs(request.Image);
@@ -529,9 +580,17 @@ public sealed class CaptureCoordinator
     private (string ImagePath, CaptureRegion Region) SaveCaptureToHistory(
         System.Windows.Media.Imaging.BitmapSource image,
         DrawingRectangle region,
-        Task<OcrRecognitionResult>? prefetchedOcr = null)
+        Task<OcrRecognitionResult>? prefetchedOcr = null,
+        bool isLongCapture = false,
+        CaptureHistoryContext? sourceMetadata = null,
+        IReadOnlyList<string>? tags = null)
     {
-        var imagePath = _historyService.Save(image);
+        var captureMetadata = sourceMetadata ?? CaptureSourceMetadataService.Create(region, isLongCapture);
+        var imagePath = _historyService.Save(image, captureMetadata);
+        if (tags is { Count: > 0 })
+        {
+            _ = AttachCaptureTagsAsync(imagePath, tags);
+        }
         _historyOcrIndexer.EnqueueCapture(imagePath, prefetchedOcr);
         var savedRegion = CaptureRegion.FromRectangle(region);
         _stateStore.SaveLastRegion(savedRegion);
@@ -541,6 +600,25 @@ public sealed class CaptureCoordinator
             "Capture",
             $"Saved {image.PixelWidth}x{image.PixelHeight} capture to history; format={_settingsService.Current.OutputFormat}.");
         return (imagePath, savedRegion);
+    }
+
+    private async Task AttachCaptureTagsAsync(string imagePath, IReadOnlyList<string> tags)
+    {
+        try
+        {
+            await _historyService.AddTagsAsync(imagePath, tags).ConfigureAwait(false);
+            if (_historyWindow is not null)
+            {
+                await _historyWindow.Dispatcher.InvokeAsync(_historyWindow.RefreshHistory);
+            }
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error(
+                "HistoryTags",
+                exception,
+                $"截图已正常保存，但快速标签写入失败：{Path.GetFileName(imagePath)}");
+        }
     }
 
     private void SaveImageAs(System.Windows.Media.Imaging.BitmapSource image)
@@ -581,11 +659,16 @@ public sealed class CaptureCoordinator
     private void OpenLongCaptureSession(
         DrawingRectangle region,
         LongCaptureMode mode,
-        nint targetWindow)
+        nint targetWindow,
+        IReadOnlyList<string>? tags = null)
     {
         LongCaptureOverlayWindow? captureOverlay = null;
         try
         {
+            var sourceMetadata = CaptureSourceMetadataService.Create(
+                region,
+                isLongCapture: true,
+                targetWindow);
             captureOverlay = new LongCaptureOverlayWindow(region, mode);
             var session = new LongCaptureControlWindow(
                 region,
@@ -597,7 +680,12 @@ public sealed class CaptureCoordinator
             {
                 try
                 {
-                    await CompleteCaptureAsync(result.Image, region);
+                    await CompleteCaptureAsync(
+                        result.Image,
+                        region,
+                        isLongCapture: true,
+                        sourceMetadata: sourceMetadata,
+                        tags: tags);
                 }
                 catch (Exception exception)
                 {
@@ -703,7 +791,8 @@ public sealed class CaptureCoordinator
             _ocrService,
             _settingsService.Current,
             item.PreferredRegion?.ToRectangle(),
-            initialPosition);
+            initialPosition,
+            qrCodeService: _qrCodeService);
         stickyWindow.Show();
     }
 
@@ -724,7 +813,8 @@ public sealed class CaptureCoordinator
                 _ocrService,
                 _settingsService.Current,
                 initialRegion,
-                prefetchedOcr: prefetchedOcr);
+                prefetchedOcr: prefetchedOcr,
+                qrCodeService: _qrCodeService);
             if (firstFrameReady is not null)
             {
                 stickyWindow.FirstFramePresented += (_, _) => firstFrameReady();
@@ -771,6 +861,47 @@ public sealed class CaptureCoordinator
         catch (Exception exception)
         {
             CaptureFailed?.Invoke(this, $"OCR 启动失败：{exception.Message}");
+        }
+    }
+
+    private void RecognizeQrImage(string imagePath)
+    {
+        try
+        {
+            RecognizeQrCode(_historyService.LoadFullImage(imagePath), imagePath);
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, $"读取二维码识别图片失败：{Path.GetFileName(imagePath)}");
+            CaptureFailed?.Invoke(this, "无法读取这张截图，请刷新历史记录后重试。");
+        }
+    }
+
+    private async void RecognizeQrCode(
+        System.Windows.Media.Imaging.BitmapSource image,
+        string sourceName)
+    {
+        try
+        {
+            var results = await _qrCodeService.RecognizeAsync(image);
+            if (results.Count == 0)
+            {
+                CaptureFailed?.Invoke(this, "未检测到二维码");
+                return;
+            }
+
+            var resultWindow = new QrCodeResultWindow(
+                results,
+                _clipboardService,
+                Path.GetFileName(sourceName));
+            resultWindow.Show();
+            resultWindow.Activate();
+            DiagnosticLog.Info("QrCode", $"本地二维码识别完成：{results.Count:N0} 个结果。");
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, "本地二维码识别失败。");
+            CaptureFailed?.Invoke(this, "二维码识别失败，请换一张更清晰的图片重试。");
         }
     }
 }

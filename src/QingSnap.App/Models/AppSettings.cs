@@ -10,7 +10,11 @@ public sealed record AppSettings
 
     public string RepeatHotkey { get; init; } = "Shift+F1";
 
+    public List<HotkeyBinding> Hotkeys { get; init; } = [];
+
     public bool StartWithWindows { get; init; }
+
+    public bool AutoCheckUpdates { get; init; } = true;
 
     public string HistoryDirectory { get; init; } = string.Empty;
 
@@ -27,6 +31,8 @@ public sealed record AppSettings
     public bool SmartWindowSelection { get; init; } = true;
 
     public bool ShowMagnifier { get; init; } = true;
+
+    public bool ShowQuickCaptureTags { get; init; } = true;
 
     public string CloseInteraction { get; init; } = "Escape";
 

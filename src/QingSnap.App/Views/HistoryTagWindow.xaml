@@ -1,0 +1,233 @@
+<Window x:Class="QingSnap.App.Views.HistoryTagWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="管理标签"
+        Width="460"
+        Height="390"
+        MinWidth="420"
+        MinHeight="340"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        AllowsTransparency="True"
+        Foreground="#FFF2F7F9"
+        PreviewKeyDown="OnPreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="TagActionButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="78" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="16,0" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#FFE4EEF2" />
+            <Setter Property="Background" Value="#FF21313D" />
+            <Setter Property="BorderBrush" Value="#445B7180" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF2A404D" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#AA76DFEE" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TagCloseButton" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Foreground" Value="#FF91A2AC" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF26343E" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TagListItem" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,0,5" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Foreground" Value="#FFC9D7DD" />
+            <Setter Property="Background" Value="#FF111D25" />
+            <Setter Property="BorderBrush" Value="#FF263843" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <Grid>
+                                <TextBlock FontFamily="{StaticResource UiFont}"
+                                           FontSize="12"
+                                           Foreground="{TemplateBinding Foreground}"
+                                           Text="{Binding}" />
+                                <TextBlock x:Name="SelectedMark"
+                                           HorizontalAlignment="Right"
+                                           FontFamily="{StaticResource DataFont}"
+                                           Foreground="#FF76DFEE"
+                                           Text="✓"
+                                           Visibility="Collapsed" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#7776DFEE" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#FF17313B" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#CC76DFEE" />
+                                <Setter Property="Foreground" Value="#FFF3FBFD" />
+                                <Setter TargetName="SelectedMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#FF0D171F"
+            BorderBrush="#FF344957"
+            BorderThickness="1"
+            CornerRadius="9">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="50" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="60" />
+            </Grid.RowDefinitions>
+
+            <Border Background="#FF101C24"
+                    BorderBrush="#253D5362"
+                    BorderThickness="0,0,0,1"
+                    CornerRadius="9,9,0,0"
+                    MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <Grid Margin="18,0,10,0">
+                    <TextBlock x:Name="WindowTitleText"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource UiFont}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Text="添加标签" />
+                    <Button HorizontalAlignment="Right"
+                            Style="{StaticResource TagCloseButton}"
+                            Content="×"
+                            Click="OnCancelClick" />
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="22,18,22,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="IntroText"
+                           FontFamily="{StaticResource UiFont}"
+                           FontSize="12"
+                           Foreground="#FF9DB0BA"
+                           TextWrapping="Wrap" />
+                <TextBox x:Name="CustomTagsBox"
+                         Grid.Row="1"
+                         Height="38"
+                         Margin="0,12,0,0"
+                         Padding="11,7"
+                         VerticalContentAlignment="Center"
+                         FontFamily="{StaticResource UiFont}"
+                         FontSize="13"
+                         Foreground="#FFF3F7F9"
+                         Background="#FF091219"
+                         BorderBrush="#FF304550"
+                         BorderThickness="1"
+                         CaretBrush="#FF76DFEE" />
+                <TextBlock x:Name="ListLabelText"
+                           Grid.Row="2"
+                           Margin="0,14,0,7"
+                           FontFamily="{StaticResource UiFont}"
+                           FontSize="11"
+                           Foreground="#FF78909C"
+                           Text="已有标签 · 可多选" />
+                <Grid Grid.Row="3">
+                    <ListBox x:Name="TagList"
+                             SelectionMode="Multiple"
+                             ItemContainerStyle="{StaticResource TagListItem}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                    <TextBlock x:Name="EmptyTagsText"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="{StaticResource UiFont}"
+                               FontSize="12"
+                               Foreground="#FF61737D"
+                               Text="还没有可选择的标签"
+                               Visibility="Collapsed" />
+                </Grid>
+                <TextBlock x:Name="ValidationText"
+                           Grid.Row="4"
+                           Margin="0,7,0,0"
+                           FontFamily="{StaticResource UiFont}"
+                           FontSize="11"
+                           Foreground="#FFFFB060"
+                           Visibility="Collapsed" />
+            </Grid>
+
+            <Border Grid.Row="2"
+                    Padding="14,0"
+                    Background="#FF101C24"
+                    BorderBrush="#253D5362"
+                    BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,9,9">
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                    <Button Style="{StaticResource TagActionButton}" Content="取消" Click="OnCancelClick" />
+                    <Button x:Name="ApplyButton"
+                            Style="{StaticResource TagActionButton}"
+                            Foreground="#FF071116"
+                            Background="#FF76DFEE"
+                            BorderBrush="#FF76DFEE"
+                            Content="添加"
+                            Click="OnApplyClick" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

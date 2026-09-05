@@ -1,6 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.IO;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using QingSnap.App.Controls;
 using QingSnap.App.Models;
 using QingSnap.App.Services;
@@ -14,29 +18,73 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettingsService _settingsService;
     private readonly OcrService _ocrService;
+    private readonly UpdateService _updateService;
     private readonly Action _openTutorial;
+    private readonly Func<IReadOnlyList<HotkeyRegistrationFailure>> _getHotkeyRegistrationFailures;
+    private readonly Action<bool> _setHotkeyCaptureMode;
+    private bool _isCapturingHotkey;
     private CancellationTokenSource? _ocrOperationCancellation;
+    private CancellationTokenSource? _updateOperationCancellation;
+    private UpdateReleaseInfo? _availableRelease;
+    private string? _downloadedUpdatePath;
 
     public SettingsWindow(
         AppSettingsService settingsService,
         OcrService ocrService,
-        Action openTutorial)
+        UpdateService updateService,
+        Action openTutorial,
+        Func<IReadOnlyList<HotkeyRegistrationFailure>> getHotkeyRegistrationFailures,
+        Action<bool> setHotkeyCaptureMode)
     {
         _settingsService = settingsService;
         _ocrService = ocrService;
+        _updateService = updateService;
         _openTutorial = openTutorial;
+        _getHotkeyRegistrationFailures = getHotkeyRegistrationFailures;
+        _setHotkeyCaptureMode = setHotkeyCaptureMode;
+        var bindings = settingsService.Current.Hotkeys.ToDictionary(binding => binding.Action);
+        HotkeyRows = new ObservableCollection<HotkeySettingRow>(
+            HotkeyCatalog.Definitions.Select(definition =>
+            {
+                var binding = bindings[definition.Action];
+                return new HotkeySettingRow(
+                    definition.Action,
+                    definition.DisplayName,
+                    definition.Description,
+                    binding.Gesture,
+                    binding.IsEnabled);
+            }));
+        DataContext = this;
         InitializeComponent();
         LoadSettings(settingsService.Current);
         RefreshOcrStatus();
-        Closed += (_, _) => _ocrOperationCancellation?.Cancel();
+        CurrentVersionText.Text = _updateService.CurrentVersionDisplay;
+        if (_updateService.LastRelease is { } release)
+        {
+            ApplyUpdateRelease(release);
+        }
+        ShowHotkeyRegistrationFailures(_getHotkeyRegistrationFailures());
+        Deactivated += (_, _) => EndHotkeyCapture();
+        Closed += (_, _) =>
+        {
+            _ocrOperationCancellation?.Cancel();
+            _ocrOperationCancellation?.Dispose();
+            _ocrOperationCancellation = null;
+            _updateOperationCancellation?.Cancel();
+            _updateOperationCancellation?.Dispose();
+            _updateOperationCancellation = null;
+            EndHotkeyCapture();
+            ResourceDiagnostics.Sample("SettingsClosed");
+        };
+        Loaded += (_, _) => ResourceDiagnostics.Sample("SettingsOpened");
     }
+
+    public ObservableCollection<HotkeySettingRow> HotkeyRows { get; }
 
     private void LoadSettings(AppSettings settings)
     {
-        CaptureHotkeyBox.Text = settings.CaptureHotkey;
-        PinHotkeyBox.Text = settings.PinHotkey;
-        RepeatHotkeyBox.Text = settings.RepeatHotkey;
         StartupCheck.IsChecked = settings.StartWithWindows;
+        AutoUpdateCheck.IsChecked = settings.AutoCheckUpdates;
         HistoryDirectoryBox.Text = settings.HistoryDirectory;
         RetentionBox.Text = settings.HistoryRetentionDays.ToString();
         SelectCombo(FormatCombo, settings.OutputFormat);
@@ -45,6 +93,7 @@ public partial class SettingsWindow : Window
         SelectComboByTag(DelayCombo, settings.CaptureDelaySeconds.ToString());
         SmartSelectionCheck.IsChecked = settings.SmartWindowSelection;
         MagnifierCheck.IsChecked = settings.ShowMagnifier;
+        QuickCaptureTagsCheck.IsChecked = settings.ShowQuickCaptureTags;
         SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
         SelectComboByTag(
             OcrModelCombo,
@@ -62,27 +111,13 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            var captureHotkey = CaptureHotkeyBox.Text.Trim();
-            var pinHotkey = PinHotkeyBox.Text.Trim();
-            var repeatHotkey = RepeatHotkeyBox.Text.Trim();
-            if (!GlobalHotkeyService.IsValidGesture(captureHotkey) ||
-                !GlobalHotkeyService.IsValidGesture(pinHotkey) ||
-                !GlobalHotkeyService.IsValidGesture(repeatHotkey))
-            {
-                throw new InvalidOperationException("快捷键格式无效，请使用 Ctrl / Shift / Alt + F1–F12。");
-            }
-
-            if (new[] { captureHotkey, pinHotkey, repeatHotkey }.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 3)
-            {
-                throw new InvalidOperationException("三个全局快捷键不能重复。");
-            }
+            var hotkeys = BuildValidatedHotkeys();
 
             var settings = _settingsService.Current with
             {
-                CaptureHotkey = captureHotkey,
-                PinHotkey = pinHotkey,
-                RepeatHotkey = repeatHotkey,
+                Hotkeys = hotkeys,
                 StartWithWindows = StartupCheck.IsChecked == true,
+                AutoCheckUpdates = AutoUpdateCheck.IsChecked == true,
                 HistoryDirectory = HistoryDirectoryBox.Text,
                 HistoryRetentionDays = ParseInt(RetentionBox, "自动清理天数"),
                 OutputFormat = SelectedContent(FormatCombo, "PNG"),
@@ -91,6 +126,7 @@ public partial class SettingsWindow : Window
                 CaptureDelaySeconds = int.Parse(SelectedTag(DelayCombo, "0")),
                 SmartWindowSelection = SmartSelectionCheck.IsChecked == true,
                 ShowMagnifier = MagnifierCheck.IsChecked == true,
+                ShowQuickCaptureTags = QuickCaptureTagsCheck.IsChecked == true,
                 CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
                 OcrEngine = SelectedOcrModel() == OcrModelManager.NoModel ? "None" : "Advanced",
                 OcrModel = SelectedOcrModel(),
@@ -103,9 +139,20 @@ public partial class SettingsWindow : Window
                 AnnotationFontSize = ParseDouble(AnnotationFontSizeBox, "标注文字大小")
             };
             _settingsService.Save(settings);
-            StatusText.Text = "设置已保存并应用";
-            StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(118, 223, 238));
+            var failures = _getHotkeyRegistrationFailures();
+            ShowHotkeyRegistrationFailures(failures);
+            if (failures.Count == 0)
+            {
+                StatusText.Text = "设置已保存并应用";
+                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(118, 223, 238));
+            }
+            else
+            {
+                StatusText.Text = $"设置已保存；有 {failures.Count} 个快捷键未能注册";
+                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(255, 145, 137));
+            }
         }
         catch (Exception exception)
         {
@@ -113,6 +160,163 @@ public partial class SettingsWindow : Window
             StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromRgb(255, 145, 137));
         }
+    }
+
+    private List<HotkeyBinding> BuildValidatedHotkeys()
+    {
+        var result = new List<HotkeyBinding>(HotkeyRows.Count);
+        var usedGestures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in HotkeyRows)
+        {
+            var rawGesture = row.Gesture.Trim();
+            if (!row.IsEnabled)
+            {
+                result.Add(new HotkeyBinding
+                {
+                    Action = row.Action,
+                    Gesture = GlobalHotkeyService.TryNormalizeGesture(rawGesture, out var disabledGesture)
+                        ? disabledGesture
+                        : string.Empty,
+                    IsEnabled = false
+                });
+                continue;
+            }
+
+            if (!GlobalHotkeyService.TryNormalizeGesture(rawGesture, out var normalized))
+            {
+                throw new InvalidOperationException(
+                    $"“{row.DisplayName}”的快捷键格式无效，请使用 F1–F12 与 Ctrl / Shift / Alt 组合。");
+            }
+
+            if (usedGestures.TryGetValue(normalized, out var existingAction))
+            {
+                throw new InvalidOperationException(
+                    $"“{row.DisplayName}”和“{existingAction}”不能同时使用 {normalized}。");
+            }
+
+            usedGestures[normalized] = row.DisplayName;
+            row.Gesture = normalized;
+            result.Add(new HotkeyBinding
+            {
+                Action = row.Action,
+                Gesture = normalized,
+                IsEnabled = true
+            });
+        }
+
+        return result;
+    }
+
+    private void OnHotkeyBoxGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        if (!_isCapturingHotkey)
+        {
+            _isCapturingHotkey = true;
+            _setHotkeyCaptureMode(true);
+        }
+
+        StatusText.Text = "请直接按下组合键；Backspace 或 Delete 可清空";
+        StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(118, 223, 238));
+    }
+
+    private void OnHotkeyBoxLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (Keyboard.FocusedElement is WpfTextBox { Tag: HotkeySettingRow })
+            {
+                return;
+            }
+
+            EndHotkeyCapture();
+        });
+    }
+
+    private void OnHotkeyBoxPreviewKeyDown(object sender, WpfKeyEventArgs e)
+    {
+        if (sender is not WpfTextBox { Tag: HotkeySettingRow row })
+        {
+            return;
+        }
+
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or Key.LeftAlt or Key.RightAlt)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (key is Key.Back or Key.Delete)
+        {
+            row.Gesture = string.Empty;
+            row.IsEnabled = false;
+            StatusText.Text = $"已清空“{row.DisplayName}”快捷键";
+            e.Handled = true;
+            return;
+        }
+
+        if (key is >= Key.F1 and <= Key.F12)
+        {
+            var parts = new List<string>(4);
+            var modifiers = Keyboard.Modifiers;
+            if (modifiers.HasFlag(ModifierKeys.Control))
+            {
+                parts.Add("Ctrl");
+            }
+
+            if (modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                parts.Add("Shift");
+            }
+
+            if (modifiers.HasFlag(ModifierKeys.Alt))
+            {
+                parts.Add("Alt");
+            }
+
+            parts.Add(key.ToString());
+            row.Gesture = string.Join('+', parts);
+            row.IsEnabled = true;
+            StatusText.Text = $"“{row.DisplayName}”已录入 {row.Gesture}";
+            StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+                System.Windows.Media.Color.FromRgb(118, 223, 238));
+            e.Handled = true;
+            return;
+        }
+
+        StatusText.Text = "这里只接受 F1–F12 与 Ctrl / Shift / Alt 组合";
+        StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
+            System.Windows.Media.Color.FromRgb(255, 145, 137));
+        e.Handled = true;
+    }
+
+    private void OnHotkeyBoxPreviewTextInput(object sender, TextCompositionEventArgs e) =>
+        e.Handled = true;
+
+    private void EndHotkeyCapture()
+    {
+        if (!_isCapturingHotkey)
+        {
+            return;
+        }
+
+        _isCapturingHotkey = false;
+        _setHotkeyCaptureMode(false);
+    }
+
+    private void ShowHotkeyRegistrationFailures(IReadOnlyList<HotkeyRegistrationFailure> failures)
+    {
+        if (failures.Count == 0)
+        {
+            HotkeyRegistrationStatusText.Visibility = Visibility.Collapsed;
+            HotkeyRegistrationStatusText.Text = string.Empty;
+            return;
+        }
+
+        HotkeyRegistrationStatusText.Text = "以下快捷键未启用：" + Environment.NewLine +
+                                            string.Join(Environment.NewLine, failures.Select(failure => $"• {failure.DisplayText}"));
+        HotkeyRegistrationStatusText.Visibility = Visibility.Visible;
     }
 
     private void OnBrowseHistoryClick(object sender, RoutedEventArgs e)
@@ -140,6 +344,195 @@ public partial class SettingsWindow : Window
             Owner = this
         };
         window.ShowDialog();
+    }
+
+    private async void OnCheckUpdatesClick(object sender, RoutedEventArgs e)
+    {
+        BeginUpdateOperation();
+        UpdateStatusText.Text = "正在连接 GitHub 检查最新版本…";
+        UpdateStatusRail.Background = BrushFromRgb(118, 161, 177);
+        UpdateNotesText.Text = string.Empty;
+        UpdateDownloadButton.Visibility = Visibility.Collapsed;
+        UpdateOpenFolderButton.Visibility = Visibility.Collapsed;
+        try
+        {
+            var result = await _updateService.CheckForUpdatesAsync(
+                force: true,
+                _updateOperationCancellation!.Token);
+            if (result.Release is { } release)
+            {
+                ApplyUpdateRelease(release);
+            }
+
+            switch (result.Status)
+            {
+                case UpdateCheckStatus.UpdateAvailable:
+                    UpdateStatusText.Text = result.Release?.CanDownload == true
+                        ? $"发现新版本 {result.Release.TagName}"
+                        : $"发现新版本 {result.Release?.TagName}，但发布页没有可用的 SHA256";
+                    UpdateStatusRail.Background = BrushFromRgb(
+                        result.Release?.CanDownload == true ? (byte)118 : (byte)255,
+                        result.Release?.CanDownload == true ? (byte)223 : (byte)178,
+                        result.Release?.CanDownload == true ? (byte)238 : (byte)92);
+                    break;
+                case UpdateCheckStatus.UpToDate:
+                    UpdateStatusText.Text = "当前已经是最新版本";
+                    UpdateStatusRail.Background = BrushFromRgb(118, 223, 238);
+                    break;
+                case UpdateCheckStatus.NoCompatiblePackage:
+                    UpdateStatusText.Text = result.Message ?? "最新发布没有可用的便携 ZIP。";
+                    UpdateStatusRail.Background = BrushFromRgb(255, 178, 92);
+                    break;
+                case UpdateCheckStatus.Error:
+                    UpdateStatusText.Text = result.Message ?? "检查更新失败，请稍后重试。";
+                    UpdateStatusRail.Background = BrushFromRgb(255, 145, 137);
+                    break;
+                case UpdateCheckStatus.Skipped:
+                    UpdateStatusText.Text = "最近已经检查过更新。";
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            UpdateStatusText.Text = "更新检查已取消。";
+        }
+        finally
+        {
+            SetUpdateControlsBusy(false);
+        }
+    }
+
+    private async void OnDownloadUpdateClick(object sender, RoutedEventArgs e)
+    {
+        if (_availableRelease is not { CanDownload: true } release)
+        {
+            UpdateDownloadStatusText.Text = "此版本缺少可信的 SHA256，不能下载。";
+            return;
+        }
+
+        BeginUpdateOperation();
+        UpdateDownloadProgress.Visibility = Visibility.Visible;
+        UpdateDownloadProgress.Value = 0;
+        UpdateDownloadStatusText.Text = "正在准备下载…";
+        try
+        {
+            var progress = new Progress<UpdateDownloadProgress>(value =>
+            {
+                UpdateDownloadProgress.Value = value.Percentage;
+                UpdateDownloadStatusText.Text = value.TotalBytes > 0
+                    ? $"正在下载 {FormatFileSize(value.BytesReceived)} / {FormatFileSize(value.TotalBytes)}"
+                    : $"正在下载 {FormatFileSize(value.BytesReceived)}";
+            });
+            var downloaded = await _updateService.DownloadAsync(
+                release,
+                progress,
+                _updateOperationCancellation!.Token);
+            _downloadedUpdatePath = downloaded.FilePath;
+            UpdateDownloadProgress.Value = 100;
+            UpdateDownloadStatusText.Text = "下载完成，SHA256 校验通过。请解压后手动更新。";
+            UpdateOpenFolderButton.Visibility = Visibility.Visible;
+            UpdateStatusRail.Background = BrushFromRgb(118, 223, 238);
+        }
+        catch (OperationCanceledException)
+        {
+            UpdateDownloadStatusText.Text = "下载已取消。";
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("Update", exception, "更新包下载或校验失败。");
+            UpdateDownloadStatusText.Text = exception.Message;
+            UpdateStatusRail.Background = BrushFromRgb(255, 145, 137);
+        }
+        finally
+        {
+            SetUpdateControlsBusy(false);
+        }
+    }
+
+    private void OnOpenUpdateFolderClick(object sender, RoutedEventArgs e)
+    {
+        var path = _downloadedUpdatePath ?? _updateService.LastDownloadedPackagePath;
+        try
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                throw new FileNotFoundException("还没有下载完成的更新包。");
+            }
+
+            UpdateService.OpenContainingFolder(path);
+        }
+        catch (Exception exception)
+        {
+            UpdateDownloadStatusText.Text = exception.Message;
+        }
+    }
+
+    private void ApplyUpdateRelease(UpdateReleaseInfo release)
+    {
+        LatestVersionText.Text = release.TagName;
+        UpdatePublishedText.Text = release.PublishedAt == DateTimeOffset.MinValue
+            ? "—"
+            : release.PublishedAt.ToLocalTime().ToString("yyyy-MM-dd");
+        UpdateFileSizeText.Text = release.PackageSize > 0
+            ? FormatFileSize(release.PackageSize)
+            : "未知";
+        UpdateNotesText.Text = string.IsNullOrWhiteSpace(release.ReleaseNotes)
+            ? "该版本没有填写更新说明。"
+            : release.ReleaseNotes.Trim();
+        var hasUpdate = release.Version > _updateService.CurrentVersion;
+        _availableRelease = hasUpdate ? release : null;
+        UpdateDownloadButton.Visibility = hasUpdate ? Visibility.Visible : Visibility.Collapsed;
+        UpdateDownloadButton.IsEnabled = hasUpdate && release.CanDownload;
+        UpdateDownloadStatusText.Text = hasUpdate && !release.CanDownload
+            ? "发布页缺少 SHA256，为安全起见已禁用下载。"
+            : release.ExpectedSha256 is { } sha256
+                ? $"SHA256  {sha256}"
+                : string.Empty;
+
+        var downloadedPath = _updateService.LastDownloadedPackagePath;
+        if (!string.IsNullOrWhiteSpace(downloadedPath) && File.Exists(downloadedPath))
+        {
+            _downloadedUpdatePath = downloadedPath;
+            UpdateOpenFolderButton.Visibility = Visibility.Visible;
+        }
+    }
+
+    private void BeginUpdateOperation()
+    {
+        _updateOperationCancellation?.Cancel();
+        _updateOperationCancellation?.Dispose();
+        _updateOperationCancellation = new CancellationTokenSource();
+        SetUpdateControlsBusy(true);
+    }
+
+    private void SetUpdateControlsBusy(bool busy)
+    {
+        UpdateCheckButton.IsEnabled = !busy;
+        UpdateDownloadButton.IsEnabled = !busy && _availableRelease?.CanDownload == true;
+        AutoUpdateCheck.IsEnabled = !busy;
+    }
+
+    private static System.Windows.Media.SolidColorBrush BrushFromRgb(byte red, byte green, byte blue) =>
+        new(System.Windows.Media.Color.FromRgb(red, green, blue));
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024L * 1024L)
+        {
+            return $"{bytes / (1024D * 1024D * 1024D):0.00} GB";
+        }
+
+        if (bytes >= 1024L * 1024L)
+        {
+            return $"{bytes / (1024D * 1024D):0.0} MB";
+        }
+
+        if (bytes >= 1024L)
+        {
+            return $"{bytes / 1024D:0.0} KB";
+        }
+
+        return $"{bytes:N0} B";
     }
 
     private void OnOcrEngineChanged(object sender, SelectionChangedEventArgs e)
@@ -412,5 +805,47 @@ public partial class SettingsWindow : Window
         combo.SelectedItem = combo.Items.OfType<ComboBoxItem>()
             .FirstOrDefault(item => item.Tag?.ToString() == value);
         combo.SelectedIndex = combo.SelectedIndex < 0 ? 0 : combo.SelectedIndex;
+    }
+}
+
+public sealed class HotkeySettingRow(
+    HotkeyAction action,
+    string displayName,
+    string description,
+    string gesture,
+    bool isEnabled) : INotifyPropertyChanged
+{
+    private string _gesture = gesture;
+    private bool _isEnabled = isEnabled;
+
+    public HotkeyAction Action { get; } = action;
+
+    public string DisplayName { get; } = displayName;
+
+    public string Description { get; } = description;
+
+    public string Gesture
+    {
+        get => _gesture;
+        set => SetField(ref _gesture, value);
+    }
+
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set => SetField(ref _isEnabled, value);
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return;
+        }
+
+        field = value;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

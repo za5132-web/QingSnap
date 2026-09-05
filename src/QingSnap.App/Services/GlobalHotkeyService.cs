@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using QingSnap.App.Infrastructure;
@@ -8,166 +9,133 @@ namespace QingSnap.App.Services;
 
 public sealed class GlobalHotkeyService : IDisposable
 {
-    private const int RegionCaptureHotkeyId = 0x5101;
-    private const int RepeatCaptureHotkeyId = 0x5102;
-    private const int PinLatestHotkeyId = 0x5103;
+    private const int HotkeyIdBase = 0x5100;
     private const uint ModifierNoRepeat = 0x4000;
 
     private readonly nint _windowHandle;
     private readonly HwndSource _source;
-    private readonly AppSettings _settings;
-    private bool _registered;
+    private readonly IReadOnlyList<HotkeyBinding> _bindings;
+    private readonly Dictionary<int, HotkeyBinding> _registeredBindings = [];
+    private bool _isSuspended;
+    private bool _disposed;
 
-    public GlobalHotkeyService(Window hostWindow, AppSettings settings)
+    public GlobalHotkeyService(Window hostWindow, IReadOnlyList<HotkeyBinding> bindings)
     {
-        _settings = settings;
+        _bindings = bindings;
         _windowHandle = new WindowInteropHelper(hostWindow).Handle;
         _source = HwndSource.FromHwnd(_windowHandle)
             ?? throw new InvalidOperationException("无法创建快捷键消息窗口。");
         _source.AddHook(WndProc);
     }
 
-    public event EventHandler? RegionCaptureRequested;
-    public event EventHandler? RepeatCaptureRequested;
-    public event EventHandler? PinLatestRequested;
+    public event EventHandler<HotkeyActionEventArgs>? ActionRequested;
 
-    public void Register()
+    public IReadOnlyList<HotkeyRegistrationFailure> Register()
     {
-        if (_registered)
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var failures = new List<HotkeyRegistrationFailure>();
+        var gestures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var binding in _bindings.Where(binding => binding.IsEnabled))
+        {
+            if (!HotkeyGestureParser.TryNormalize(binding.Gesture, out var normalized) ||
+                !HotkeyGestureParser.TryParse(normalized, out var gesture))
+            {
+                failures.Add(new HotkeyRegistrationFailure(
+                    binding.Action,
+                    binding.Gesture,
+                    "快捷键格式无效"));
+                continue;
+            }
+
+            if (!gestures.Add(normalized))
+            {
+                failures.Add(new HotkeyRegistrationFailure(
+                    binding.Action,
+                    normalized,
+                    "与另一个已启用的 QingSnap 快捷键重复"));
+                continue;
+            }
+
+            var hotkeyId = GetHotkeyId(binding.Action);
+            if (!NativeMethods.RegisterHotKey(
+                    _windowHandle,
+                    hotkeyId,
+                    gesture.Modifiers | ModifierNoRepeat,
+                    gesture.VirtualKey))
+            {
+                var errorCode = Marshal.GetLastWin32Error();
+                var detail = new Win32Exception(errorCode).Message;
+                failures.Add(new HotkeyRegistrationFailure(
+                    binding.Action,
+                    normalized,
+                    $"可能已被其他软件占用（{detail}）"));
+                continue;
+            }
+
+            _registeredBindings[hotkeyId] = binding with { Gesture = normalized };
+        }
+
+        return failures;
+    }
+
+    public void SetSuspended(bool suspended) => _isSuspended = suspended;
+
+    public bool IsRegistered(HotkeyAction action) =>
+        _registeredBindings.Values.Any(binding => binding.Action == action);
+
+    public static bool IsValidGesture(string? value) => HotkeyGestureParser.IsValid(value);
+
+    public static bool TryNormalizeGesture(string? value, out string normalized) =>
+        HotkeyGestureParser.TryNormalize(value, out normalized);
+
+    public void Dispose()
+    {
+        if (_disposed)
         {
             return;
         }
 
-        if (!TryParseGesture(_settings.CaptureHotkey, out var capture) ||
-            !NativeMethods.RegisterHotKey(
-                _windowHandle,
-                RegionCaptureHotkeyId,
-                capture.Modifiers | ModifierNoRepeat,
-                capture.VirtualKey))
+        _disposed = true;
+        foreach (var hotkeyId in _registeredBindings.Keys)
         {
-            throw CreateRegistrationException(_settings.CaptureHotkey);
+            NativeMethods.UnregisterHotKey(_windowHandle, hotkeyId);
         }
 
-        if (!TryParseGesture(_settings.RepeatHotkey, out var repeat) ||
-            !NativeMethods.RegisterHotKey(
-                _windowHandle,
-                RepeatCaptureHotkeyId,
-                repeat.Modifiers | ModifierNoRepeat,
-                repeat.VirtualKey))
-        {
-            NativeMethods.UnregisterHotKey(_windowHandle, RegionCaptureHotkeyId);
-            throw CreateRegistrationException(_settings.RepeatHotkey);
-        }
-
-        if (!TryParseGesture(_settings.PinHotkey, out var pin) ||
-            !NativeMethods.RegisterHotKey(
-                _windowHandle,
-                PinLatestHotkeyId,
-                pin.Modifiers | ModifierNoRepeat,
-                pin.VirtualKey))
-        {
-            NativeMethods.UnregisterHotKey(_windowHandle, RegionCaptureHotkeyId);
-            NativeMethods.UnregisterHotKey(_windowHandle, RepeatCaptureHotkeyId);
-            throw CreateRegistrationException(_settings.PinHotkey);
-        }
-
-        _registered = true;
-    }
-
-    public void Dispose()
-    {
-        if (_registered)
-        {
-            NativeMethods.UnregisterHotKey(_windowHandle, RegionCaptureHotkeyId);
-            NativeMethods.UnregisterHotKey(_windowHandle, RepeatCaptureHotkeyId);
-            NativeMethods.UnregisterHotKey(_windowHandle, PinLatestHotkeyId);
-            _registered = false;
-        }
-
+        _registeredBindings.Clear();
         _source.RemoveHook(WndProc);
     }
 
     private nint WndProc(nint hwnd, int message, nint wParam, nint lParam, ref bool handled)
     {
-        if (message != NativeMethods.WmHotkey)
+        if (message != NativeMethods.WmHotkey ||
+            !_registeredBindings.TryGetValue(wParam.ToInt32(), out var binding))
         {
             return nint.Zero;
         }
 
-        switch (wParam.ToInt32())
+        handled = true;
+        if (_isSuspended && binding.Action != HotkeyAction.ToggleGlobalHotkeys)
         {
-            case RegionCaptureHotkeyId:
-                RegionCaptureRequested?.Invoke(this, EventArgs.Empty);
-                handled = true;
-                break;
-            case RepeatCaptureHotkeyId:
-                RepeatCaptureRequested?.Invoke(this, EventArgs.Empty);
-                handled = true;
-                break;
-            case PinLatestHotkeyId:
-                PinLatestRequested?.Invoke(this, EventArgs.Empty);
-                handled = true;
-                break;
+            return nint.Zero;
         }
 
+        ActionRequested?.Invoke(this, new HotkeyActionEventArgs(binding.Action));
         return nint.Zero;
     }
 
-    private static InvalidOperationException CreateRegistrationException(string shortcut)
-    {
-        var errorCode = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
-        var detail = new Win32Exception(errorCode).Message;
-        return new InvalidOperationException($"无法注册快捷键 {shortcut}，可能已被其他程序占用。{detail}");
-    }
+    private static int GetHotkeyId(HotkeyAction action) => HotkeyIdBase + (int)action + 1;
+}
 
-    public static bool IsValidGesture(string value) => TryParseGesture(value, out _);
+public sealed class HotkeyActionEventArgs(HotkeyAction action) : EventArgs
+{
+    public HotkeyAction Action { get; } = action;
+}
 
-    private static bool TryParseGesture(string? value, out HotkeyGesture gesture)
-    {
-        gesture = default;
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        uint modifiers = 0;
-        uint virtualKey = 0;
-        foreach (var part in value.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (part.Equals("Ctrl", StringComparison.OrdinalIgnoreCase) ||
-                part.Equals("Control", StringComparison.OrdinalIgnoreCase))
-            {
-                modifiers |= 0x0002;
-            }
-            else if (part.Equals("Shift", StringComparison.OrdinalIgnoreCase))
-            {
-                modifiers |= 0x0004;
-            }
-            else if (part.Equals("Alt", StringComparison.OrdinalIgnoreCase))
-            {
-                modifiers |= 0x0001;
-            }
-            else if (part.Length is 2 or 3 &&
-                     part[0] is 'F' or 'f' &&
-                     int.TryParse(part[1..], out var functionKey) &&
-                     functionKey is >= 1 and <= 12)
-            {
-                virtualKey = (uint)(0x6F + functionKey);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        if (virtualKey == 0)
-        {
-            return false;
-        }
-
-        gesture = new HotkeyGesture(modifiers, virtualKey);
-        return true;
-    }
-
-    private readonly record struct HotkeyGesture(uint Modifiers, uint VirtualKey);
+public sealed record HotkeyRegistrationFailure(
+    HotkeyAction Action,
+    string Gesture,
+    string Reason)
+{
+    public string DisplayText => $"{HotkeyCatalog.GetDisplayName(Action)}（{Gesture}）：{Reason}";
 }

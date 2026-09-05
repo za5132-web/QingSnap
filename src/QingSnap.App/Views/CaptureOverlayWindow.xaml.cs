@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -11,10 +12,12 @@ using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
 using QingSnap.App.Services;
 using DrawingRectangle = System.Drawing.Rectangle;
+using DrawingSize = System.Drawing.Size;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using WpfTextBox = System.Windows.Controls.TextBox;
 using WpfButton = System.Windows.Controls.Button;
+using WpfToggleButton = System.Windows.Controls.Primitives.ToggleButton;
 using MediaColor = System.Windows.Media.Color;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfRect = System.Windows.Rect;
@@ -32,7 +35,9 @@ public partial class CaptureOverlayWindow : Window
     private readonly bool _showActionToolbar;
     private readonly AppSettings _settings;
     private readonly OcrService? _ocrService;
+    private readonly QrCodeService? _qrCodeService;
     private readonly ClipboardService? _clipboardService;
+    private readonly Func<CancellationToken, Task<IReadOnlyList<string>>>? _loadTagsAsync;
     private readonly Rectangle[] _cornerMarks;
     private readonly CaptureAnnotationController _annotationController;
     private readonly DispatcherTimer _adjustmentBadgeTimer = new()
@@ -44,12 +49,15 @@ public partial class CaptureOverlayWindow : Window
         Interval = TimeSpan.FromMilliseconds(180)
     };
     private CancellationTokenSource? _ocrPrefetchCancellation;
+    private CancellationTokenSource? _qrCodeCancellation;
     private Task<OcrRecognitionResult>? _prefetchedOcrTask;
     private BitmapSource? _prefetchedOcrImage;
     private bool _creatingOcrPrefetch;
     private Point _dragStart;
     private WpfRect _selection;
     private WpfRect _selectionAtDragStart;
+    private DrawingRectangle? _selectionPixelRegion;
+    private DrawingRectangle? _selectionPixelAtDragStart;
     private DragMode _dragMode;
     private bool _isAnnotating;
     private WpfRect _smartPreview;
@@ -59,6 +67,14 @@ public partial class CaptureOverlayWindow : Window
     private CaptureAnnotationTool _arrowTool = CaptureAnnotationTool.Arrow;
     private CaptureAnnotationTool _regionTool = CaptureAnnotationTool.Rectangle;
     private int _recallIndex;
+    private CaptureAspectRatioMode _aspectRatioMode = CaptureAspectRatioMode.Free;
+    private double? _lockedAspectRatio;
+    private DrawingSize? _lockedSelectionSize;
+    private bool _updatingGeometryFields;
+    private bool _geometryWidthIsPrimary = true;
+    private readonly HashSet<string> _selectedQuickTags = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<string> _availableQuickTags = [];
+    private bool _quickTagsLoaded;
 
     public CaptureOverlayWindow(
         ScreenSnapshot snapshot,
@@ -69,7 +85,9 @@ public partial class CaptureOverlayWindow : Window
         int recallIndex = -1,
         AppSettings? settings = null,
         OcrService? ocrService = null,
-        ClipboardService? clipboardService = null)
+        QrCodeService? qrCodeService = null,
+        ClipboardService? clipboardService = null,
+        Func<CancellationToken, Task<IReadOnlyList<string>>>? loadTagsAsync = null)
     {
         _snapshot = snapshot;
         _initialLocalRegion = initialLocalRegion;
@@ -80,12 +98,15 @@ public partial class CaptureOverlayWindow : Window
         _showActionToolbar = showActionToolbar;
         _settings = settings ?? new AppSettings();
         _ocrService = ocrService;
+        _qrCodeService = qrCodeService;
         _clipboardService = clipboardService;
+        _loadTagsAsync = loadTagsAsync;
         InitializeComponent();
         _annotationController = new CaptureAnnotationController(AnnotationLayer, snapshot, _settings);
         _annotationController.Changed += (_, _) =>
         {
             UpdateAnnotationButtons();
+            UpdateStyleButtons();
             InvalidateOcrPrefetch();
         };
         UpdateStyleButtons();
@@ -95,9 +116,13 @@ public partial class CaptureOverlayWindow : Window
             AdjustmentBadge.Visibility = Visibility.Collapsed;
         };
         _ocrPrefetchTimer.Tick += OnOcrPrefetchTimerTick;
+        QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
 
         BackgroundImage.Source = snapshot.Image;
         CloseCaptureButton.Visibility = UsesCloseButton && _showActionToolbar
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        QuickTagButton.Visibility = _showActionToolbar && _settings.ShowQuickCaptureTags
             ? Visibility.Visible
             : Visibility.Collapsed;
         if (UsesCloseButton && _showActionToolbar)
@@ -132,6 +157,8 @@ public partial class CaptureOverlayWindow : Window
         {
             _adjustmentBadgeTimer.Stop();
             CancelOcrPrefetch();
+            CancelQrCodeRecognition(clearResults: false);
+            ResourceDiagnostics.Sample("CaptureClosed");
         };
     }
 
@@ -139,6 +166,10 @@ public partial class CaptureOverlayWindow : Window
     public event EventHandler? SelectionCancelled;
     public event EventHandler<CaptureOverlayActionEventArgs>? ActionRequested;
     public event EventHandler<PreviousSelectionRequestedEventArgs>? PreviousSelectionRequested;
+
+    public IReadOnlyList<string> SelectedTags => _selectedQuickTags
+        .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase)
+        .ToArray();
 
     public void CloseAfterPinPresented()
     {
@@ -208,16 +239,26 @@ public partial class CaptureOverlayWindow : Window
 
     private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (QuickTagPopup.IsOpen)
+        {
+            QuickTagPopup.IsOpen = false;
+        }
+
         if (CaptureToolbar.IsMouseOver)
         {
             return;
         }
 
         var point = ClampPoint(e.GetPosition(Surface));
+        var captureHit = HitTest(point);
+        var isCaptureResizeHandle = captureHit is not (
+            DragMode.None or DragMode.Create or DragMode.Move);
         if (_annotationController.ActiveTool != CaptureAnnotationTool.None &&
-            _selection.Contains(point))
+            _selection.Contains(point) &&
+            !(_annotationController.ActiveTool == CaptureAnnotationTool.Select && isCaptureResizeHandle))
         {
             if (_annotationController.ActiveTool == CaptureAnnotationTool.Select &&
+                !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) &&
                 e.ClickCount >= 2 &&
                 _annotationController.SelectAt(point) &&
                 BeginEditSelectedAnnotation())
@@ -226,7 +267,9 @@ public partial class CaptureOverlayWindow : Window
                 return;
             }
 
-            _annotationController.Begin(point);
+            _annotationController.Begin(
+                point,
+                Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
             _isAnnotating = _annotationController.IsDrawing;
             if (_isAnnotating)
             {
@@ -246,6 +289,7 @@ public partial class CaptureOverlayWindow : Window
 
         _dragStart = point;
         _selectionAtDragStart = _selection;
+        _selectionPixelAtDragStart = GetLocalRegion();
         _dragMoved = false;
         if (_selection.IsEmpty && !_smartPreview.IsEmpty && _smartPreview.Contains(point))
         {
@@ -339,6 +383,7 @@ public partial class CaptureOverlayWindow : Window
         {
             SetSelection(_pendingSmartSelection);
             _pendingSmartSelection = WpfRect.Empty;
+            _selectionPixelAtDragStart = null;
             _dragMode = DragMode.None;
             Surface.ReleaseMouseCapture();
             e.Handled = true;
@@ -346,6 +391,7 @@ public partial class CaptureOverlayWindow : Window
         }
 
         ApplyDrag(ClampPoint(e.GetPosition(Surface)));
+        _selectionPixelAtDragStart = null;
         _dragMode = DragMode.None;
         Surface.ReleaseMouseCapture();
 
@@ -366,9 +412,17 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
+        if (QuickTagPopup.IsOpen && ResolveShortcutKey(e) == Key.Escape)
+        {
+            QuickTagPopup.IsOpen = false;
+            e.Handled = true;
+            return;
+        }
+
         var key = ResolveShortcutKey(e);
-        if (Keyboard.Modifiers == ModifierKeys.None &&
-            key is Key.W or Key.A or Key.S or Key.D)
+        var modifiers = Keyboard.Modifiers;
+        if (key is Key.W or Key.A or Key.S or Key.D &&
+            modifiers is ModifierKeys.None or ModifierKeys.Shift)
         {
             var offset = key switch
             {
@@ -378,7 +432,46 @@ public partial class CaptureOverlayWindow : Window
                 Key.D => (X: 1, Y: 0),
                 _ => (X: 0, Y: 0)
             };
-            NudgeCrosshair(offset.X, offset.Y);
+            if (_showActionToolbar &&
+                _annotationController.ActiveTool == CaptureAnnotationTool.Select &&
+                _annotationController.HasSelection)
+            {
+                var pixelDistance = modifiers == ModifierKeys.Shift ? 10 : 1;
+                var deltaX = ScreenPixelMovement.ToDip(
+                    offset.X * pixelDistance,
+                    Surface.ActualWidth,
+                    _snapshot.Bounds.Width);
+                var deltaY = ScreenPixelMovement.ToDip(
+                    offset.Y * pixelDistance,
+                    Surface.ActualHeight,
+                    _snapshot.Bounds.Height);
+                _annotationController.NudgeSelection(deltaX, deltaY);
+                e.Handled = true;
+                return;
+            }
+
+            if (_lockedSelectionSize is not null && !_selection.IsEmpty)
+            {
+                var pixelDistance = modifiers == ModifierKeys.Shift ? 10 : 1;
+                NudgeFixedSelection(offset.X * pixelDistance, offset.Y * pixelDistance);
+                e.Handled = true;
+                return;
+            }
+
+            if (modifiers == ModifierKeys.None)
+            {
+                NudgeCrosshair(offset.X, offset.Y);
+                e.Handled = true;
+                return;
+            }
+        }
+
+        if (_showActionToolbar &&
+            Keyboard.Modifiers.HasFlag(ModifierKeys.Control) &&
+            ((key == Key.Y && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) ||
+             (key == Key.Z && Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))))
+        {
+            _annotationController.Redo();
             e.Handled = true;
             return;
         }
@@ -551,6 +644,21 @@ public partial class CaptureOverlayWindow : Window
         NativeMethods.SetCursorPos(x, y);
     }
 
+    private void NudgeFixedSelection(int offsetX, int offsetY)
+    {
+        if (GetLocalRegion() is not { } current)
+        {
+            return;
+        }
+
+        var moved = CaptureFixedSizeConstraint.Move(
+            current,
+            offsetX,
+            offsetY,
+            new DrawingRectangle(0, 0, _snapshot.Bounds.Width, _snapshot.Bounds.Height));
+        SetSelectionFromPixels(moved);
+    }
+
     private static Key ResolveShortcutKey(System.Windows.Input.KeyEventArgs e) => e.Key switch
     {
         Key.System => e.SystemKey,
@@ -561,10 +669,17 @@ public partial class CaptureOverlayWindow : Window
 
     private void OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // The window-level right-click gesture cancels capture, but toolbar controls
+        // must receive the gesture first so their own context menus can open.
+        if (CaptureToolbar.IsMouseOver)
+        {
+            return;
+        }
+
         if (_annotationController.ActiveTool == CaptureAnnotationTool.Select)
         {
             var point = ClampPoint(e.GetPosition(Surface));
-            if (_annotationController.SelectAt(point) &&
+            if (_annotationController.SelectAt(point, preserveExistingSelection: true) &&
                 FindResource("AnnotationContextMenu") is ContextMenu menu)
             {
                 foreach (var item in menu.Items.OfType<MenuItem>())
@@ -612,20 +727,17 @@ public partial class CaptureOverlayWindow : Window
         }
 
         SetAnnotationTool(CaptureAnnotationTool.None);
-        _annotationController.Clear();
+        _annotationController.Reset();
         LoadLocalSelection(previousRegion);
         ShowAdjustmentBadge(Mouse.GetPosition(Root), $"历史选区 {nextIndex + 1}/{_recallLocalRegions.Count}");
     }
 
     private void LoadLocalSelection(DrawingRectangle region)
     {
-        var scaleX = Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width);
-        var scaleY = Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height);
-        SetSelection(new WpfRect(
-            region.X * scaleX,
-            region.Y * scaleY,
-            region.Width * scaleX,
-            region.Height * scaleY));
+        _lockedSelectionSize = null;
+        UpdateFixedSizeUi();
+        SetAspectRatioMode(CaptureAspectRatioMode.Free, adjustSelection: false);
+        SetSelectionFromPixels(region);
     }
 
     private void ApplyDrag(Point point)
@@ -633,7 +745,24 @@ public partial class CaptureOverlayWindow : Window
         switch (_dragMode)
         {
             case DragMode.Create:
-                SetSelection(new WpfRect(_dragStart, point));
+                if (_lockedSelectionSize is not null)
+                {
+                    return;
+                }
+
+                if (_lockedAspectRatio is { } createRatio)
+                {
+                    SetSelectionFromPixels(CaptureAspectRatioConstraint.Create(
+                        ToPhysicalPoint(_dragStart),
+                        ToPhysicalPoint(point),
+                        createRatio,
+                        _snapshot.Bounds.Width,
+                        _snapshot.Bounds.Height));
+                }
+                else
+                {
+                    SetSelection(new WpfRect(_dragStart, point));
+                }
                 return;
             case DragMode.Move:
                 MoveSelection(point);
@@ -647,6 +776,23 @@ public partial class CaptureOverlayWindow : Window
 
     private void MoveSelection(Point point)
     {
+        if ((_lockedAspectRatio is not null || _lockedSelectionSize is not null) &&
+            _selectionPixelAtDragStart is { Width: > 0, Height: > 0 } pixelStart)
+        {
+            var physicalStart = ToPhysicalPoint(_dragStart);
+            var physicalCurrent = ToPhysicalPoint(point);
+            var pixelLeft = Math.Clamp(
+                pixelStart.Left + physicalCurrent.X - physicalStart.X,
+                0,
+                Math.Max(0, _snapshot.Bounds.Width - pixelStart.Width));
+            var pixelTop = Math.Clamp(
+                pixelStart.Top + physicalCurrent.Y - physicalStart.Y,
+                0,
+                Math.Max(0, _snapshot.Bounds.Height - pixelStart.Height));
+            SetSelectionFromPixels(new DrawingRectangle(pixelLeft, pixelTop, pixelStart.Width, pixelStart.Height));
+            return;
+        }
+
         var deltaX = point.X - _dragStart.X;
         var deltaY = point.Y - _dragStart.Y;
         var left = Math.Clamp(
@@ -662,6 +808,51 @@ public partial class CaptureOverlayWindow : Window
 
     private void ResizeSelection(Point point)
     {
+        if (_lockedSelectionSize is not null)
+        {
+            return;
+        }
+
+        var modifiers = Keyboard.Modifiers;
+        var aspectRatio = _lockedAspectRatio;
+        if (aspectRatio is null &&
+            IsCornerDrag(_dragMode) &&
+            modifiers.HasFlag(ModifierKeys.Shift) &&
+            _selectionPixelAtDragStart is { Width: > 0, Height: > 0 } temporarySource)
+        {
+            aspectRatio = (double)temporarySource.Width / temporarySource.Height;
+        }
+
+        if (_selectionPixelAtDragStart is { Width: > 0, Height: > 0 } pixelStart &&
+            TryMapResizeHandle(_dragMode, out var resizeHandle) &&
+            IsCornerDrag(_dragMode) &&
+            modifiers.HasFlag(ModifierKeys.Alt))
+        {
+            var centered = CaptureAspectRatioConstraint.ResizeFromCenter(
+                pixelStart,
+                ToPhysicalPoint(point),
+                resizeHandle,
+                aspectRatio,
+                new DrawingRectangle(0, 0, _snapshot.Bounds.Width, _snapshot.Bounds.Height));
+            SetSelectionFromPixels(centered);
+            return;
+        }
+
+        if (aspectRatio is { } ratio &&
+            _selectionPixelAtDragStart is { Width: > 0, Height: > 0 } constrainedStart &&
+            TryMapResizeHandle(_dragMode, out var constrainedHandle))
+        {
+            var constrained = CaptureAspectRatioConstraint.Resize(
+                constrainedStart,
+                ToPhysicalPoint(point),
+                constrainedHandle,
+                ratio,
+                _snapshot.Bounds.Width,
+                _snapshot.Bounds.Height);
+            SetSelectionFromPixels(constrained);
+            return;
+        }
+
         var left = _selectionAtDragStart.Left;
         var top = _selectionAtDragStart.Top;
         var right = _selectionAtDragStart.Right;
@@ -695,6 +886,13 @@ public partial class CaptureOverlayWindow : Window
         if (_selection.IsEmpty)
         {
             return DragMode.Create;
+        }
+
+        if (_lockedSelectionSize is not null)
+        {
+            var moveBounds = _selection;
+            moveBounds.Inflate(HitPadding, HitPadding);
+            return moveBounds.Contains(point) ? DragMode.Move : DragMode.None;
         }
 
         var nearLeft = Math.Abs(point.X - _selection.Left) <= HitPadding;
@@ -747,10 +945,38 @@ public partial class CaptureOverlayWindow : Window
         return _selection.Contains(point) ? DragMode.Move : DragMode.Create;
     }
 
-    private void SetSelection(WpfRect rect)
+    private void SetSelection(WpfRect rect) => SetSelectionCore(rect, ToPhysicalRectangle(rect));
+
+    private void SetSelectionFromPixels(DrawingRectangle rect)
     {
+        if (rect.Width <= 0 || rect.Height <= 0)
+        {
+            SetSelection(new WpfRect(_dragStart, _dragStart));
+            return;
+        }
+
+        var left = Math.Clamp(rect.Left, 0, _snapshot.Bounds.Width - 1);
+        var top = Math.Clamp(rect.Top, 0, _snapshot.Bounds.Height - 1);
+        var right = Math.Clamp(rect.Right, left + 1, _snapshot.Bounds.Width);
+        var bottom = Math.Clamp(rect.Bottom, top + 1, _snapshot.Bounds.Height);
+        var pixels = new DrawingRectangle(left, top, right - left, bottom - top);
+        var toDipX = Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width);
+        var toDipY = Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height);
+        SetSelectionCore(
+            new WpfRect(
+                pixels.X * toDipX,
+                pixels.Y * toDipY,
+                pixels.Width * toDipX,
+                pixels.Height * toDipY),
+            pixels);
+    }
+
+    private void SetSelectionCore(WpfRect rect, DrawingRectangle pixelRegion)
+    {
+        CancelQrCodeRecognition(clearResults: true);
         _smartPreview = WpfRect.Empty;
         _selection = rect;
+        _selectionPixelRegion = pixelRegion;
         _annotationController.SetBounds(rect, Surface.ActualWidth, Surface.ActualHeight);
 
         SelectionBorder.Visibility = Visibility.Visible;
@@ -820,6 +1046,8 @@ public partial class CaptureOverlayWindow : Window
         UpdateShades(rect);
         UpdateSizeBadge(rect);
         CaptureToolbar.Visibility = Visibility.Collapsed;
+        QuickTagButton.Visibility = Visibility.Collapsed;
+        QuickTagPopup.IsOpen = false;
         HintBadge.Visibility = Visibility.Collapsed;
         foreach (var mark in _cornerMarks)
         {
@@ -913,11 +1141,16 @@ public partial class CaptureOverlayWindow : Window
 
     private void ShowFullShade()
     {
-        _annotationController.Clear();
+        _annotationController.Reset();
         _annotationController.SetBounds(WpfRect.Empty, Surface.ActualWidth, Surface.ActualHeight);
+        _selectionPixelRegion = null;
+        _lockedSelectionSize = null;
+        UpdateFixedSizeUi();
         SelectionBorder.Visibility = Visibility.Collapsed;
         SizeBadge.Visibility = Visibility.Collapsed;
         CaptureToolbar.Visibility = Visibility.Collapsed;
+        QuickTagButton.Visibility = Visibility.Collapsed;
+        QuickTagPopup.IsOpen = false;
         HintBadge.Visibility = Visibility.Visible;
         SetRectangle(TopShade, 0, 0, Surface.ActualWidth, Surface.ActualHeight);
         SetRectangle(LeftShade, 0, 0, 0, 0);
@@ -934,7 +1167,14 @@ public partial class CaptureOverlayWindow : Window
     {
         foreach (var mark in _cornerMarks)
         {
-            mark.Visibility = Visibility.Visible;
+            mark.Visibility = _lockedSelectionSize is null
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (_lockedSelectionSize is not null)
+        {
+            return;
         }
 
         SetPosition(TopLeftHorizontal, rect.Left - 1, rect.Top - 1);
@@ -949,12 +1189,20 @@ public partial class CaptureOverlayWindow : Window
 
     private void UpdateSizeBadge(WpfRect rect)
     {
-        var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
-        var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
-        var physicalWidth = Math.Max(1, (int)Math.Round(rect.Width * scaleX));
-        var physicalHeight = Math.Max(1, (int)Math.Round(rect.Height * scaleY));
+        var physical = _selectionPixelRegion ?? ToPhysicalRectangle(rect);
+        var physicalWidth = physical.Width;
+        var physicalHeight = physical.Height;
         SizeText.Text = $"{physicalWidth} × {physicalHeight} px";
-        ToolbarSizeText.Text = $"{physicalWidth} × {physicalHeight}";
+        var constraintLabel = _lockedSelectionSize is not null
+            ? _aspectRatioMode == CaptureAspectRatioMode.Free
+                ? "固定"
+                : $"固定 · {AspectRatioLabel(_aspectRatioMode)}"
+            : _aspectRatioMode == CaptureAspectRatioMode.Free
+                ? null
+                : AspectRatioLabel(_aspectRatioMode);
+        ToolbarSizeText.Text = constraintLabel is null
+            ? $"{physicalWidth} × {physicalHeight}"
+            : $"{physicalWidth} × {physicalHeight}  ·  {constraintLabel}";
         SizeBadge.Visibility = Visibility.Visible;
         SizeBadge.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
 
@@ -983,7 +1231,17 @@ public partial class CaptureOverlayWindow : Window
         if (!_showActionToolbar)
         {
             CaptureToolbar.Visibility = Visibility.Collapsed;
+            QuickTagButton.Visibility = Visibility.Collapsed;
+            QuickTagPopup.IsOpen = false;
             return;
+        }
+
+        QuickTagButton.Visibility = _settings.ShowQuickCaptureTags
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (!_settings.ShowQuickCaptureTags)
+        {
+            QuickTagPopup.IsOpen = false;
         }
 
         CaptureToolbar.Visibility = Visibility.Visible;
@@ -1017,14 +1275,10 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
-        var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
-        var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
-        var left = Math.Clamp((int)Math.Floor(_selection.Left * scaleX), 0, _snapshot.Bounds.Width - 1);
-        var top = Math.Clamp((int)Math.Floor(_selection.Top * scaleY), 0, _snapshot.Bounds.Height - 1);
-        var right = Math.Clamp((int)Math.Ceiling(_selection.Right * scaleX), left + 1, _snapshot.Bounds.Width);
-        var bottom = Math.Clamp((int)Math.Ceiling(_selection.Bottom * scaleY), top + 1, _snapshot.Bounds.Height);
-
-        SelectionConfirmed?.Invoke(this, new DrawingRectangle(left, top, right - left, bottom - top));
+        if (GetLocalRegion() is { } localRegion)
+        {
+            SelectionConfirmed?.Invoke(this, localRegion);
+        }
     }
 
     private void RequestAction(CaptureOverlayAction action)
@@ -1035,6 +1289,7 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
+        QuickTagPopup.IsOpen = false;
         var usePrefetch = action is CaptureOverlayAction.Ocr or
                                       CaptureOverlayAction.Pin or
                                       CaptureOverlayAction.Copy or
@@ -1068,7 +1323,8 @@ public partial class CaptureOverlayWindow : Window
                 action,
                 localRegion.Value,
                 image,
-                prefetchedOcr));
+                prefetchedOcr,
+                SelectedTags));
     }
 
     private void InvalidateOcrPrefetch()
@@ -1130,8 +1386,9 @@ public partial class CaptureOverlayWindow : Window
         catch (OperationCanceledException)
         {
         }
-        catch
+        catch (Exception exception)
         {
+            DiagnosticLog.Warning("OCR", $"截图 OCR 预取失败：{exception.Message}");
         }
     }
 
@@ -1151,6 +1408,7 @@ public partial class CaptureOverlayWindow : Window
             SizeBadge,
             HintBadge,
             CaptureToolbar,
+            QuickTagButton,
             AdjustmentBadge,
             MagnifierOverlay,
             GeometryEditor,
@@ -1203,14 +1461,106 @@ public partial class CaptureOverlayWindow : Window
             return null;
         }
 
+        return _selectionPixelRegion ?? ToPhysicalRectangle(_selection);
+    }
+
+    private DrawingRectangle ToPhysicalRectangle(WpfRect rect)
+    {
         var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
         var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
-        var left = Math.Clamp((int)Math.Floor(_selection.Left * scaleX), 0, _snapshot.Bounds.Width - 1);
-        var top = Math.Clamp((int)Math.Floor(_selection.Top * scaleY), 0, _snapshot.Bounds.Height - 1);
-        var right = Math.Clamp((int)Math.Ceiling(_selection.Right * scaleX), left + 1, _snapshot.Bounds.Width);
-        var bottom = Math.Clamp((int)Math.Ceiling(_selection.Bottom * scaleY), top + 1, _snapshot.Bounds.Height);
+        var left = Math.Clamp((int)Math.Floor(rect.Left * scaleX), 0, _snapshot.Bounds.Width - 1);
+        var top = Math.Clamp((int)Math.Floor(rect.Top * scaleY), 0, _snapshot.Bounds.Height - 1);
+        var right = Math.Clamp((int)Math.Ceiling(rect.Right * scaleX), left + 1, _snapshot.Bounds.Width);
+        var bottom = Math.Clamp((int)Math.Ceiling(rect.Bottom * scaleY), top + 1, _snapshot.Bounds.Height);
         return new DrawingRectangle(left, top, right - left, bottom - top);
     }
+
+    private System.Drawing.Point ToPhysicalPoint(Point point)
+    {
+        var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
+        var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
+        return new System.Drawing.Point(
+            Math.Clamp((int)Math.Round(point.X * scaleX), 0, _snapshot.Bounds.Width),
+            Math.Clamp((int)Math.Round(point.Y * scaleY), 0, _snapshot.Bounds.Height));
+    }
+
+    private void SetAspectRatioMode(CaptureAspectRatioMode mode, bool adjustSelection)
+    {
+        var current = GetLocalRegion() ?? DrawingRectangle.Empty;
+        var ratio = CaptureAspectRatioConstraint.RatioFor(mode, current);
+        if (mode == CaptureAspectRatioMode.Current && ratio is null)
+        {
+            return;
+        }
+
+        _aspectRatioMode = mode;
+        _lockedAspectRatio = ratio;
+        if (adjustSelection && _lockedSelectionSize is null &&
+            ratio is { } lockedRatio && !current.IsEmpty &&
+            mode != CaptureAspectRatioMode.Current)
+        {
+            SetSelectionFromPixels(CaptureAspectRatioConstraint.FitCentered(
+                current,
+                lockedRatio,
+                _snapshot.Bounds.Width,
+                _snapshot.Bounds.Height));
+        }
+        else if (!_selection.IsEmpty)
+        {
+            UpdateSizeBadge(_selection);
+            UpdateToolbarPosition(_selection);
+        }
+
+        UpdateAspectRatioButtons();
+    }
+
+    private static bool IsCornerDrag(DragMode mode) => mode is
+        DragMode.TopLeft or DragMode.TopRight or DragMode.BottomLeft or DragMode.BottomRight;
+
+    private static bool TryMapResizeHandle(DragMode mode, out CaptureResizeHandle handle)
+    {
+        switch (mode)
+        {
+            case DragMode.Left:
+                handle = CaptureResizeHandle.Left;
+                return true;
+            case DragMode.Right:
+                handle = CaptureResizeHandle.Right;
+                return true;
+            case DragMode.Top:
+                handle = CaptureResizeHandle.Top;
+                return true;
+            case DragMode.Bottom:
+                handle = CaptureResizeHandle.Bottom;
+                return true;
+            case DragMode.TopLeft:
+                handle = CaptureResizeHandle.TopLeft;
+                return true;
+            case DragMode.TopRight:
+                handle = CaptureResizeHandle.TopRight;
+                return true;
+            case DragMode.BottomLeft:
+                handle = CaptureResizeHandle.BottomLeft;
+                return true;
+            case DragMode.BottomRight:
+                handle = CaptureResizeHandle.BottomRight;
+                return true;
+            default:
+                handle = default;
+                return false;
+        }
+    }
+
+    private static string AspectRatioLabel(CaptureAspectRatioMode mode) => mode switch
+    {
+        CaptureAspectRatioMode.Square => "1:1",
+        CaptureAspectRatioMode.FourThree => "4:3",
+        CaptureAspectRatioMode.ThreeTwo => "3:2",
+        CaptureAspectRatioMode.SixteenNine => "16:9",
+        CaptureAspectRatioMode.NineSixteen => "9:16",
+        CaptureAspectRatioMode.Current => "当前比例",
+        _ => "自由"
+    };
 
     private void OnAutomaticLongCaptureClick(object sender, RoutedEventArgs e) =>
         RequestAction(CaptureOverlayAction.AutomaticLongCapture);
@@ -1564,11 +1914,312 @@ public partial class CaptureOverlayWindow : Window
 
     private void OnUndoClick(object sender, RoutedEventArgs e) => _annotationController.Undo();
 
+    private void OnRedoClick(object sender, RoutedEventArgs e) => _annotationController.Redo();
+
+    private void OnUndoRedoMenuOpened(object sender, RoutedEventArgs e)
+    {
+        UndoMenuItem.IsEnabled = _annotationController.CanUndo;
+        RedoMenuItem.IsEnabled = _annotationController.CanRedo;
+    }
+
     private void OnClearClick(object sender, RoutedEventArgs e) => _annotationController.Clear();
 
     private void OnOcrClick(object sender, RoutedEventArgs e) => RequestAction(CaptureOverlayAction.Ocr);
 
+    private async void OnQrCodeClick(object sender, RoutedEventArgs e)
+    {
+        if (_qrCodeService is null || _clipboardService is null ||
+            GetLocalRegion() is not { } localRegion || _selection.IsEmpty)
+        {
+            ShowAdjustmentBadge(Mouse.GetPosition(Root), "二维码识别暂不可用");
+            return;
+        }
+
+        CancelQrCodeRecognition(clearResults: true);
+        var cancellation = new CancellationTokenSource();
+        _qrCodeCancellation = cancellation;
+        var image = CreateSelectedImage();
+        ShowAdjustmentBadge(Mouse.GetPosition(Root), "正在识别二维码…");
+        try
+        {
+            var results = await _qrCodeService.RecognizeAsync(image, cancellation.Token);
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_qrCodeCancellation, cancellation))
+            {
+                return;
+            }
+
+            if (results.Count == 0)
+            {
+                ShowAdjustmentBadge(Mouse.GetPosition(Root), "未检测到二维码");
+                return;
+            }
+
+            QrCodeHotspotLayer.Width = _selection.Width;
+            QrCodeHotspotLayer.Height = _selection.Height;
+            Canvas.SetLeft(QrCodeHotspotLayer, _selection.Left);
+            Canvas.SetTop(QrCodeHotspotLayer, _selection.Top);
+            QrCodeHotspotLayer.ShowResults(
+                results,
+                image.PixelWidth,
+                image.PixelHeight,
+                Stretch.Fill);
+            ShowAdjustmentBadge(
+                Mouse.GetPosition(Root),
+                $"已找到 {results.Count:N0} 个二维码 · 悬停查看，单击使用");
+            DiagnosticLog.Info("QrCode", $"截图选区二维码热点已显示：{results.Count:N0} 个结果，区域 {localRegion.Width}x{localRegion.Height}。");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, "截图选区二维码识别失败。");
+            ShowAdjustmentBadge(Mouse.GetPosition(Root), "二维码识别失败，请换一张清晰图片重试");
+        }
+        finally
+        {
+            if (ReferenceEquals(_qrCodeCancellation, cancellation))
+            {
+                _qrCodeCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private async void OnQrCodeHotspotInvoked(QrCodeResult result)
+    {
+        if (_clipboardService is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var message = await QrCodeInteractionService.InvokeAsync(result, _clipboardService);
+            if (result.IsUrl)
+            {
+                SelectionCancelled?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
+            ShowAdjustmentBadge(Mouse.GetPosition(Root), message);
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, "执行截图选区二维码热点操作失败。");
+            ShowAdjustmentBadge(Mouse.GetPosition(Root), result.IsUrl ? "无法打开此链接" : "复制二维码内容失败");
+        }
+    }
+
+    private void CancelQrCodeRecognition(bool clearResults)
+    {
+        _qrCodeCancellation?.Cancel();
+        _qrCodeCancellation?.Dispose();
+        _qrCodeCancellation = null;
+        if (clearResults)
+        {
+            QrCodeHotspotLayer.ClearResults();
+        }
+    }
+
+    private void OnOcrMenuClick(object sender, RoutedEventArgs e)
+    {
+        if (OcrButton.ContextMenu is not { } menu)
+        {
+            return;
+        }
+
+        menu.PlacementTarget = OcrButton;
+        menu.Placement = PlacementMode.Top;
+        menu.IsOpen = true;
+    }
+
     private void OnPinClick(object sender, RoutedEventArgs e) => RequestAction(CaptureOverlayAction.Pin);
+
+    private async void OnQuickTagClick(object sender, RoutedEventArgs e)
+    {
+        if (!_settings.ShowQuickCaptureTags)
+        {
+            return;
+        }
+
+        if (QuickTagPopup.IsOpen)
+        {
+            QuickTagPopup.IsOpen = false;
+            return;
+        }
+
+        QuickTagPopup.PlacementTarget = QuickTagButton;
+        QuickTagCreatePanel.Visibility = Visibility.Collapsed;
+        QuickTagStatusText.Text = _quickTagsLoaded ? string.Empty : "正在读取已有标签…";
+        QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(127, 147, 157));
+        QuickTagStatusText.Visibility = _quickTagsLoaded ? Visibility.Collapsed : Visibility.Visible;
+        RenderQuickTagButtons();
+        QuickTagPopup.IsOpen = true;
+
+        if (_quickTagsLoaded || _loadTagsAsync is null)
+        {
+            _quickTagsLoaded = true;
+            QuickTagStatusText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        try
+        {
+            _availableQuickTags = (await _loadTagsAsync(CancellationToken.None))
+                .Select(HistoryMetadataStore.NormalizeTagName)
+                .Where(tag => tag.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            _quickTagsLoaded = true;
+            QuickTagStatusText.Visibility = Visibility.Collapsed;
+            RenderQuickTagButtons();
+        }
+        catch (Exception exception)
+        {
+            _quickTagsLoaded = true;
+            QuickTagStatusText.Text = "已有标签暂时无法读取，仍可添加新标签。";
+            QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 145, 137));
+            QuickTagStatusText.Visibility = Visibility.Visible;
+            DiagnosticLog.Error("HistoryTags", exception, "截图时读取快速标签失败。");
+        }
+    }
+
+    private void RenderQuickTagButtons()
+    {
+        QuickTagItemsPanel.Children.Clear();
+        foreach (var tag in _availableQuickTags
+                     .Concat(_selectedQuickTags)
+                     .Distinct(StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(tag => tag, StringComparer.CurrentCultureIgnoreCase))
+        {
+            var chip = new WpfToggleButton
+            {
+                Content = tag,
+                Tag = tag,
+                IsChecked = _selectedQuickTags.Contains(tag),
+                Style = (Style)FindResource("QuickTagChip"),
+                ToolTip = _selectedQuickTags.Contains(tag) ? "点击移除本次标签" : "点击添加到本次截图"
+            };
+            chip.Click += OnQuickTagChipClick;
+            QuickTagItemsPanel.Children.Add(chip);
+        }
+
+        var addButton = new WpfToggleButton
+        {
+            Content = "＋ 添加标签",
+            Style = (Style)FindResource("QuickTagChip"),
+            Foreground = new SolidColorBrush(MediaColor.FromRgb(118, 223, 238)),
+            ToolTip = "创建并选中一个新标签"
+        };
+        addButton.Click += OnShowQuickTagCreateClick;
+        QuickTagItemsPanel.Children.Add(addButton);
+        UpdateQuickTagSummary();
+    }
+
+    private void OnQuickTagChipClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not WpfToggleButton { Tag: string tag } chip)
+        {
+            return;
+        }
+
+        if (chip.IsChecked == true)
+        {
+            _selectedQuickTags.Add(tag);
+            chip.ToolTip = "点击移除本次标签";
+        }
+        else
+        {
+            _selectedQuickTags.Remove(tag);
+            chip.ToolTip = "点击添加到本次截图";
+        }
+
+        UpdateQuickTagSummary();
+    }
+
+    private void OnShowQuickTagCreateClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is WpfToggleButton toggle)
+        {
+            toggle.IsChecked = false;
+        }
+
+        QuickTagStatusText.Visibility = Visibility.Collapsed;
+        QuickTagCreatePanel.Visibility = Visibility.Visible;
+        QuickTagTextBox.Clear();
+        QuickTagTextBox.Focus();
+        Keyboard.Focus(QuickTagTextBox);
+    }
+
+    private void OnAddQuickTagConfirmClick(object sender, RoutedEventArgs e) => AddQuickTagFromTextBox();
+
+    private void OnQuickTagTextBoxKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            AddQuickTagFromTextBox();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Escape)
+        {
+            QuickTagCreatePanel.Visibility = Visibility.Collapsed;
+            QuickTagButton.Focus();
+            e.Handled = true;
+        }
+    }
+
+    private void AddQuickTagFromTextBox()
+    {
+        var tag = HistoryMetadataStore.NormalizeTagName(QuickTagTextBox.Text);
+        if (tag.Length == 0)
+        {
+            QuickTagStatusText.Text = "请输入标签名称。";
+            QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 145, 137));
+            QuickTagStatusText.Visibility = Visibility.Visible;
+            QuickTagTextBox.Focus();
+            return;
+        }
+
+        _selectedQuickTags.Add(tag);
+        _availableQuickTags = _availableQuickTags
+            .Append(tag)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+        QuickTagCreatePanel.Visibility = Visibility.Collapsed;
+        QuickTagStatusText.Visibility = Visibility.Collapsed;
+        RenderQuickTagButtons();
+    }
+
+    private void UpdateQuickTagSummary()
+    {
+        var count = _selectedQuickTags.Count;
+        QuickTagSummaryText.Text = count == 0 ? "未选择" : $"已选 {count}";
+        QuickTagCountText.Text = count > 99 ? "99+" : count.ToString();
+        QuickTagCountBadge.Visibility = count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        QuickTagButton.ToolTip = count == 0
+            ? "为本次截图添加标签"
+            : $"本次截图标签：{string.Join("、", SelectedTags)}";
+    }
+
+    private void OnQuickTagPopupClosed(object? sender, EventArgs e)
+    {
+        QuickTagCreatePanel.Visibility = Visibility.Collapsed;
+        ConfigureNativeIme(false);
+        Focus();
+        Keyboard.Focus(this);
+    }
+
+    private void OnCaptureToolbarPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (QuickTagPopup.IsOpen && !QuickTagButton.IsMouseOver)
+        {
+            QuickTagPopup.IsOpen = false;
+        }
+    }
 
     private void OnCopyClick(object sender, RoutedEventArgs e) => RequestAction(CaptureOverlayAction.Copy);
 
@@ -1586,14 +2237,95 @@ public partial class CaptureOverlayWindow : Window
             return;
         }
 
-        GeometryXBox.Text = region.Value.X.ToString();
-        GeometryYBox.Text = region.Value.Y.ToString();
-        GeometryWidthBox.Text = region.Value.Width.ToString();
-        GeometryHeightBox.Text = region.Value.Height.ToString();
+        UpdateGeometryFields(region.Value);
+        UpdateAspectRatioButtons();
+        UpdateFixedSizeUi();
         GeometryEditor.Visibility = Visibility.Visible;
         MagnifierOverlay.Visibility = Visibility.Collapsed;
         GeometryXBox.Focus();
         e.Handled = true;
+    }
+
+    private void OnAspectRatioClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not WpfButton { Tag: string value } ||
+            !Enum.TryParse<CaptureAspectRatioMode>(value, out var mode))
+        {
+            return;
+        }
+
+        SetAspectRatioMode(mode, adjustSelection: true);
+        if (GetLocalRegion() is { } region)
+        {
+            UpdateGeometryFields(region);
+        }
+        UpdateFixedSizeUi(_lockedSelectionSize is not null
+            ? "固定尺寸优先；比例将在修改 W/H 或解锁后继续生效"
+            : null);
+    }
+
+    private void OnGeometryDimensionTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_updatingGeometryFields)
+        {
+            return;
+        }
+
+        if (_lockedAspectRatio is { } ratio)
+        {
+            if (sender == GeometryWidthBox &&
+                int.TryParse(GeometryWidthBox.Text, out var width) && width > 0)
+            {
+                _geometryWidthIsPrimary = true;
+                _updatingGeometryFields = true;
+                GeometryHeightBox.Text = Math.Max(
+                    1,
+                    (int)Math.Round(width / ratio, MidpointRounding.AwayFromZero)).ToString();
+                _updatingGeometryFields = false;
+            }
+            else if (sender == GeometryHeightBox &&
+                     int.TryParse(GeometryHeightBox.Text, out var height) && height > 0)
+            {
+                _geometryWidthIsPrimary = false;
+                _updatingGeometryFields = true;
+                GeometryWidthBox.Text = Math.Max(
+                    1,
+                    (int)Math.Round(height * ratio, MidpointRounding.AwayFromZero)).ToString();
+                _updatingGeometryFields = false;
+            }
+        }
+
+        if (_lockedSelectionSize is not null)
+        {
+            UpdateLockedSizeFromGeometryFields();
+        }
+    }
+
+    private void OnFixedSizeLockClick(object sender, RoutedEventArgs e)
+    {
+        if (_lockedSelectionSize is not null)
+        {
+            _lockedSelectionSize = null;
+            UpdateFixedSizeUi("尺寸已解锁，可以重新拖动边和角缩放");
+            if (!_selection.IsEmpty)
+            {
+                UpdateCornerMarks(_selection);
+                UpdateSizeBadge(_selection);
+            }
+            return;
+        }
+
+        if (!int.TryParse(GeometryWidthBox.Text, out var width) || width <= 0 ||
+            !int.TryParse(GeometryHeightBox.Text, out var height) || height <= 0)
+        {
+            UpdateFixedSizeUi("请输入有效的宽度和高度", warning: true);
+            return;
+        }
+
+        var current = GetLocalRegion() ?? DrawingRectangle.Empty;
+        var x = int.TryParse(GeometryXBox.Text, out var inputX) ? inputX : current.X;
+        var y = int.TryParse(GeometryYBox.Text, out var inputY) ? inputY : current.Y;
+        ApplyFixedSize(new System.Drawing.Point(x, y), new DrawingSize(width, height));
     }
 
     private void OnGeometryCancelClick(object sender, RoutedEventArgs e)
@@ -1615,13 +2347,158 @@ public partial class CaptureOverlayWindow : Window
 
         x = Math.Clamp(x, 0, _snapshot.Bounds.Width - 1);
         y = Math.Clamp(y, 0, _snapshot.Bounds.Height - 1);
-        width = Math.Clamp(width, 1, _snapshot.Bounds.Width - x);
-        height = Math.Clamp(height, 1, _snapshot.Bounds.Height - y);
-        var scaleX = Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width);
-        var scaleY = Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height);
-        SetSelection(new WpfRect(x * scaleX, y * scaleY, width * scaleX, height * scaleY));
+        if (_lockedSelectionSize is not null)
+        {
+            var requestedSize = new DrawingSize(width, height);
+            var placed = CaptureFixedSizeConstraint.Place(
+                new System.Drawing.Point(x, y),
+                requestedSize,
+                CapturePixelBounds);
+            _lockedSelectionSize = placed.Size;
+            SetSelectionFromPixels(placed);
+            GeometryEditor.Visibility = Visibility.Collapsed;
+            Focus();
+            return;
+        }
+
+        var maxWidth = _snapshot.Bounds.Width - x;
+        var maxHeight = _snapshot.Bounds.Height - y;
+        if (_lockedAspectRatio is { } ratio)
+        {
+            var constrained = CaptureAspectRatioConstraint.ConstrainSize(
+                width,
+                height,
+                ratio,
+                _geometryWidthIsPrimary,
+                maxWidth,
+                maxHeight);
+            width = constrained.Width;
+            height = constrained.Height;
+        }
+        else
+        {
+            width = Math.Clamp(width, 1, maxWidth);
+            height = Math.Clamp(height, 1, maxHeight);
+        }
+
+        SetSelectionFromPixels(new DrawingRectangle(x, y, width, height));
         GeometryEditor.Visibility = Visibility.Collapsed;
         Focus();
+    }
+
+    private void UpdateGeometryFields(DrawingRectangle region)
+    {
+        _updatingGeometryFields = true;
+        GeometryXBox.Text = region.X.ToString();
+        GeometryYBox.Text = region.Y.ToString();
+        GeometryWidthBox.Text = region.Width.ToString();
+        GeometryHeightBox.Text = region.Height.ToString();
+        _updatingGeometryFields = false;
+        _geometryWidthIsPrimary = true;
+    }
+
+    private void UpdateLockedSizeFromGeometryFields()
+    {
+        if (!int.TryParse(GeometryWidthBox.Text, out var width) || width <= 0 ||
+            !int.TryParse(GeometryHeightBox.Text, out var height) || height <= 0 ||
+            GetLocalRegion() is not { } current)
+        {
+            return;
+        }
+
+        ApplyFixedSize(current.Location, new DrawingSize(width, height), preserveDimensionEditing: true);
+    }
+
+    private void ApplyFixedSize(
+        System.Drawing.Point location,
+        DrawingSize requestedSize,
+        bool preserveDimensionEditing = false)
+    {
+        var limitedSize = CaptureFixedSizeConstraint.LimitSize(requestedSize, CapturePixelBounds);
+        var placed = CaptureFixedSizeConstraint.Place(location, limitedSize, CapturePixelBounds);
+        _lockedSelectionSize = limitedSize;
+        SetSelectionFromPixels(placed);
+        if (preserveDimensionEditing)
+        {
+            _updatingGeometryFields = true;
+            GeometryXBox.Text = placed.X.ToString();
+            GeometryYBox.Text = placed.Y.ToString();
+            if (limitedSize != requestedSize)
+            {
+                GeometryWidthBox.Text = limitedSize.Width.ToString();
+                GeometryHeightBox.Text = limitedSize.Height.ToString();
+            }
+            _updatingGeometryFields = false;
+        }
+        else
+        {
+            UpdateGeometryFields(placed);
+        }
+        if (limitedSize != requestedSize)
+        {
+            UpdateFixedSizeUi(
+                $"尺寸超过当前截图边界，已限制为 {limitedSize.Width} × {limitedSize.Height}",
+                warning: true);
+        }
+        else
+        {
+            UpdateFixedSizeUi($"已锁定 {limitedSize.Width} × {limitedSize.Height} px；选区现在只能移动");
+        }
+    }
+
+    private void UpdateFixedSizeUi(string? message = null, bool warning = false)
+    {
+        if (FixedSizeLockButton is null || FixedSizeLockIcon is null || GeometryHintText is null)
+        {
+            return;
+        }
+
+        var locked = _lockedSelectionSize is not null;
+        FixedSizeLockIcon.Kind = locked ? QingSnapIconKind.Lock : QingSnapIconKind.Unlock;
+        FixedSizeLockButton.ToolTip = locked
+            ? $"已锁定 {_lockedSelectionSize!.Value.Width} × {_lockedSelectionSize.Value.Height} px；点击解锁"
+            : "锁定当前宽度和高度";
+        FixedSizeLockButton.Background = locked
+            ? new SolidColorBrush(MediaColor.FromRgb(44, 76, 88))
+            : System.Windows.Media.Brushes.Transparent;
+        FixedSizeLockButton.Foreground = locked
+            ? new SolidColorBrush(MediaColor.FromRgb(118, 223, 238))
+            : new SolidColorBrush(MediaColor.FromRgb(220, 231, 236));
+        GeometryHintText.Foreground = warning
+            ? new SolidColorBrush(MediaColor.FromRgb(255, 190, 92))
+            : new SolidColorBrush(MediaColor.FromRgb(118, 161, 177));
+        GeometryHintText.Text = message ?? (locked
+            ? $"已锁定 {_lockedSelectionSize!.Value.Width} × {_lockedSelectionSize.Value.Height} px；选区只能移动"
+            : "Shift + 角点临时锁定比例；Alt + 角点以中心缩放；两者可组合");
+    }
+
+    private DrawingRectangle CapturePixelBounds =>
+        new(0, 0, _snapshot.Bounds.Width, _snapshot.Bounds.Height);
+
+    private void UpdateAspectRatioButtons()
+    {
+        WpfButton[] buttons =
+        [
+            AspectFreeButton,
+            AspectSquareButton,
+            AspectFourThreeButton,
+            AspectThreeTwoButton,
+            AspectSixteenNineButton,
+            AspectNineSixteenButton,
+            AspectCurrentButton
+        ];
+        foreach (var button in buttons)
+        {
+            var active = button.Tag is string value &&
+                         Enum.TryParse<CaptureAspectRatioMode>(value, out var mode) &&
+                         mode == _aspectRatioMode;
+            button.Background = active
+                ? new SolidColorBrush(MediaColor.FromRgb(44, 76, 88))
+                : System.Windows.Media.Brushes.Transparent;
+            button.Foreground = active
+                ? new SolidColorBrush(MediaColor.FromRgb(118, 223, 238))
+                : new SolidColorBrush(MediaColor.FromRgb(197, 210, 216));
+        }
     }
 
     private void CancelSelection() => SelectionCancelled?.Invoke(this, EventArgs.Empty);
@@ -1677,7 +2554,7 @@ public partial class CaptureOverlayWindow : Window
             ? active
             : inactive;
 
-        UndoButton.IsEnabled = _annotationController.HasAnnotations;
+        UndoButton.IsEnabled = _annotationController.CanUndo;
         ClearButton.IsEnabled = _annotationController.HasAnnotations;
     }
 
@@ -1687,6 +2564,13 @@ public partial class CaptureOverlayWindow : Window
 
     private System.Windows.Input.Cursor CursorForPointer(Point point)
     {
+        var captureHit = HitTest(point);
+        if (_annotationController.ActiveTool == CaptureAnnotationTool.Select &&
+            captureHit is not (DragMode.None or DragMode.Create or DragMode.Move))
+        {
+            return CursorFor(captureHit);
+        }
+
         if (_annotationController.ActiveTool != CaptureAnnotationTool.None && _selection.Contains(point))
         {
             if (_annotationController.ActiveTool == CaptureAnnotationTool.Select)
@@ -1697,7 +2581,7 @@ public partial class CaptureOverlayWindow : Window
             return CursorForAnnotationTool(_annotationController.ActiveTool);
         }
 
-        return CursorFor(HitTest(point));
+        return CursorFor(captureHit);
     }
 
     private static System.Windows.Input.Cursor CursorForAnnotationTool(CaptureAnnotationTool tool) =>

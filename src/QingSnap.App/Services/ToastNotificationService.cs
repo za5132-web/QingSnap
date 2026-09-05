@@ -14,6 +14,9 @@ public sealed class ToastNotificationService : IDisposable
     public void ShowWarning(string message) =>
         Show(message, ToastNotificationKind.Warning, TimeSpan.FromMilliseconds(2800));
 
+    public void ShowInformation(string message) =>
+        Show(message, ToastNotificationKind.Success, TimeSpan.FromMilliseconds(4200));
+
     public void ShowCountdown(int seconds) =>
         Show(
             $"{Math.Max(1, seconds)} 秒后截图",

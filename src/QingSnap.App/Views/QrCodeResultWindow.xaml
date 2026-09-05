@@ -1,0 +1,204 @@
+<Window x:Class="QingSnap.App.Views.QrCodeResultWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="QingSnap 二维码识别"
+        Icon="/Assets/QingSnap.ico"
+        Width="620"
+        Height="500"
+        MinWidth="520"
+        MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        Topmost="True"
+        Background="#FF0B1118"
+        Foreground="#FFF3F7F9"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        PreviewKeyDown="OnPreviewKeyDown">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <FontFamily x:Key="UiFont">Microsoft YaHei UI</FontFamily>
+        <FontFamily x:Key="DataFont">Cascadia Mono, Consolas</FontFamily>
+        <SolidColorBrush x:Key="AccentBrush" Color="#FF76DFEE" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#FF80939E" />
+
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+
+        <Style x:Key="WindowButton" TargetType="Button">
+            <Setter Property="Width" Value="42" />
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Foreground" Value="#FFA7B5BD" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF1B2A34" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF253A46" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="MinWidth" Value="68" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="Foreground" Value="#FFEAF1F4" />
+            <Setter Property="Background" Value="#FF1B2A34" />
+            <Setter Property="BorderBrush" Value="#FF344957" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF263B47" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9976DFEE" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF10232D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Foreground" Value="#FF071117" />
+            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
+            <Setter Property="BorderBrush" Value="#FF9BEDF6" />
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#FF0B1118" BorderBrush="#FF314652" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="52" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="54" />
+            </Grid.RowDefinitions>
+
+            <Border Background="#FF0D171F" BorderBrush="#223D5362" BorderThickness="0,0,0,1"
+                    MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Margin="18,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="28" Height="28" Background="#FF102832" CornerRadius="7">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource DataFont}" FontSize="12" FontWeight="Bold"
+                                       Foreground="{StaticResource AccentBrush}" Text="QR" />
+                        </Border>
+                        <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+                            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#FFF3F7F9" Text="检测到二维码" />
+                            <TextBlock x:Name="TitleStatusText" Margin="0,2,0,0"
+                                       MaxWidth="390" TextTrimming="CharacterEllipsis"
+                                       FontFamily="{StaticResource DataFont}" FontSize="9.5"
+                                       Foreground="{StaticResource MutedBrush}" />
+                        </StackPanel>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource WindowButton}" Content="×" Click="OnCloseClick" />
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Margin="18,15,18,0" Padding="12,9"
+                    Background="#FF10202A" BorderBrush="#4476DFEE" BorderThickness="1" CornerRadius="6">
+                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="11"
+                           Foreground="#FF9DB1BC" Text="全部内容均在本机离线识别；网址不会自动打开。" />
+            </Border>
+
+            <ScrollViewer Grid.Row="2" Margin="18,12,18,10"
+                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Results}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,0,9" Padding="14"
+                                    Background="#FF101A22" BorderBrush="#FF293A45"
+                                    BorderThickness="1" CornerRadius="8">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold"
+                                                   Foreground="{StaticResource AccentBrush}" Text="{Binding Format}" />
+                                        <Border Grid.Column="1" Padding="7,2" Background="#FF182832" CornerRadius="4">
+                                            <TextBlock FontFamily="{StaticResource UiFont}" FontSize="10"
+                                                       Foreground="#FFA9BAC3" Text="{Binding TypeText}" />
+                                        </Border>
+                                    </Grid>
+                                    <TextBlock Grid.Row="1" Margin="0,10,0,0" MaxHeight="150"
+                                               FontFamily="{StaticResource UiFont}" FontSize="13" LineHeight="21"
+                                               Foreground="#FFF0F5F7" Text="{Binding DisplayText}"
+                                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Grid.Row="2" Margin="0,12,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button Style="{StaticResource ActionButton}" Content="复制" Tag="{Binding}" Click="OnCopyClick" />
+                                        <Button Style="{StaticResource PrimaryButton}" Content="打开" Tag="{Binding}"
+                                                Visibility="{Binding IsUrl, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                Click="OnOpenClick" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <Border Grid.Row="3" Background="#FF0D171F" BorderBrush="#223D5362" BorderThickness="0,1,0,0">
+                <Grid Margin="18,0">
+                    <TextBlock x:Name="FooterStatusText" VerticalAlignment="Center"
+                               FontFamily="{StaticResource UiFont}" FontSize="10.5"
+                               Foreground="{StaticResource MutedBrush}" Text="识别完成" />
+                    <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Style="{StaticResource ActionButton}" Margin="0"
+                            Content="关闭" Click="OnCloseClick" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

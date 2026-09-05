@@ -25,14 +25,15 @@ public sealed class TrayIconService : IDisposable
             ShowImageMargin = false,
             Font = new Font("Segoe UI", 9F)
         };
-        menu.Items.Add(CreateItem($"区域截图    {settingsService.Current.CaptureHotkey}", (_, _) => _captureCoordinator.StartRegionCapture(), true));
-        menu.Items.Add(CreateItem("长截图（自动滚动）", (_, _) => _captureCoordinator.StartLongCapture()));
-        menu.Items.Add(CreateItem("长截图（手动滚动）", (_, _) => _captureCoordinator.StartManualLongCapture()));
-        menu.Items.Add(CreateItem($"重复上次范围    {settingsService.Current.RepeatHotkey}", (_, _) => _captureCoordinator.RepeatLastCapture()));
+        var settings = settingsService.Current;
+        menu.Items.Add(CreateItem($"区域截图{ShortcutSuffix(settings, HotkeyAction.RegionCapture)}", (_, _) => _captureCoordinator.StartRegionCapture(), true));
+        menu.Items.Add(CreateItem($"长截图（自动滚动）{ShortcutSuffix(settings, HotkeyAction.AutomaticLongCapture)}", (_, _) => _captureCoordinator.StartLongCapture()));
+        menu.Items.Add(CreateItem($"长截图（手动滚动）{ShortcutSuffix(settings, HotkeyAction.ManualLongCapture)}", (_, _) => _captureCoordinator.StartManualLongCapture()));
+        menu.Items.Add(CreateItem($"重复上次范围{ShortcutSuffix(settings, HotkeyAction.RepeatLastRegion)}", (_, _) => _captureCoordinator.RepeatLastCapture()));
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(CreateItem($"循环贴图（最近 5 张）    {settingsService.Current.PinHotkey}", (_, _) => _captureCoordinator.PinClipboardImage()));
-        menu.Items.Add(CreateItem("识别最近截图文字", (_, _) => _captureCoordinator.RecognizeLatestCapture()));
-        menu.Items.Add(CreateItem("截图记录", (_, _) => _captureCoordinator.OpenHistoryWindow()));
+        menu.Items.Add(CreateItem($"循环贴图（最近 5 张）{ShortcutSuffix(settings, HotkeyAction.PinRecentImage)}", (_, _) => _captureCoordinator.PinClipboardImage()));
+        menu.Items.Add(CreateItem($"识别最近截图文字{ShortcutSuffix(settings, HotkeyAction.OcrLatestCapture)}", (_, _) => _captureCoordinator.RecognizeLatestCapture()));
+        menu.Items.Add(CreateItem($"截图记录{ShortcutSuffix(settings, HotkeyAction.OpenHistory)}", (_, _) => _captureCoordinator.OpenHistoryWindow()));
         menu.Items.Add(CreateItem("打开记录文件夹", (_, _) => _captureCoordinator.OpenHistoryDirectory()));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(CreateItem("设置", (_, _) => openSettings()));
@@ -42,7 +43,7 @@ public sealed class TrayIconService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _appIcon,
-            Text = $"QingSnap — {settingsService.Current.CaptureHotkey} 截图 · {settingsService.Current.PinHotkey} 贴图",
+            Text = $"QingSnap — {DisplayGesture(settings, HotkeyAction.RegionCapture)} 截图 · {DisplayGesture(settings, HotkeyAction.PinRecentImage)} 贴图",
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -68,6 +69,21 @@ public sealed class TrayIconService : IDisposable
     }
 
     public void ShowError(string message) => _toastNotifications.ShowWarning(message);
+
+    public void ShowUpdateAvailable(string version) =>
+        _toastNotifications.ShowInformation($"发现 QingSnap {version}\n可在设置中查看并下载");
+
+    public void ShowHotkeyState(bool suspended)
+    {
+        if (suspended)
+        {
+            _toastNotifications.ShowWarning("QingSnap 全局快捷键已暂停");
+        }
+        else
+        {
+            _toastNotifications.ShowSuccess("QingSnap 全局快捷键已恢复");
+        }
+    }
 
     public void ShowDelay(int seconds) => _toastNotifications.ShowCountdown(seconds);
 
@@ -96,5 +112,21 @@ public sealed class TrayIconService : IDisposable
         }
 
         return item;
+    }
+
+    private static string ShortcutSuffix(AppSettings settings, HotkeyAction action)
+    {
+        var binding = HotkeyCatalog.GetBinding(settings, action);
+        return binding.IsEnabled && !string.IsNullOrWhiteSpace(binding.Gesture)
+            ? $"    {binding.Gesture}"
+            : string.Empty;
+    }
+
+    private static string DisplayGesture(AppSettings settings, HotkeyAction action)
+    {
+        var binding = HotkeyCatalog.GetBinding(settings, action);
+        return binding.IsEnabled && !string.IsNullOrWhiteSpace(binding.Gesture)
+            ? binding.Gesture
+            : "未设置";
     }
 }

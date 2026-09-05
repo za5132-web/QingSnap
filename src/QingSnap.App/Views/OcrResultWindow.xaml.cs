@@ -38,7 +38,14 @@ public partial class OcrResultWindow : Window
         SourceNameText.Text = Path.GetFileName(imagePath);
         SourceSizeText.Text = $"{sourceImage.PixelWidth} × {sourceImage.PixelHeight} px";
         Loaded += (_, _) => _ = RecognizeAsync();
-        Closed += (_, _) => _recognitionCancellation?.Cancel();
+        Closed += (_, _) =>
+        {
+            _recognitionCancellation?.Cancel();
+            _recognitionCancellation?.Dispose();
+            _recognitionCancellation = null;
+            SourceImage.Source = null;
+            ResourceDiagnostics.Sample("OcrWindowClosed");
+        };
     }
 
     private async Task RecognizeAsync()
@@ -71,6 +78,7 @@ public partial class OcrResultWindow : Window
         }
         catch (Exception exception)
         {
+            DiagnosticLog.Error("OCR", exception, "OCR result window recognition failed.");
             _recognitionStats = "识别失败";
             OcrTextBox.Text = string.Empty;
             TitleStatusText.Text = "本地识别 · 未完成";

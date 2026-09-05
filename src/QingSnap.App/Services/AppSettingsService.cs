@@ -65,6 +65,7 @@ public sealed class AppSettingsService
     private static AppSettings Normalize(AppSettings settings, string dataDirectory)
     {
         var defaultHistoryDirectory = Path.Combine(dataDirectory, "History");
+        var hotkeys = NormalizeHotkeys(settings);
         var ocrModel = string.IsNullOrWhiteSpace(settings.OcrModel)
             ? string.Equals(settings.OcrEngine, "Advanced", StringComparison.OrdinalIgnoreCase)
                 ? OcrModelManager.SmallModel
@@ -72,9 +73,10 @@ public sealed class AppSettingsService
             : OcrModelManager.NormalizeModel(settings.OcrModel);
         return settings with
         {
-            CaptureHotkey = NormalizeHotkey(settings.CaptureHotkey, "F1"),
-            PinHotkey = NormalizeHotkey(settings.PinHotkey, "F3"),
-            RepeatHotkey = NormalizeHotkey(settings.RepeatHotkey, "Shift+F1"),
+            Hotkeys = hotkeys,
+            CaptureHotkey = FindGesture(hotkeys, HotkeyAction.RegionCapture),
+            PinHotkey = FindGesture(hotkeys, HotkeyAction.PinRecentImage),
+            RepeatHotkey = FindGesture(hotkeys, HotkeyAction.RepeatLastRegion),
             HistoryDirectory = string.IsNullOrWhiteSpace(settings.HistoryDirectory)
                 ? defaultHistoryDirectory
                 : Path.GetFullPath(Environment.ExpandEnvironmentVariables(settings.HistoryDirectory.Trim())),
@@ -107,8 +109,80 @@ public sealed class AppSettingsService
         };
     }
 
-    private static string NormalizeHotkey(string? value, string fallback) =>
-        string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    private static List<HotkeyBinding> NormalizeHotkeys(AppSettings settings)
+    {
+        if (settings.Hotkeys is null || settings.Hotkeys.Count == 0)
+        {
+            return HotkeyCatalog.Definitions
+                .Select(definition => definition.Action switch
+                {
+                    HotkeyAction.RegionCapture => CreateLegacyBinding(
+                        definition,
+                        settings.CaptureHotkey),
+                    HotkeyAction.RepeatLastRegion => CreateLegacyBinding(
+                        definition,
+                        settings.RepeatHotkey),
+                    HotkeyAction.PinRecentImage => CreateLegacyBinding(
+                        definition,
+                        settings.PinHotkey),
+                    _ => new HotkeyBinding
+                    {
+                        Action = definition.Action,
+                        Gesture = definition.DefaultGesture,
+                        IsEnabled = definition.DefaultEnabled
+                    }
+                })
+                .ToList();
+        }
+
+        var existing = settings.Hotkeys
+            .GroupBy(binding => binding.Action)
+            .ToDictionary(group => group.Key, group => group.Last());
+        var usedGestures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<HotkeyBinding>(HotkeyCatalog.Definitions.Count);
+        foreach (var definition in HotkeyCatalog.Definitions)
+        {
+            var binding = existing.TryGetValue(definition.Action, out var configured)
+                ? configured
+                : new HotkeyBinding
+                {
+                    Action = definition.Action,
+                    Gesture = definition.DefaultGesture,
+                    IsEnabled = definition.DefaultEnabled
+                };
+            var isValid = HotkeyGestureParser.TryNormalize(binding.Gesture, out var gesture);
+            var isEnabled = binding.IsEnabled && isValid && usedGestures.Add(gesture);
+            normalized.Add(binding with
+            {
+                Action = definition.Action,
+                Gesture = isValid ? gesture : string.Empty,
+                IsEnabled = isEnabled
+            });
+        }
+
+        return normalized;
+    }
+
+    private static HotkeyBinding CreateLegacyBinding(
+        HotkeyActionDefinition definition,
+        string? legacyGesture)
+    {
+        if (!HotkeyGestureParser.TryNormalize(legacyGesture, out var normalized) &&
+            !HotkeyGestureParser.TryNormalize(definition.DefaultGesture, out normalized))
+        {
+            return new HotkeyBinding { Action = definition.Action };
+        }
+
+        return new HotkeyBinding
+        {
+            Action = definition.Action,
+            Gesture = normalized,
+            IsEnabled = true
+        };
+    }
+
+    private static string FindGesture(IEnumerable<HotkeyBinding> bindings, HotkeyAction action) =>
+        bindings.First(binding => binding.Action == action).Gesture;
 
     private static string NormalizeColor(string? value)
     {

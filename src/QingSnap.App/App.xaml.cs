@@ -21,8 +21,15 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         DiagnosticLog.Initialize();
+        if (e.Args.Any(argument => argument.Equals("--diagnostics", StringComparison.OrdinalIgnoreCase)) ||
+            e.Args.Any(argument => argument.Equals("--resource-window-stress", StringComparison.OrdinalIgnoreCase)))
+        {
+            ResourceDiagnostics.Enable();
+        }
+
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         base.OnStartup(e);
 
         _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out var isFirstInstance);
@@ -38,8 +45,16 @@ public partial class App : System.Windows.Application
         DiagnosticLog.Info("Application", "Main window and tray host created.");
         MainWindow = _hostWindow;
         _hostWindow.Show();
+        ResourceDiagnostics.Sample("AppStarted");
+        Dispatcher.BeginInvoke(
+            () => ResourceDiagnostics.Sample("IdleBaseline"),
+            DispatcherPriority.ApplicationIdle);
 
-        if (e.Args.Any(argument => argument.Equals("--settings", StringComparison.OrdinalIgnoreCase)))
+        if (e.Args.Any(argument => argument.Equals("--resource-window-stress", StringComparison.OrdinalIgnoreCase)))
+        {
+            Dispatcher.BeginInvoke(() => _ = _hostWindow.RunResourceWindowStressAsync());
+        }
+        else if (e.Args.Any(argument => argument.Equals("--settings", StringComparison.OrdinalIgnoreCase)))
         {
             Dispatcher.BeginInvoke(_hostWindow.OpenSettingsWindow);
         }
@@ -71,7 +86,11 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        ResourceDiagnostics.Sample("FinalIdle");
         DiagnosticLog.Info("Application", $"Application exiting with code {e.ApplicationExitCode}.");
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+        AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+        DispatcherUnhandledException -= OnDispatcherUnhandledException;
         if (_ownsSingleInstanceMutex)
         {
             _singleInstanceMutex?.ReleaseMutex();
@@ -84,8 +103,17 @@ public partial class App : System.Windows.Application
 
     private static void OnDispatcherUnhandledException(
         object sender,
-        DispatcherUnhandledExceptionEventArgs e) =>
+        DispatcherUnhandledExceptionEventArgs e)
+    {
         WriteCrashLog("Dispatcher", e.Exception);
+        e.Handled = true;
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        WriteCrashLog("TaskScheduler", e.Exception);
+        e.SetObserved();
+    }
 
     private static void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {

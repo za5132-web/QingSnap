@@ -38,6 +38,11 @@ public sealed class ClipboardService : IDisposable
     public Task CopyTextAsync(string text) =>
         _queue.InvokeAsync(() => CopyTextWithRetry(text));
 
+    internal Task<int> GetDiagnosticThreadIdAsync() =>
+        _queue.InvokeAsync(static () => Environment.CurrentManagedThreadId);
+
+    internal bool IsDiagnosticWorkerAlive => _queue.IsWorkerAlive;
+
     public void CopyImage(BitmapSource image)
     {
         CopyImageAsync(image).GetAwaiter().GetResult();
@@ -496,6 +501,8 @@ public sealed class ClipboardService : IDisposable
             _thread.Start();
         }
 
+        public bool IsWorkerAlive => _thread.IsAlive;
+
         public Task InvokeAsync(Action action) => InvokeAsync(() =>
         {
             action();
@@ -528,7 +535,6 @@ public sealed class ClipboardService : IDisposable
             {
                 completion.TrySetException(new ObjectDisposedException(nameof(StaClipboardQueue)));
             }
-
             return completion.Task;
         }
 
@@ -541,8 +547,13 @@ public sealed class ClipboardService : IDisposable
 
             _disposed = true;
             _workItems.CompleteAdding();
-            _thread.Join(TimeSpan.FromSeconds(1));
-            _workItems.Dispose();
+            // A clipboard owner can hold OpenClipboard for several seconds. Never dispose the
+            // collection while its STA thread is still enumerating it; that can otherwise turn
+            // an orderly application shutdown into an unhandled background-thread exception.
+            if (_thread.Join(TimeSpan.FromSeconds(1)))
+            {
+                _workItems.Dispose();
+            }
         }
 
         private void Run()

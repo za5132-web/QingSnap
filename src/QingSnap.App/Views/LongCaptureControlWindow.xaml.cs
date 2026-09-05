@@ -68,6 +68,7 @@ public partial class LongCaptureControlWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ResourceDiagnostics.Sample("LongCaptureStarted", ("LongFrames", _assembler.FrameCount));
         var firstFrameAccepted = await CaptureNextAsync(_mode == LongCaptureMode.Manual);
         if (firstFrameAccepted && _mode == LongCaptureMode.Automatic && !_cancelRequested)
         {
@@ -94,6 +95,10 @@ public partial class LongCaptureControlWindow : Window
         _isClosed = true;
         _stopRequested = true;
         _cancelRequested = true;
+        ResourceDiagnostics.Sample(
+            "LongCaptureClosed",
+            ("LongFrames", _assembler.FrameCount),
+            ("LongMB", (int)Math.Ceiling(_assembler.EstimatedRetainedBytes / (1024D * 1024D))));
 
         if (_windowSource is null)
         {
@@ -505,6 +510,7 @@ public partial class LongCaptureControlWindow : Window
         try
         {
             var image = await Task.Run(_assembler.BuildImageAndRelease);
+            ResourceDiagnostics.Sample("LongCaptureFinished", ("LongFrames", _assembler.FrameCount), ("LongMB", 0));
             CaptureCompleted?.Invoke(this, new LongCaptureCompletedEventArgs(image));
         }
         catch (Exception exception)

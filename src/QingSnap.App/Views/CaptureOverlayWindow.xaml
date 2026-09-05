@@ -66,6 +66,12 @@
             <Setter Property="Background" Value="#FF76DFEE" />
             <Setter Property="MinWidth" Value="40" />
         </Style>
+        <Style x:Key="QuickTagToolbarButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="MinWidth" Value="34" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="Foreground" Value="#FF76DFEE" />
+        </Style>
         <Style x:Key="ColorSwatchButton" TargetType="Button">
             <Setter Property="Width" Value="26" />
             <Setter Property="Height" Value="26" />
@@ -104,6 +110,67 @@
             <Setter Property="MinWidth" Value="40" />
             <Setter Property="Margin" Value="2" />
             <Setter Property="Padding" Value="8,0" />
+        </Style>
+        <Style x:Key="AspectRatioButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
+            <Setter Property="Height" Value="29" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="Padding" Value="5,0" />
+            <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="BorderBrush" Value="#44536A76" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style x:Key="QuickTagChip" TargetType="ToggleButton">
+            <Setter Property="Height" Value="28" />
+            <Setter Property="MinWidth" Value="44" />
+            <Setter Property="Margin" Value="0,0,6,6" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#FFB8C8D0" />
+            <Setter Property="Background" Value="#FF13232D" />
+            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="ChipChrome"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="#CC76DFEE" />
+                                <Setter Property="Foreground" Value="#FFF5FAFC" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ChipChrome" Property="Background" Value="#FF76DFEE" />
+                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="#FF76DFEE" />
+                                <Setter Property="Foreground" Value="#FF071116" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="GeometryTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#FFE7F0F4" />
+            <Setter Property="CaretBrush" Value="#FF76DFEE" />
+            <Setter Property="Background" Value="#FF101D25" />
+            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style x:Key="AnnotationMenuItemStyle" TargetType="MenuItem">
             <Setter Property="Height" Value="36" />
@@ -261,6 +328,9 @@
                 </Border.Effect>
             </Border>
 
+            <icons:QrCodeHotspotLayer x:Name="QrCodeHotspotLayer"
+                                      Panel.ZIndex="18" />
+
             <Rectangle x:Name="TopLeftHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
             <Rectangle x:Name="TopLeftVertical" Width="3" Height="16" Fill="#FFF5FAFC" IsHitTestVisible="False" />
             <Rectangle x:Name="TopRightHorizontal" Width="16" Height="3" Fill="#FFF5FAFC" IsHitTestVisible="False" />
@@ -312,7 +382,8 @@
                     Background="#F20E171F"
                     BorderBrush="#6676DFEE"
                     BorderThickness="1"
-                    CornerRadius="7">
+                    CornerRadius="7"
+                    PreviewMouseLeftButtonDown="OnCaptureToolbarPreviewMouseLeftButtonDown">
                 <Border.Effect>
                     <DropShadowEffect Color="#FF000000" BlurRadius="18" ShadowDepth="4" Opacity="0.5" />
                 </Border.Effect>
@@ -439,10 +510,26 @@
                                 Style="{StaticResource CaptureToolButton}"
                                 Width="32" MinWidth="32"
                                 Padding="7,0"
-                                ToolTip="撤销上一个标注  Ctrl+Z"
-                                AutomationProperties.Name="撤销上一个标注"
+                                ToolTip="撤销 Ctrl+Z；右键可重做"
+                                AutomationProperties.Name="撤销；右键可重做"
                                 IsEnabled="False"
+                                ContextMenuService.ShowOnDisabled="True"
                                 Click="OnUndoClick">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AnnotationContextMenuStyle}"
+                                             Opened="OnUndoRedoMenuOpened">
+                                    <MenuItem x:Name="UndoMenuItem"
+                                              Header="撤销"
+                                              InputGestureText="Ctrl+Z"
+                                              Style="{StaticResource AnnotationMenuItemStyle}"
+                                              Click="OnUndoClick" />
+                                    <MenuItem x:Name="RedoMenuItem"
+                                              Header="重做"
+                                              InputGestureText="Ctrl+Y / Ctrl+Shift+Z"
+                                              Style="{StaticResource AnnotationMenuItemStyle}"
+                                              Click="OnRedoClick" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
                             <icons:QingSnapIcon Kind="Undo" />
                         </Button>
                         <Button x:Name="ClearButton"
@@ -463,12 +550,31 @@
                                 Click="OnAutomaticLongCaptureClick">
                             <icons:QingSnapIcon Kind="LongCapture" />
                         </Button>
-                        <Button Style="{StaticResource CaptureFeatureButton}"
+                        <Button x:Name="OcrButton"
+                                Style="{StaticResource CaptureFeatureButton}"
                                 Width="34"
-                                ToolTip="识别选区文字"
-                                AutomationProperties.Name="识别选区文字"
-                                Click="OnOcrClick">
-                            <icons:QingSnapIcon Kind="Ocr" />
+                                ToolTip="识别文字或二维码"
+                                AutomationProperties.Name="识别文字或二维码"
+                                Click="OnOcrMenuClick">
+                            <Button.ContextMenu>
+                                <ContextMenu Style="{StaticResource AnnotationContextMenuStyle}">
+                                    <MenuItem Header="识别文字"
+                                              Style="{StaticResource AnnotationMenuItemStyle}"
+                                              Click="OnOcrClick" />
+                                    <MenuItem Header="识别二维码"
+                                              Style="{StaticResource AnnotationMenuItemStyle}"
+                                              Click="OnQrCodeClick" />
+                                </ContextMenu>
+                            </Button.ContextMenu>
+                            <Grid Width="22" Height="22">
+                                <icons:QingSnapIcon Kind="Ocr" Width="18" Height="18"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <TextBlock Margin="0,0,-1,-3"
+                                           HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                           FontFamily="Consolas" FontSize="8"
+                                           Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                           Text="⌄" />
+                            </Grid>
                         </Button>
                         <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
                         <Button Style="{StaticResource CaptureToolButton}"
@@ -486,6 +592,27 @@
                             <icons:QingSnapIcon Kind="Save" />
                         </Button>
                         <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Button x:Name="QuickTagButton"
+                                Visibility="Collapsed"
+                                Style="{StaticResource QuickTagToolbarButton}"
+                                ToolTip="为本次截图添加标签"
+                                AutomationProperties.Name="为本次截图添加标签"
+                                Click="OnQuickTagClick">
+                            <Grid Width="22" Height="21">
+                                <icons:QingSnapIcon Kind="Tag" Width="18" Height="18"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                <Border x:Name="QuickTagCountBadge"
+                                        MinWidth="13" Height="13" Padding="2,0"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                                        Background="#FFFF6572" CornerRadius="7"
+                                        Visibility="Collapsed">
+                                    <TextBlock x:Name="QuickTagCountText"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               FontFamily="{StaticResource DataFont}" FontSize="8" FontWeight="Bold"
+                                               Foreground="#FFFFFFFF" />
+                                </Border>
+                            </Grid>
+                        </Button>
                         <Button Style="{StaticResource CaptureToolButton}"
                                 Width="34"
                                 ToolTip="把选区钉到桌面"
@@ -514,6 +641,70 @@
                 </Grid>
             </Border>
         </Canvas>
+
+        <Popup x:Name="QuickTagPopup"
+               Placement="Top"
+               VerticalOffset="-7"
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               StaysOpen="True"
+               Closed="OnQuickTagPopupClosed">
+            <Border Width="318" MaxHeight="280" Padding="13"
+                    Background="#FB0D171E"
+                    BorderBrush="#8876DFEE"
+                    BorderThickness="1"
+                    CornerRadius="7">
+                <Border.Effect>
+                    <DropShadowEffect Color="#FF000000" BlurRadius="18" ShadowDepth="4" Opacity="0.58" />
+                </Border.Effect>
+                <StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal">
+                            <icons:QingSnapIcon Kind="Tag" Width="15" Height="15" Foreground="#FF76DFEE" />
+                            <TextBlock Margin="7,0,0,0" VerticalAlignment="Center"
+                                       FontFamily="{StaticResource UiFont}" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#FFF3F8FA" Text="本次截图标签" />
+                        </StackPanel>
+                        <TextBlock x:Name="QuickTagSummaryText" Grid.Column="1"
+                                   VerticalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="10"
+                                   Foreground="#FF76DFEE" Text="未选择" />
+                    </Grid>
+                    <TextBlock Margin="0,5,0,10" FontFamily="{StaticResource UiFont}" FontSize="10"
+                               Foreground="#FF7F939D" Text="标签将在截图保存后写入记录，不影响复制或钉图。" />
+                    <ScrollViewer MaxHeight="142" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <WrapPanel x:Name="QuickTagItemsPanel" />
+                    </ScrollViewer>
+                    <Border x:Name="QuickTagCreatePanel" Margin="0,4,0,0" Padding="8"
+                            Background="#FF101D25" BorderBrush="#44536A76" BorderThickness="1"
+                            CornerRadius="4" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="QuickTagTextBox" Height="30" Padding="8,4"
+                                     FontFamily="{StaticResource UiFont}" FontSize="11"
+                                     Foreground="#FFEAF2F5" CaretBrush="#FF76DFEE"
+                                     Background="#FF0B151C" BorderBrush="#6676DFEE" BorderThickness="1"
+                                     VerticalContentAlignment="Center"
+                                     MaxLength="32" ToolTip="输入标签名称"
+                                     KeyDown="OnQuickTagTextBoxKeyDown" />
+                            <Button Grid.Column="1" Width="52" Height="30" Margin="7,0,0,0"
+                                    Style="{StaticResource CaptureConfirmButton}"
+                                    Content="添加" Click="OnAddQuickTagConfirmClick" />
+                        </Grid>
+                    </Border>
+                    <TextBlock x:Name="QuickTagStatusText" Margin="1,5,0,0"
+                               FontFamily="{StaticResource UiFont}" FontSize="10"
+                               Foreground="#FFFF9189" Visibility="Collapsed" />
+                </StackPanel>
+            </Border>
+        </Popup>
 
         <Popup x:Name="AnnotationPalettePopup"
                Placement="Bottom"
@@ -702,17 +893,54 @@
             </Grid>
         </Border>
 
-        <Border x:Name="GeometryEditor" Width="420" Padding="16"
+        <Border x:Name="GeometryEditor" Width="500" Padding="16"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
                 Visibility="Collapsed" Background="#FA0E171F" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="7">
             <StackPanel>
                 <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold" Foreground="#FF76DFEE" Text="SELECTION GEOMETRY"/>
-                <Grid Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
-                    <TextBox x:Name="GeometryXBox" Margin="0,0,7,0" ToolTip="X"/>
-                    <TextBox x:Name="GeometryYBox" Grid.Column="1" Margin="0,0,7,0" ToolTip="Y"/>
-                    <TextBox x:Name="GeometryWidthBox" Grid.Column="2" Margin="0,0,7,0" ToolTip="宽度"/>
-                    <TextBox x:Name="GeometryHeightBox" Grid.Column="3" ToolTip="高度"/>
+                <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
+                    <StackPanel Margin="0,0,7,0">
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="X 坐标" />
+                        <TextBox x:Name="GeometryXBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区左边缘 X 坐标"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="0,0,7,0">
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="Y 坐标" />
+                        <TextBox x:Name="GeometryYBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区上边缘 Y 坐标"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="0,0,7,0">
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="宽度 W" />
+                        <TextBox x:Name="GeometryWidthBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区宽度（像素）" TextChanged="OnGeometryDimensionTextChanged"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="高度 H" />
+                        <TextBox x:Name="GeometryHeightBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区高度（像素）" TextChanged="OnGeometryDimensionTextChanged"/>
+                    </StackPanel>
+                    <Button x:Name="FixedSizeLockButton" Grid.Column="4" Width="32" Height="32" Margin="4,14,0,0"
+                            Style="{StaticResource CaptureToolButton}"
+                            ToolTip="锁定当前宽度和高度" Click="OnFixedSizeLockClick">
+                        <icons:QingSnapIcon x:Name="FixedSizeLockIcon" Kind="Unlock" Width="17" Height="17"
+                                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
                 </Grid>
+                <Grid Margin="0,11,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" FontFamily="{StaticResource UiFont}" FontSize="11"
+                               Foreground="#FF91A5AF" Text="宽高比" />
+                    <UniformGrid Grid.Column="1" Columns="7">
+                        <Button x:Name="AspectFreeButton" Style="{StaticResource AspectRatioButton}" Tag="Free" Content="自由" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectSquareButton" Style="{StaticResource AspectRatioButton}" Tag="Square" Content="1:1" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectFourThreeButton" Style="{StaticResource AspectRatioButton}" Tag="FourThree" Content="4:3" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectThreeTwoButton" Style="{StaticResource AspectRatioButton}" Tag="ThreeTwo" Content="3:2" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectSixteenNineButton" Style="{StaticResource AspectRatioButton}" Tag="SixteenNine" Content="16:9" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectNineSixteenButton" Style="{StaticResource AspectRatioButton}" Tag="NineSixteen" Content="9:16" Click="OnAspectRatioClick" />
+                        <Button x:Name="AspectCurrentButton" Style="{StaticResource AspectRatioButton}" Tag="Current" Content="当前" Click="OnAspectRatioClick" />
+                    </UniformGrid>
+                </Grid>
+                <TextBlock x:Name="GeometryHintText" Margin="54,5,0,0" FontFamily="{StaticResource UiFont}" FontSize="9.5"
+                           Foreground="#FF76909C" Text="Shift + 角点临时锁定比例；Alt + 角点以中心缩放；两者可组合" />
                 <StackPanel Margin="0,12,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource CaptureToolButton}" Content="取消" Click="OnGeometryCancelClick"/>
                     <Button Style="{StaticResource CaptureConfirmButton}" Margin="6,0,0,0" Content="应用" Click="OnGeometryApplyClick"/>

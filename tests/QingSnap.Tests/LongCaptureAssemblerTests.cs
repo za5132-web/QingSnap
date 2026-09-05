@@ -331,7 +331,7 @@ public sealed class LongCaptureAssemblerTests
         try
         {
             var settings = new AppSettingsService(dataDirectory);
-            var history = new CaptureHistoryService(settings);
+            using var history = new CaptureHistoryService(settings);
             var imagePath = history.Save(CreatePattern(80, 60, 9));
 
             history.SaveOcrText(imagePath, "可搜索的截屏文字 QingSnap");
@@ -339,6 +339,37 @@ public sealed class LongCaptureAssemblerTests
 
             var item = Assert.Single(snapshot.Items);
             Assert.Contains("可搜索的截屏文字", item.SearchText, StringComparison.Ordinal);
+            Assert.True(item.MetadataId > 0);
+        }
+        finally
+        {
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, true);
+            }
+        }
+    }
+
+
+    [Fact]
+    public void HistoryCanSetFavoriteStateForMultipleItemsAtOnce()
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-history-favorites-{Guid.NewGuid():N}");
+        try
+        {
+            var settings = new AppSettingsService(dataDirectory);
+            using var history = new CaptureHistoryService(settings);
+            var firstPath = history.Save(CreatePattern(40, 30, 41));
+            Thread.Sleep(20);
+            var secondPath = history.Save(CreatePattern(40, 30, 42));
+
+            history.SetFavoriteState([firstPath, secondPath], isFavorite: true);
+
+            Assert.All(history.LoadSnapshot(10, CancellationToken.None).Items, item => Assert.True(item.IsFavorite));
+
+            history.SetFavoriteState([firstPath, secondPath], isFavorite: false);
+
+            Assert.All(history.LoadSnapshot(10, CancellationToken.None).Items, item => Assert.False(item.IsFavorite));
         }
         finally
         {
@@ -356,7 +387,7 @@ public sealed class LongCaptureAssemblerTests
         try
         {
             var settings = new AppSettingsService(dataDirectory);
-            var history = new CaptureHistoryService(settings);
+            using var history = new CaptureHistoryService(settings);
             var imagePath = history.Save(CreatePattern(48, 36, 12));
 
             Assert.False(history.HasOcrIndex(imagePath));
@@ -384,7 +415,7 @@ public sealed class LongCaptureAssemblerTests
         try
         {
             var settings = new AppSettingsService(dataDirectory);
-            var history = new CaptureHistoryService(settings);
+            using var history = new CaptureHistoryService(settings);
             var indexedPath = history.Save(CreatePattern(64, 40, 21));
             Thread.Sleep(20);
             var missingPath = history.Save(CreatePattern(64, 40, 22));
@@ -393,6 +424,52 @@ public sealed class LongCaptureAssemblerTests
             var missing = history.FindImagesWithoutOcrIndex(CancellationToken.None);
 
             Assert.Equal([missingPath], missing);
+        }
+        finally
+        {
+            if (Directory.Exists(dataDirectory))
+            {
+                Directory.Delete(dataDirectory, true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task LegacyFavoriteAndOcrFilesAreImportedIntoMetadataDatabase()
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), $"QingSnap-history-migration-{Guid.NewGuid():N}");
+        string imagePath;
+        try
+        {
+            var settings = new AppSettingsService(dataDirectory);
+            using (var original = new CaptureHistoryService(settings))
+            {
+                imagePath = original.Save(CreatePattern(72, 54, 31));
+                Assert.True(original.ToggleFavorite(imagePath));
+                original.SaveOcrText(imagePath, "旧版 OCR 索引");
+            }
+
+            foreach (var databaseFile in Directory.EnumerateFiles(dataDirectory, "history-metadata.db*"))
+            {
+                File.Delete(databaseFile);
+            }
+
+            string databasePath;
+            using (var migrated = new CaptureHistoryService(settings))
+            {
+                var item = Assert.Single(migrated.LoadSnapshot(10, CancellationToken.None).Items);
+                Assert.True(item.IsFavorite);
+                Assert.Equal("旧版 OCR 索引", item.SearchText);
+                databasePath = migrated.MetadataDatabasePath;
+            }
+
+            Assert.True(File.Exists(databasePath));
+            using var store = new HistoryMetadataStore(dataDirectory);
+            var metadata = Assert.Single(await store.LoadByPathsAsync([imagePath])).Value;
+            Assert.True(metadata.IsFavorite);
+            Assert.Equal(HistoryOcrIndexState.Indexed, metadata.OcrIndexState);
+            Assert.Equal("旧版 OCR 索引", metadata.OcrText);
+            Assert.False(string.IsNullOrWhiteSpace(metadata.ImageHash));
         }
         finally
         {

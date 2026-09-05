@@ -30,6 +30,8 @@ public partial class StickyImageWindow : Window
     private readonly BitmapSource _image;
     private readonly ClipboardService _clipboardService;
     private readonly OcrService _ocrService;
+    private readonly QrCodeService _qrCodeService;
+    private readonly string _sourceName;
     private readonly DispatcherTimer _feedbackTimer;
     private readonly DispatcherTimer _collapsedDockHideTimer = new()
     {
@@ -52,6 +54,7 @@ public partial class StickyImageWindow : Window
     private bool _isSelectingText;
     private int _selectionAnchorIndex = -1;
     private CancellationTokenSource? _ocrCancellation;
+    private CancellationTokenSource? _qrCodeCancellation;
     private Task<OcrRecognitionResult>? _ocrPreloadTask;
     private bool _isOcrPreloadObserved;
     private OcrRecognitionResult? _ocrResult;
@@ -80,7 +83,8 @@ public partial class StickyImageWindow : Window
         AppSettings settings,
         DrawingRectangle? initialRegion = null,
         DrawingPoint? initialPosition = null,
-        Task<OcrRecognitionResult>? prefetchedOcr = null)
+        Task<OcrRecognitionResult>? prefetchedOcr = null,
+        QrCodeService? qrCodeService = null)
     {
         if (image.CanFreeze && !image.IsFrozen)
         {
@@ -90,6 +94,8 @@ public partial class StickyImageWindow : Window
         _image = image;
         _clipboardService = clipboardService;
         _ocrService = ocrService;
+        _qrCodeService = qrCodeService ?? new QrCodeService();
+        _sourceName = sourceName;
         _usesCloseButton = string.Equals(
             settings.CloseInteraction,
             "Button",
@@ -102,6 +108,8 @@ public partial class StickyImageWindow : Window
         _isLongImage = _imageHeightDip / Math.Max(1, _imageWidthDip) >= LongImageAspectThreshold;
 
         InitializeComponent();
+        QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
+        LongQrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         Title = $"QingSnap 贴图 — {Path.GetFileName(sourceName)}";
         PinnedImage.Source = image;
         LongPinnedImage.Source = image;
@@ -145,6 +153,9 @@ public partial class StickyImageWindow : Window
             _dockTransitionTimer?.Stop();
             _ocrCancellation?.Cancel();
             _ocrCancellation?.Dispose();
+            _qrCodeCancellation?.Cancel();
+            _qrCodeCancellation?.Dispose();
+            ResourceDiagnostics.Sample("PinClosed");
         };
     }
 
@@ -163,6 +174,7 @@ public partial class StickyImageWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        ResourceDiagnostics.Sample("PinCreated", ("LongImage", _isLongImage ? 1 : 0));
         ScheduleOcrPreload();
         var workArea = SystemParameters.WorkArea;
         _fitScale = Math.Min(
@@ -333,8 +345,9 @@ public partial class StickyImageWindow : Window
         catch (OperationCanceledException)
         {
         }
-        catch
+        catch (Exception exception)
         {
+            DiagnosticLog.Warning("OCR", $"贴图 OCR 预载失败：{exception.Message}");
             if (ReferenceEquals(_ocrPreloadTask, preloadTask))
             {
                 _ocrPreloadTask = null;
@@ -708,6 +721,76 @@ public partial class StickyImageWindow : Window
     };
 
     private void OnCopyClick(object sender, RoutedEventArgs e) => CopyImage();
+
+    private async void OnRecognizeQrCodeClick(object sender, RoutedEventArgs e)
+    {
+        _qrCodeCancellation?.Cancel();
+        _qrCodeCancellation?.Dispose();
+        var cancellation = new CancellationTokenSource();
+        _qrCodeCancellation = cancellation;
+        QrCodeHotspotLayer.ClearResults();
+        LongQrCodeHotspotLayer.ClearResults();
+        ShowFeedback("正在识别二维码…");
+        try
+        {
+            var results = await _qrCodeService.RecognizeAsync(_image, cancellation.Token);
+            if (cancellation.IsCancellationRequested || !ReferenceEquals(_qrCodeCancellation, cancellation))
+            {
+                return;
+            }
+
+            if (results.Count == 0)
+            {
+                ShowFeedback("未检测到二维码");
+                return;
+            }
+
+            QrCodeHotspotLayer.ShowResults(
+                results,
+                _image.PixelWidth,
+                _image.PixelHeight,
+                Stretch.Uniform);
+            LongQrCodeHotspotLayer.ShowResults(
+                results,
+                _image.PixelWidth,
+                _image.PixelHeight,
+                Stretch.Fill);
+            ShowFeedback($"已找到 {results.Count:N0} 个 · 悬停查看，单击使用");
+            DiagnosticLog.Info(
+                "QrCode",
+                $"贴图二维码热点已显示：{results.Count:N0} 个结果，来源 {Path.GetFileName(_sourceName)}。");
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, "贴图二维码识别失败。");
+            ShowFeedback("二维码识别失败，请换一张清晰图片重试");
+        }
+        finally
+        {
+            if (ReferenceEquals(_qrCodeCancellation, cancellation))
+            {
+                _qrCodeCancellation = null;
+            }
+
+            cancellation.Dispose();
+        }
+    }
+
+    private async void OnQrCodeHotspotInvoked(QrCodeResult result)
+    {
+        try
+        {
+            ShowFeedback(await QrCodeInteractionService.InvokeAsync(result, _clipboardService));
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("QrCode", exception, "执行贴图二维码热点操作失败。");
+            ShowFeedback(result.IsUrl ? "无法打开此链接" : "复制二维码内容失败");
+        }
+    }
 
     private void OnFitClick(object sender, RoutedEventArgs e)
     {

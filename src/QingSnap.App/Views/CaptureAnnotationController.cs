@@ -19,12 +19,15 @@ using FontFamily = System.Windows.Media.FontFamily;
 using Brushes = System.Windows.Media.Brushes;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfPanel = System.Windows.Controls.Panel;
+using QingSnap.App.Services;
 
 namespace QingSnap.App.Views;
 
 internal sealed class CaptureAnnotationController
 {
     private const string NumberAnnotationTag = "QingSnap.NumberAnnotation";
+    private static readonly TimeSpan WheelMergeInterval = TimeSpan.FromMilliseconds(450);
+    private static readonly TimeSpan KeyboardMoveMergeInterval = TimeSpan.FromMilliseconds(450);
     private readonly Canvas _layer;
     private readonly ScreenSnapshot _snapshot;
     private readonly List<FrameworkElement> _annotations = [];
@@ -41,19 +44,31 @@ internal sealed class CaptureAnnotationController
     private double _fontSize;
     private int _numberSequence = 1;
     private FrameworkElement? _selectedElement;
+    private readonly List<FrameworkElement> _selectedElements = [];
     private WpfPoint _moveOrigin;
-    private string? _copiedAnnotationXaml;
+    private CopiedAnnotationGroup? _copiedAnnotations;
     private SelectionManipulationMode _selectionManipulation;
     private Ellipse? _startHandle;
     private Ellipse? _endHandle;
     private ShapeRectangle? _selectionFrame;
     private readonly Dictionary<SelectionManipulationMode, ShapeRectangle> _resizeHandles = [];
     private WpfRect _moveBounds;
+    private readonly Dictionary<FrameworkElement, WpfPoint> _moveOrigins = [];
     private WpfRect _resizeOriginalBounds;
     private PointCollection? _resizeOriginalPoints;
     private double _resizeOriginalFontSize;
     private double _resizeOriginalMaxWidth;
     private TextBlock? _editingTextBlock;
+    private readonly UndoRedoHistory<AnnotationDocumentSnapshot> _history = new();
+    private AnnotationDocumentSnapshot? _pendingGestureSnapshot;
+    private AnnotationDocumentSnapshot? _pendingTextSnapshot;
+    private FrameworkElement? _lastWheelTarget;
+    private DateTime _lastWheelAdjustmentUtc;
+    private ShapeRectangle? _marqueeFrame;
+    private bool _marqueeAdditive;
+    private FrameworkElement[] _marqueeInitialSelection = [];
+    private FrameworkElement[] _lastKeyboardMoveSelection = [];
+    private DateTime _lastKeyboardMoveUtc;
 
     public CaptureAnnotationController(Canvas layer, ScreenSnapshot snapshot, AppSettings settings)
     {
@@ -70,6 +85,10 @@ internal sealed class CaptureAnnotationController
 
     public bool HasAnnotations => _annotations.Count > 0;
 
+    public bool CanUndo => _history.CanUndo;
+
+    public bool CanRedo => _history.CanRedo;
+
     public bool IsDrawing => _workingElement is not null && ActiveTool != CaptureAnnotationTool.Text;
 
     public bool IsAdjustingEndpoint =>
@@ -77,11 +96,14 @@ internal sealed class CaptureAnnotationController
         _workingElement is not null &&
         _selectionManipulation != SelectionManipulationMode.Move;
 
-    public bool HasSelection => _selectedElement is not null;
+    public bool HasSelection => _selectedElements.Count > 0;
 
-    public bool CanEditSelectedText => _selectedElement is TextBlock;
+    internal int SelectionCount => _selectedElements.Count;
 
-    public bool CanEditSelectedNumber => TryGetNumberBadge(_selectedElement, out _, out _);
+    public bool CanEditSelectedText => _selectedElements.Count == 1 && _selectedElement is TextBlock;
+
+    public bool CanEditSelectedNumber =>
+        _selectedElements.Count == 1 && TryGetNumberBadge(_selectedElement, out _, out _);
 
     public Color CurrentColor => (_annotationBrush as SolidColorBrush)?.Color ?? Color.FromRgb(255, 78, 91);
 
@@ -89,7 +111,18 @@ internal sealed class CaptureAnnotationController
 
     public double CurrentFontSize => _fontSize;
 
-    public void SetColor(Color color) => _annotationBrush = CreateBrush(color);
+    public void SetColor(Color color)
+    {
+        if (CurrentColor == color)
+        {
+            return;
+        }
+
+        var before = CaptureSnapshot();
+        _annotationBrush = CreateBrush(color);
+        CommitOperation(before);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
 
     public System.Windows.Input.Cursor GetSelectionCursorAt(WpfPoint surfacePoint)
     {
@@ -98,7 +131,16 @@ internal sealed class CaptureAnnotationController
             return WpfCursors.Arrow;
         }
 
-        var mode = HitSelectionHandle(ToLocal(surfacePoint));
+        var localPoint = ToLocal(surfacePoint);
+        var mode = _selectedElements.Count == 1
+            ? HitSelectionHandle(localPoint)
+            : SelectionManipulationMode.Move;
+        if (mode == SelectionManipulationMode.Move &&
+            !_selectedElements.Any(element => IsPointInsideAnnotation(element, localPoint)))
+        {
+            return WpfCursors.Cross;
+        }
+
         return mode switch
         {
             SelectionManipulationMode.ResizeTopLeft or SelectionManipulationMode.ResizeBottomRight => WpfCursors.SizeNWSE,
@@ -132,7 +174,49 @@ internal sealed class CaptureAnnotationController
         _layer.Visibility = selection.IsEmpty ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    public bool Begin(WpfPoint surfacePoint)
+    public bool NudgeSelection(double deltaX, double deltaY)
+    {
+        if (ActiveTool != CaptureAnnotationTool.Select || _selectedElements.Count == 0 ||
+            (!double.IsFinite(deltaX) || !double.IsFinite(deltaY)) ||
+            (Math.Abs(deltaX) < 0.0001 && Math.Abs(deltaY) < 0.0001))
+        {
+            return false;
+        }
+
+        CommitText();
+        var bounds = GetCombinedBounds(_selectedElements);
+        if (bounds.IsEmpty)
+        {
+            return false;
+        }
+
+        deltaX = Math.Clamp(deltaX, -bounds.Left, _layer.Width - bounds.Right);
+        deltaY = Math.Clamp(deltaY, -bounds.Top, _layer.Height - bounds.Bottom);
+        if (Math.Abs(deltaX) < 0.0001 && Math.Abs(deltaY) < 0.0001)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        var mergesWithPrevious = now - _lastKeyboardMoveUtc <= KeyboardMoveMergeInterval &&
+                                 _lastKeyboardMoveSelection.Length == _selectedElements.Count &&
+                                 _lastKeyboardMoveSelection.SequenceEqual(_selectedElements);
+        var before = mergesWithPrevious ? null : CaptureSnapshot();
+        foreach (var element in _selectedElements)
+        {
+            Canvas.SetLeft(element, SafeCanvasPosition(Canvas.GetLeft(element)) + deltaX);
+            Canvas.SetTop(element, SafeCanvasPosition(Canvas.GetTop(element)) + deltaY);
+        }
+
+        UpdateSelectionAdorners();
+        CommitOperation(before);
+        _lastKeyboardMoveSelection = _selectedElements.ToArray();
+        _lastKeyboardMoveUtc = now;
+        Changed?.Invoke(this, EventArgs.Empty);
+        return true;
+    }
+
+    public bool Begin(WpfPoint surfacePoint, bool toggleSelection = false)
     {
         if (ActiveTool == CaptureAnnotationTool.None || !_selection.Contains(surfacePoint))
         {
@@ -145,6 +229,8 @@ internal sealed class CaptureAnnotationController
             ClearSelection();
         }
         _start = ToLocal(surfacePoint);
+        ResetWheelMerge();
+        ResetKeyboardMoveMerge();
         switch (ActiveTool)
         {
             case CaptureAnnotationTool.Pen:
@@ -227,11 +313,19 @@ internal sealed class CaptureAnnotationController
                 AddNumber(_start);
                 return true;
             case CaptureAnnotationTool.Select:
-                return BeginSelection(_start);
+                var beganSelection = BeginSelection(_start, toggleSelection);
+                if (beganSelection)
+                {
+                    _pendingGestureSnapshot = _selectionManipulation == SelectionManipulationMode.Marquee
+                        ? null
+                        : CaptureSnapshot();
+                }
+                return beganSelection;
             default:
                 return false;
         }
 
+        _pendingGestureSnapshot = CaptureSnapshot();
         _layer.Children.Add(_workingElement);
         Update(surfacePoint);
         return true;
@@ -272,7 +366,16 @@ internal sealed class CaptureAnnotationController
                 PositionRect(_workingElement, Normalize(_start, current));
                 break;
             case CaptureAnnotationTool.Select:
-                if (_selectionManipulation == SelectionManipulationMode.Move)
+                if (_selectionManipulation == SelectionManipulationMode.Marquee)
+                {
+                    UpdateMarquee(current);
+                }
+                else if (_selectionManipulation == SelectionManipulationMode.Move &&
+                         _selectedElements.Count > 1)
+                {
+                    MoveSelectedGroup(current);
+                }
+                else if (_selectionManipulation == SelectionManipulationMode.Move)
                 {
                     var deltaX = current.X - _start.X;
                     var deltaY = current.Y - _start.Y;
@@ -311,8 +414,21 @@ internal sealed class CaptureAnnotationController
 
         if (ActiveTool == CaptureAnnotationTool.Select)
         {
+            if (_selectionManipulation == SelectionManipulationMode.Marquee)
+            {
+                CompleteMarquee();
+                _workingElement = null;
+                _pendingGestureSnapshot = null;
+                _selectionManipulation = SelectionManipulationMode.Move;
+                UpdateSelectionAdorners();
+                Changed?.Invoke(this, EventArgs.Empty);
+                return;
+            }
+
             _selectionManipulation = SelectionManipulationMode.Move;
             UpdateSelectionAdorners();
+            CommitOperation(_pendingGestureSnapshot);
+            _pendingGestureSnapshot = null;
             Changed?.Invoke(this, EventArgs.Empty);
             return;
         }
@@ -329,8 +445,11 @@ internal sealed class CaptureAnnotationController
                 _layer.Children.Add(processed);
                 _annotations.Add(processed);
                 RefreshAnnotationZOrder();
+                CommitOperation(_pendingGestureSnapshot);
                 Changed?.Invoke(this, EventArgs.Empty);
             }
+
+            _pendingGestureSnapshot = null;
 
             return;
         }
@@ -338,15 +457,58 @@ internal sealed class CaptureAnnotationController
         if (!IsMeaningful(completed))
         {
             _layer.Children.Remove(completed);
+            _pendingGestureSnapshot = null;
             return;
         }
 
         _annotations.Add(completed);
         RefreshAnnotationZOrder();
+        CommitOperation(_pendingGestureSnapshot);
+        _pendingGestureSnapshot = null;
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public void Undo()
+    {
+        CommitText();
+        ResetWheelMerge();
+        ResetKeyboardMoveMerge();
+        var current = CaptureSnapshot();
+        if (current is null || !_history.TryUndo(current, out var target))
+        {
+            return;
+        }
+
+        if (!RestoreSnapshot(target))
+        {
+            _history.TryRedo(target, out _);
+            return;
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Redo()
+    {
+        CommitText();
+        ResetWheelMerge();
+        ResetKeyboardMoveMerge();
+        var current = CaptureSnapshot();
+        if (current is null || !_history.TryRedo(current, out var target))
+        {
+            return;
+        }
+
+        if (!RestoreSnapshot(target))
+        {
+            _history.TryUndo(target, out _);
+            return;
+        }
+
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Clear()
     {
         CommitText();
         if (_annotations.Count == 0)
@@ -354,18 +516,22 @@ internal sealed class CaptureAnnotationController
             return;
         }
 
-        var last = _annotations[^1];
-        _annotations.RemoveAt(_annotations.Count - 1);
-        _layer.Children.Remove(last);
-        if (ReferenceEquals(last, _selectedElement))
-        {
-            ClearSelection();
-        }
-        RefreshAnnotationZOrder();
+        var before = CaptureSnapshot();
+        ClearDocumentContents();
+        CommitOperation(before);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    public void Clear()
+    public void Reset()
+    {
+        ClearDocumentContents();
+        _history.Clear();
+        ResetWheelMerge();
+        ResetKeyboardMoveMerge();
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ClearDocumentContents()
     {
         CancelWorkingElement();
         CancelText();
@@ -377,8 +543,14 @@ internal sealed class CaptureAnnotationController
         }
 
         _annotations.Clear();
+        _selectedElements.Clear();
         _selectedElement = null;
-        Changed?.Invoke(this, EventArgs.Empty);
+        _moveOrigins.Clear();
+        _marqueeFrame = null;
+        _marqueeInitialSelection = [];
+        _marqueeAdditive = false;
+        _pendingGestureSnapshot = null;
+        _pendingTextSnapshot = null;
     }
 
     public bool CommitText()
@@ -396,16 +568,25 @@ internal sealed class CaptureAnnotationController
         var top = Canvas.GetTop(editor);
         _layer.Children.Remove(editor);
 
+        var mutated = false;
         if (_editingTextBlock is { } existing)
         {
             if (string.IsNullOrEmpty(text))
             {
                 _annotations.Remove(existing);
                 _layer.Children.Remove(existing);
+                _selectedElements.Remove(existing);
                 _selectedElement = null;
+                mutated = true;
             }
             else
             {
+                mutated = !string.Equals(existing.Text, text, StringComparison.Ordinal) ||
+                          Math.Abs(existing.FontSize - editor.FontSize) > 0.001 ||
+                          !Equals(existing.Foreground, editor.Foreground) ||
+                          Math.Abs(existing.MaxWidth - editor.MaxWidth) > 0.001 ||
+                          Math.Abs(SafeCanvasPosition(Canvas.GetLeft(existing)) - left) > 0.001 ||
+                          Math.Abs(SafeCanvasPosition(Canvas.GetTop(existing)) - top) > 0.001;
                 existing.Text = text;
                 existing.FontSize = editor.FontSize;
                 existing.Foreground = editor.Foreground;
@@ -444,15 +625,23 @@ internal sealed class CaptureAnnotationController
             _layer.Children.Add(label);
             _annotations.Add(label);
             RefreshAnnotationZOrder();
+            mutated = true;
         }
 
         _isCommittingText = false;
-        Changed?.Invoke(this, EventArgs.Empty);
+        if (mutated)
+        {
+            CommitOperation(_pendingTextSnapshot);
+            Changed?.Invoke(this, EventArgs.Empty);
+        }
+        _pendingTextSnapshot = null;
         return true;
     }
 
     private void BeginText(WpfPoint point, TextBlock? existing = null)
     {
+        ResetWheelMerge();
+        _pendingTextSnapshot = CaptureSnapshot();
         var editorFontSize = existing?.FontSize ?? _fontSize;
         var editorBrush = existing?.Foreground ?? _annotationBrush;
         var editorMaxWidth = existing?.MaxWidth ?? Math.Max(140, _layer.Width - point.X);
@@ -519,6 +708,7 @@ internal sealed class CaptureAnnotationController
             _editingTextBlock = null;
             UpdateSelectionAdorners();
         }
+        _pendingTextSnapshot = null;
     }
 
     private void CancelWorkingElement()
@@ -528,8 +718,16 @@ internal sealed class CaptureAnnotationController
             return;
         }
 
-        _layer.Children.Remove(_workingElement);
+        if (ActiveTool != CaptureAnnotationTool.Select || ReferenceEquals(_workingElement, _marqueeFrame))
+        {
+            _layer.Children.Remove(_workingElement);
+        }
+        if (ReferenceEquals(_workingElement, _marqueeFrame))
+        {
+            _marqueeFrame = null;
+        }
         _workingElement = null;
+        _pendingGestureSnapshot = null;
         HideDirectionHandles();
     }
 
@@ -593,6 +791,7 @@ internal sealed class CaptureAnnotationController
 
     private void AddNumber(WpfPoint point)
     {
+        var before = CaptureSnapshot();
         var badge = new Border
         {
             Tag = NumberAnnotationTag,
@@ -619,12 +818,14 @@ internal sealed class CaptureAnnotationController
         _layer.Children.Add(badge);
         _annotations.Add(badge);
         RefreshAnnotationZOrder();
+        CommitOperation(before);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public bool TryGetSelectedNumber(out int value)
     {
-        if (TryGetNumberBadge(_selectedElement, out _, out var label) &&
+        if (_selectedElements.Count == 1 &&
+            TryGetNumberBadge(_selectedElement, out _, out var label) &&
             int.TryParse(label.Text, out value))
         {
             return true;
@@ -636,12 +837,19 @@ internal sealed class CaptureAnnotationController
 
     public bool SetSelectedNumber(int value)
     {
-        if (value is < 1 or > 9999 ||
+        if (_selectedElements.Count != 1 ||
+            value is < 1 or > 9999 ||
             !TryGetNumberBadge(_selectedElement, out _, out var label))
         {
             return false;
         }
 
+        if (string.Equals(label.Text, value.ToString(), StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var before = CaptureSnapshot();
         label.Text = value.ToString();
         _numberSequence = Math.Max(
             1,
@@ -653,6 +861,7 @@ internal sealed class CaptureAnnotationController
                 .DefaultIfEmpty(0)
                 .Max() + 1);
         UpdateSelectionAdorners();
+        CommitOperation(before);
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -690,9 +899,9 @@ internal sealed class CaptureAnnotationController
             ((start - point).Length <= 11 || (end - point).Length <= 11));
     }
 
-    private bool BeginSelection(WpfPoint point)
+    private bool BeginSelection(WpfPoint point, bool toggleSelection)
     {
-        if (_selectedElement is not null)
+        if (!toggleSelection && _selectedElements.Count == 1 && _selectedElement is not null)
         {
             var handleMode = HitSelectionHandle(point);
             if (handleMode != SelectionManipulationMode.Move)
@@ -704,26 +913,43 @@ internal sealed class CaptureAnnotationController
             }
         }
 
-        var hit = _annotations.LastOrDefault(annotation =>
+        var hit = HitAnnotation(point);
+        if (toggleSelection && hit is not null)
         {
-            var bounds = GetVisualBounds(annotation);
-            var padding = TryGetAnnotationEndpoints(annotation, out _, out _) ? 12 : 7;
-            bounds.Inflate(padding, padding);
-            return bounds.Contains(point);
-        });
-        if (hit is null)
-        {
-            ClearSelection();
+            ResetKeyboardMoveMerge();
+            if (_selectedElements.Remove(hit))
+            {
+                _selectedElement = _selectedElements.LastOrDefault();
+            }
+            else
+            {
+                _selectedElements.Add(hit);
+                _selectedElement = hit;
+            }
+
+            UpdateSelectionAdorners();
             return false;
         }
 
-        _selectedElement = hit;
-        _moveOrigin = new WpfPoint(
-            SafeCanvasPosition(Canvas.GetLeft(_selectedElement)),
-            SafeCanvasPosition(Canvas.GetTop(_selectedElement)));
-        _moveBounds = GetVisualBounds(_selectedElement);
+        if (hit is null)
+        {
+            BeginMarquee(point, toggleSelection);
+            return true;
+        }
+
+        if (!_selectedElements.Contains(hit))
+        {
+            SetSingleSelection(hit);
+        }
+        else
+        {
+            _selectedElement = hit;
+        }
+
         _selectionManipulation = SelectionManipulationMode.Move;
-        if (TryGetAnnotationEndpoints(_selectedElement, out var start, out var end))
+        if (_selectedElements.Count == 1 &&
+            _selectedElement is not null &&
+            TryGetAnnotationEndpoints(_selectedElement, out var start, out var end))
         {
             var startDistance = (start - point).Length;
             var endDistance = (end - point).Length;
@@ -742,33 +968,123 @@ internal sealed class CaptureAnnotationController
         return true;
     }
 
-    public bool SelectAt(WpfPoint surfacePoint)
+    public bool SelectAt(WpfPoint surfacePoint, bool preserveExistingSelection = false)
     {
         if (!_selection.Contains(surfacePoint))
         {
             return false;
         }
 
-        var local = ToLocal(surfacePoint);
-        var hit = _annotations.LastOrDefault(annotation =>
-        {
-            var bounds = GetVisualBounds(annotation);
-            bounds.Inflate(TryGetAnnotationEndpoints(annotation, out _, out _) ? 12 : 7, 7);
-            return bounds.Contains(local);
-        });
+        var hit = HitAnnotation(ToLocal(surfacePoint));
         if (hit is null)
         {
             return false;
         }
 
-        _selectedElement = hit;
+        if (!preserveExistingSelection || !_selectedElements.Contains(hit))
+        {
+            SetSingleSelection(hit);
+        }
+        else
+        {
+            _selectedElement = hit;
+        }
         UpdateSelectionAdorners();
         return true;
     }
 
+    private FrameworkElement? HitAnnotation(WpfPoint localPoint) =>
+        _annotations.LastOrDefault(annotation => IsPointInsideAnnotation(annotation, localPoint));
+
+    private static bool IsPointInsideAnnotation(FrameworkElement annotation, WpfPoint localPoint)
+    {
+        var bounds = GetVisualBounds(annotation);
+        var padding = TryGetAnnotationEndpoints(annotation, out _, out _) ? 12 : 7;
+        bounds.Inflate(padding, padding);
+        return bounds.Contains(localPoint);
+    }
+
+    private void SetSingleSelection(FrameworkElement element)
+    {
+        ResetKeyboardMoveMerge();
+        _selectedElements.Clear();
+        _selectedElements.Add(element);
+        _selectedElement = element;
+    }
+
+    private void BeginMarquee(WpfPoint point, bool additive)
+    {
+        _marqueeAdditive = additive;
+        _marqueeInitialSelection = additive ? _selectedElements.ToArray() : [];
+        if (!additive)
+        {
+            ClearSelection();
+        }
+
+        _start = point;
+        _selectionManipulation = SelectionManipulationMode.Marquee;
+        _marqueeFrame = new ShapeRectangle
+        {
+            Stroke = _accentBrush,
+            StrokeThickness = 1,
+            StrokeDashArray = new DoubleCollection([5, 3]),
+            Fill = new SolidColorBrush(Color.FromArgb(28, 118, 223, 238)),
+            RadiusX = 2,
+            RadiusY = 2,
+            IsHitTestVisible = false
+        };
+        _layer.Children.Add(_marqueeFrame);
+        WpfPanel.SetZIndex(_marqueeFrame, 10002);
+        PositionRect(_marqueeFrame, new WpfRect(point, point));
+        _workingElement = _marqueeFrame;
+    }
+
+    private void UpdateMarquee(WpfPoint current)
+    {
+        if (_marqueeFrame is not null)
+        {
+            PositionRect(_marqueeFrame, Normalize(_start, current));
+        }
+    }
+
+    private void CompleteMarquee()
+    {
+        if (_marqueeFrame is null)
+        {
+            return;
+        }
+
+        var marqueeBounds = GetElementRect(_marqueeFrame);
+        _layer.Children.Remove(_marqueeFrame);
+        _marqueeFrame = null;
+
+        var selected = _marqueeAdditive
+            ? _marqueeInitialSelection.Where(_annotations.Contains).ToList()
+            : [];
+        if (marqueeBounds.Width >= 3 || marqueeBounds.Height >= 3)
+        {
+            foreach (var annotation in _annotations)
+            {
+                var bounds = GetVisualBounds(annotation);
+                bounds.Inflate(2, 2);
+                if (bounds.IntersectsWith(marqueeBounds) && !selected.Contains(annotation))
+                {
+                    selected.Add(annotation);
+                }
+            }
+        }
+
+        _selectedElements.Clear();
+        _selectedElements.AddRange(selected);
+        _selectedElement = _selectedElements.LastOrDefault();
+        ResetKeyboardMoveMerge();
+        _marqueeInitialSelection = [];
+        _marqueeAdditive = false;
+    }
+
     public bool BeginEditSelectedText()
     {
-        if (_selectedElement is not TextBlock text)
+        if (_selectedElements.Count != 1 || _selectedElement is not TextBlock text)
         {
             return false;
         }
@@ -798,10 +1114,18 @@ internal sealed class CaptureAnnotationController
             return;
         }
 
+        _moveOrigins.Clear();
+        foreach (var element in _selectedElements)
+        {
+            _moveOrigins[element] = new WpfPoint(
+                SafeCanvasPosition(Canvas.GetLeft(element)),
+                SafeCanvasPosition(Canvas.GetTop(element)));
+        }
+
         _moveOrigin = new WpfPoint(
             SafeCanvasPosition(Canvas.GetLeft(_selectedElement)),
             SafeCanvasPosition(Canvas.GetTop(_selectedElement)));
-        _moveBounds = GetVisualBounds(_selectedElement);
+        _moveBounds = GetCombinedBounds(_selectedElements);
         _resizeOriginalBounds = GetResizeBounds(_selectedElement);
         _resizeOriginalPoints = _selectedElement is Polyline polyline
             ? new PointCollection(polyline.Points)
@@ -811,6 +1135,50 @@ internal sealed class CaptureAnnotationController
             _resizeOriginalFontSize = text.FontSize;
             _resizeOriginalMaxWidth = text.MaxWidth;
         }
+    }
+
+    private void MoveSelectedGroup(WpfPoint current)
+    {
+        if (_selectedElements.Count == 0)
+        {
+            return;
+        }
+
+        var deltaX = current.X - _start.X;
+        var deltaY = current.Y - _start.Y;
+        deltaX = Math.Clamp(deltaX, -_moveBounds.Left, _layer.Width - _moveBounds.Right);
+        deltaY = Math.Clamp(deltaY, -_moveBounds.Top, _layer.Height - _moveBounds.Bottom);
+        foreach (var element in _selectedElements)
+        {
+            if (!_moveOrigins.TryGetValue(element, out var origin))
+            {
+                continue;
+            }
+
+            Canvas.SetLeft(element, origin.X + deltaX);
+            Canvas.SetTop(element, origin.Y + deltaY);
+        }
+
+        UpdateSelectionAdorners();
+    }
+
+    private static WpfRect GetCombinedBounds(IEnumerable<FrameworkElement> elements)
+    {
+        var combined = WpfRect.Empty;
+        foreach (var element in elements)
+        {
+            var bounds = GetVisualBounds(element);
+            if (combined.IsEmpty)
+            {
+                combined = bounds;
+            }
+            else
+            {
+                combined.Union(bounds);
+            }
+        }
+
+        return combined;
     }
 
     private void ResizeSelected(WpfPoint current)
@@ -1085,8 +1453,17 @@ internal sealed class CaptureAnnotationController
     private void UpdateSelectionAdorners()
     {
         HideSelectionAdorners();
-        if (_selectedElement is null || ActiveTool != CaptureAnnotationTool.Select || _textEditor is not null)
+        if (_selectedElements.Count == 0 ||
+            _selectedElement is null ||
+            ActiveTool != CaptureAnnotationTool.Select ||
+            _textEditor is not null)
         {
+            return;
+        }
+
+        if (_selectedElements.Count > 1)
+        {
+            ShowGroupSelectionAdorner();
             return;
         }
 
@@ -1098,6 +1475,25 @@ internal sealed class CaptureAnnotationController
         {
             ShowResizeAdorners(_selectedElement);
         }
+    }
+
+    private void ShowGroupSelectionAdorner()
+    {
+        _selectionFrame = new ShapeRectangle
+        {
+            Stroke = _accentBrush,
+            StrokeThickness = 1.5,
+            StrokeDashArray = new DoubleCollection([5, 3]),
+            Fill = new SolidColorBrush(Color.FromArgb(12, 118, 223, 238)),
+            RadiusX = 2,
+            RadiusY = 2,
+            IsHitTestVisible = false
+        };
+        var bounds = GetCombinedBounds(_selectedElements);
+        bounds.Inflate(4, 4);
+        PositionRect(_selectionFrame, bounds);
+        _layer.Children.Add(_selectionFrame);
+        WpfPanel.SetZIndex(_selectionFrame, 10000);
     }
 
     private SelectionManipulationMode HitSelectionHandle(WpfPoint localPoint)
@@ -1141,12 +1537,22 @@ internal sealed class CaptureAnnotationController
 
     public void ClearSelection()
     {
+        ResetKeyboardMoveMerge();
         if (_workingElement is not null && ActiveTool == CaptureAnnotationTool.Select)
         {
+            if (ReferenceEquals(_workingElement, _marqueeFrame))
+            {
+                _layer.Children.Remove(_workingElement);
+                _marqueeFrame = null;
+            }
             _workingElement = null;
         }
         HideSelectionAdorners();
+        _selectedElements.Clear();
         _selectedElement = null;
+        _moveOrigins.Clear();
+        _marqueeInitialSelection = [];
+        _marqueeAdditive = false;
         _selectionManipulation = SelectionManipulationMode.Move;
     }
 
@@ -1164,61 +1570,77 @@ internal sealed class CaptureAnnotationController
 
     public void DeleteSelected()
     {
-        if (_selectedElement is null)
+        if (_selectedElements.Count == 0)
         {
             return;
         }
 
-        _annotations.Remove(_selectedElement);
-        _layer.Children.Remove(_selectedElement);
+        var before = CaptureSnapshot();
+        foreach (var element in _selectedElements.ToArray())
+        {
+            _annotations.Remove(element);
+            _layer.Children.Remove(element);
+        }
         ClearSelection();
         RefreshAnnotationZOrder();
+        CommitOperation(before);
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
     public void CopySelected()
     {
-        if (_selectedElement is null)
+        if (_selectedElements.Count == 0)
         {
             return;
         }
 
         try
         {
-            _copiedAnnotationXaml = XamlWriter.Save(_selectedElement);
+            var selected = _annotations
+                .Where(_selectedElements.Contains)
+                .Select(AnnotationElementSnapshot.Capture)
+                .ToArray();
+            _copiedAnnotations = selected.Length == 0
+                ? null
+                : new CopiedAnnotationGroup(selected);
         }
-        catch (InvalidOperationException)
+        catch (Exception exception)
         {
-            _copiedAnnotationXaml = null;
+            _copiedAnnotations = null;
+            DiagnosticLog.Error("AnnotationHistory", exception, "无法复制标注对象。");
         }
     }
 
     public void PasteSelected()
     {
-        if (string.IsNullOrWhiteSpace(_copiedAnnotationXaml))
+        if (_copiedAnnotations is not { Elements.Length: > 0 } copied)
         {
             return;
         }
 
         try
         {
-            if (XamlReader.Parse(_copiedAnnotationXaml) is not FrameworkElement clone)
+            var before = CaptureSnapshot();
+            var clones = copied.Elements.Select(element => element.Restore()).ToArray();
+            ClearSelection();
+            foreach (var clone in clones)
             {
-                return;
+                clone.IsHitTestVisible = false;
+                Canvas.SetLeft(clone, SafeCanvasPosition(Canvas.GetLeft(clone)) + 12);
+                Canvas.SetTop(clone, SafeCanvasPosition(Canvas.GetTop(clone)) + 12);
+                _layer.Children.Add(clone);
+                _annotations.Add(clone);
+                _selectedElements.Add(clone);
             }
-
-            clone.IsHitTestVisible = false;
-            Canvas.SetLeft(clone, SafeCanvasPosition(Canvas.GetLeft(clone)) + 12);
-            Canvas.SetTop(clone, SafeCanvasPosition(Canvas.GetTop(clone)) + 12);
-            _layer.Children.Add(clone);
-            _annotations.Add(clone);
-            _selectedElement = clone;
+            _selectedElement = clones[^1];
             RefreshAnnotationZOrder();
             UpdateSelectionAdorners();
+            CommitOperation(before);
             Changed?.Invoke(this, EventArgs.Empty);
         }
-        catch (Exception exception) when (exception is InvalidOperationException or System.Xml.XmlException)
+        catch (Exception exception)
         {
+            DiagnosticLog.Error("AnnotationHistory", exception, "无法粘贴标注对象。");
         }
     }
 
@@ -1232,29 +1654,66 @@ internal sealed class CaptureAnnotationController
 
     private bool ReorderSelected(int direction, bool toEdge)
     {
-        if (_selectedElement is null)
+        if (_selectedElements.Count == 0)
         {
             return false;
         }
 
-        var index = _annotations.IndexOf(_selectedElement);
-        if (index < 0)
+        var selected = _selectedElements.ToHashSet();
+        if (!selected.Any(_annotations.Contains))
         {
             return false;
         }
 
-        var target = toEdge
-            ? direction > 0 ? _annotations.Count - 1 : 0
-            : Math.Clamp(index + direction, 0, _annotations.Count - 1);
-        if (target == index)
+        var beforeOrder = _annotations.ToArray();
+        var before = CaptureSnapshot();
+        if (toEdge)
+        {
+            var selectedInOrder = _annotations.Where(selected.Contains).ToArray();
+            var unselectedInOrder = _annotations.Where(item => !selected.Contains(item)).ToArray();
+            _annotations.Clear();
+            if (direction > 0)
+            {
+                _annotations.AddRange(unselectedInOrder);
+                _annotations.AddRange(selectedInOrder);
+            }
+            else
+            {
+                _annotations.AddRange(selectedInOrder);
+                _annotations.AddRange(unselectedInOrder);
+            }
+        }
+        else if (direction > 0)
+        {
+            for (var index = _annotations.Count - 2; index >= 0; index--)
+            {
+                if (selected.Contains(_annotations[index]) && !selected.Contains(_annotations[index + 1]))
+                {
+                    (_annotations[index], _annotations[index + 1]) =
+                        (_annotations[index + 1], _annotations[index]);
+                }
+            }
+        }
+        else
+        {
+            for (var index = 1; index < _annotations.Count; index++)
+            {
+                if (selected.Contains(_annotations[index]) && !selected.Contains(_annotations[index - 1]))
+                {
+                    (_annotations[index], _annotations[index - 1]) =
+                        (_annotations[index - 1], _annotations[index]);
+                }
+            }
+        }
+
+        if (beforeOrder.SequenceEqual(_annotations))
         {
             return false;
         }
 
-        _annotations.RemoveAt(index);
-        _annotations.Insert(target, _selectedElement);
         RefreshAnnotationZOrder();
         UpdateSelectionAdorners();
+        CommitOperation(before);
         Changed?.Invoke(this, EventArgs.Empty);
         return true;
     }
@@ -1287,6 +1746,10 @@ internal sealed class CaptureAnnotationController
             return null;
         }
 
+        var now = DateTime.UtcNow;
+        var mergesWithPrevious = ReferenceEquals(target, _lastWheelTarget) &&
+                                 now - _lastWheelAdjustmentUtc <= WheelMergeInterval;
+        var before = mergesWithPrevious ? null : CaptureSnapshot();
         var direction = Math.Sign(wheelDelta);
         string? result = target switch
         {
@@ -1301,6 +1764,9 @@ internal sealed class CaptureAnnotationController
         };
         if (result is not null)
         {
+            CommitOperation(before);
+            _lastWheelTarget = target;
+            _lastWheelAdjustmentUtc = now;
             if (ReferenceEquals(target, _selectedElement))
             {
                 UpdateSelectionAdorners();
@@ -1325,7 +1791,7 @@ internal sealed class CaptureAnnotationController
         var current = (_annotationBrush as SolidColorBrush)?.Color ?? colors[0];
         var index = Array.FindIndex(colors, color => color == current);
         var next = colors[(index + 1 + colors.Length) % colors.Length];
-        _annotationBrush = CreateBrush(next);
+        SetColor(next);
         return next;
     }
 
@@ -1333,7 +1799,10 @@ internal sealed class CaptureAnnotationController
     {
         double[] values = [2, 3, 5, 8];
         var index = Array.FindIndex(values, value => Math.Abs(value - _strokeThickness) < 0.1);
+        var before = CaptureSnapshot();
         _strokeThickness = values[(index + 1 + values.Length) % values.Length];
+        CommitOperation(before);
+        Changed?.Invoke(this, EventArgs.Empty);
         return _strokeThickness;
     }
 
@@ -1341,9 +1810,219 @@ internal sealed class CaptureAnnotationController
     {
         double[] values = [14, 18, 24, 32, 42];
         var index = Array.FindIndex(values, value => Math.Abs(value - _fontSize) < 0.1);
+        var before = CaptureSnapshot();
         _fontSize = values[(index + 1 + values.Length) % values.Length];
+        CommitOperation(before);
+        Changed?.Invoke(this, EventArgs.Empty);
         return _fontSize;
     }
+
+    private AnnotationDocumentSnapshot? CaptureSnapshot()
+    {
+        try
+        {
+            var elements = _annotations
+                .Select(AnnotationElementSnapshot.Capture)
+                .ToArray();
+            return new AnnotationDocumentSnapshot(
+                elements,
+                _annotations
+                    .Select((element, index) => (element, index))
+                    .Where(item => _selectedElements.Contains(item.element))
+                    .Select(item => item.index)
+                    .ToArray(),
+                _numberSequence,
+                CurrentColor,
+                _strokeThickness,
+                _fontSize);
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("AnnotationHistory", exception, "无法创建标注撤销快照。");
+            return null;
+        }
+    }
+
+    private void CommitOperation(AnnotationDocumentSnapshot? previousState)
+    {
+        ResetWheelMerge();
+        ResetKeyboardMoveMerge();
+        if (previousState is null)
+        {
+            return;
+        }
+
+        var currentState = CaptureSnapshot();
+        if (currentState is null || previousState.IsEquivalentTo(currentState))
+        {
+            return;
+        }
+
+        _history.Record(previousState);
+    }
+
+    private bool RestoreSnapshot(AnnotationDocumentSnapshot snapshot)
+    {
+        try
+        {
+            var restored = snapshot.Elements
+                .Select(element => element.Restore())
+                .ToArray();
+
+            _layer.Children.Clear();
+            _annotations.Clear();
+            _selectedElements.Clear();
+            _workingElement = null;
+            _textEditor = null;
+            _editingTextBlock = null;
+            _pendingGestureSnapshot = null;
+            _pendingTextSnapshot = null;
+            _startHandle = null;
+            _endHandle = null;
+            _selectionFrame = null;
+            _resizeHandles.Clear();
+            _moveOrigins.Clear();
+            _marqueeFrame = null;
+            _marqueeInitialSelection = [];
+            _marqueeAdditive = false;
+            _lastKeyboardMoveSelection = [];
+            _lastKeyboardMoveUtc = default;
+            _selectionManipulation = SelectionManipulationMode.Move;
+
+            foreach (var annotation in restored)
+            {
+                annotation.IsHitTestVisible = false;
+                _layer.Children.Add(annotation);
+                _annotations.Add(annotation);
+            }
+
+            _numberSequence = snapshot.NumberSequence;
+            _annotationBrush = CreateBrush(snapshot.Color);
+            _strokeThickness = snapshot.StrokeThickness;
+            _fontSize = snapshot.FontSize;
+            foreach (var index in snapshot.SelectedIndices)
+            {
+                if (index >= 0 && index < _annotations.Count)
+                {
+                    _selectedElements.Add(_annotations[index]);
+                }
+            }
+            _selectedElement = _selectedElements.LastOrDefault();
+            RefreshAnnotationZOrder();
+            UpdateSelectionAdorners();
+            return true;
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("AnnotationHistory", exception, "无法恢复标注撤销快照。");
+            return false;
+        }
+    }
+
+    private void ResetWheelMerge()
+    {
+        _lastWheelTarget = null;
+        _lastWheelAdjustmentUtc = default;
+    }
+
+    private void ResetKeyboardMoveMerge()
+    {
+        _lastKeyboardMoveSelection = [];
+        _lastKeyboardMoveUtc = default;
+    }
+
+    private sealed record AnnotationDocumentSnapshot(
+        AnnotationElementSnapshot[] Elements,
+        int[] SelectedIndices,
+        int NumberSequence,
+        Color Color,
+        double StrokeThickness,
+        double FontSize)
+    {
+        public bool IsEquivalentTo(AnnotationDocumentSnapshot other) =>
+            SelectedIndices.SequenceEqual(other.SelectedIndices) &&
+            NumberSequence == other.NumberSequence &&
+            Color == other.Color &&
+            Math.Abs(StrokeThickness - other.StrokeThickness) < 0.001 &&
+            Math.Abs(FontSize - other.FontSize) < 0.001 &&
+            Elements.SequenceEqual(other.Elements);
+    }
+
+    private sealed record CopiedAnnotationGroup(AnnotationElementSnapshot[] Elements);
+
+    private sealed record AnnotationElementSnapshot(
+        string? Xaml,
+        ImageAnnotationSnapshot? Image)
+    {
+        public static AnnotationElementSnapshot Capture(FrameworkElement element)
+        {
+            if (element is Image image)
+            {
+                var blur = image.Effect as BlurEffect;
+                return new AnnotationElementSnapshot(
+                    null,
+                    new ImageAnnotationSnapshot(
+                        image.Source,
+                        SafeCanvasPosition(Canvas.GetLeft(image)),
+                        SafeCanvasPosition(Canvas.GetTop(image)),
+                        image.Width,
+                        image.Height,
+                        image.Stretch,
+                        RenderOptions.GetBitmapScalingMode(image),
+                        blur?.Radius,
+                        blur?.KernelType));
+            }
+
+            return new AnnotationElementSnapshot(XamlWriter.Save(element), null);
+        }
+
+        public FrameworkElement Restore()
+        {
+            if (Image is { } image)
+            {
+                var restored = new Image
+                {
+                    Source = image.Source,
+                    Width = image.Width,
+                    Height = image.Height,
+                    Stretch = image.Stretch,
+                    IsHitTestVisible = false
+                };
+                if (image.BlurRadius is { } radius)
+                {
+                    restored.Effect = new BlurEffect
+                    {
+                        Radius = radius,
+                        KernelType = image.BlurKernelType ?? KernelType.Gaussian
+                    };
+                }
+
+                RenderOptions.SetBitmapScalingMode(restored, image.ScalingMode);
+                Canvas.SetLeft(restored, image.Left);
+                Canvas.SetTop(restored, image.Top);
+                return restored;
+            }
+
+            if (string.IsNullOrWhiteSpace(Xaml) || XamlReader.Parse(Xaml) is not FrameworkElement element)
+            {
+                throw new InvalidOperationException("标注快照内容无效。");
+            }
+
+            element.IsHitTestVisible = false;
+            return element;
+        }
+    }
+
+    private sealed record ImageAnnotationSnapshot(
+        ImageSource? Source,
+        double Left,
+        double Top,
+        double Width,
+        double Height,
+        Stretch Stretch,
+        BitmapScalingMode ScalingMode,
+        double? BlurRadius,
+        KernelType? BlurKernelType);
 
     private static BitmapSource Pixelate(BitmapSource source, int blockSize)
     {
@@ -1591,7 +2270,13 @@ internal sealed class CaptureAnnotationController
         var bounds = VisualTreeHelper.GetDescendantBounds(element);
         if (bounds.IsEmpty)
         {
-            bounds = new WpfRect(0, 0, Math.Max(1, element.ActualWidth), Math.Max(1, element.ActualHeight));
+            var width = !double.IsNaN(element.Width) && element.Width > 0
+                ? element.Width
+                : element.ActualWidth;
+            var height = !double.IsNaN(element.Height) && element.Height > 0
+                ? element.Height
+                : element.ActualHeight;
+            bounds = new WpfRect(0, 0, Math.Max(1, width), Math.Max(1, height));
         }
 
         bounds.Offset(
@@ -1643,6 +2328,7 @@ internal enum CaptureAnnotationTool
 internal enum SelectionManipulationMode
 {
     Move,
+    Marquee,
     StartPoint,
     EndPoint,
     ResizeTopLeft,

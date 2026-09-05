@@ -481,19 +481,79 @@
                     <Border Padding="18" Margin="0,0,0,14" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
                         <StackPanel>
                             <TextBlock Style="{StaticResource SectionLabel}" Text="SHORTCUTS  /  快捷键" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition />
-                                    <ColumnDefinition Width="16" />
-                                    <ColumnDefinition />
-                                    <ColumnDefinition Width="16" />
-                                    <ColumnDefinition />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel><TextBlock Style="{StaticResource FieldLabel}" Text="区域截图"/><TextBox x:Name="CaptureHotkeyBox"/></StackPanel>
-                                <StackPanel Grid.Column="2"><TextBlock Style="{StaticResource FieldLabel}" Text="贴图"/><TextBox x:Name="PinHotkeyBox"/></StackPanel>
-                                <StackPanel Grid.Column="4"><TextBlock Style="{StaticResource FieldLabel}" Text="重复上次范围"/><TextBox x:Name="RepeatHotkeyBox"/></StackPanel>
-                            </Grid>
-                            <TextBlock Margin="0,9,0,0" FontSize="10" Foreground="#FF71848F" Text="支持 Ctrl / Shift / Alt + F1–F12，例如 Ctrl+Shift+F2。三个快捷键不能重复。" />
+                            <Border Margin="0,1,0,0" Padding="10,7" Background="#FF0B171E" CornerRadius="5">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="44" />
+                                        <ColumnDefinition Width="176" />
+                                        <ColumnDefinition Width="196" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock FontSize="9.5" Foreground="#FF71848F" Text="启用" />
+                                    <TextBlock Grid.Column="1" FontSize="9.5" Foreground="#FF71848F" Text="功能" />
+                                    <TextBlock Grid.Column="2" FontSize="9.5" Foreground="#FF71848F" Text="全局快捷键" />
+                                    <TextBlock Grid.Column="3" FontSize="9.5" Foreground="#FF71848F" Text="说明" />
+                                </Grid>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding HotkeyRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#24536A76" BorderThickness="0,0,0,1">
+                                            <Grid MinHeight="43" Margin="10,2">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="44" />
+                                                    <ColumnDefinition Width="176" />
+                                                    <ColumnDefinition Width="196" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <CheckBox x:Name="HotkeyEnabledCheck"
+                                                          Margin="0"
+                                                          VerticalAlignment="Center"
+                                                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                                                          ToolTip="启用这个全局快捷键" />
+                                                <TextBlock Grid.Column="1"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="11.5"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource TextPrimary}"
+                                                           Text="{Binding DisplayName}" />
+                                                <TextBox Grid.Column="2"
+                                                         Width="178"
+                                                         Height="30"
+                                                         Margin="0"
+                                                         HorizontalAlignment="Left"
+                                                         VerticalAlignment="Center"
+                                                         Padding="9,3"
+                                                         Cursor="Hand"
+                                                         IsReadOnly="True"
+                                                         TextAlignment="Center"
+                                                         Tag="{Binding}"
+                                                         ToolTip="点击后直接按下快捷键；Backspace 或 Delete 清空"
+                                                         GotKeyboardFocus="OnHotkeyBoxGotKeyboardFocus"
+                                                         LostKeyboardFocus="OnHotkeyBoxLostKeyboardFocus"
+                                                         PreviewKeyDown="OnHotkeyBoxPreviewKeyDown"
+                                                         PreviewTextInput="OnHotkeyBoxPreviewTextInput"
+                                                         Text="{Binding Gesture, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBlock Grid.Column="3"
+                                                           Margin="10,0,0,0"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="9.5"
+                                                           Foreground="#FF71848F"
+                                                           Text="{Binding Description}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip="{Binding Description}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Margin="0,9,0,0" FontSize="10" Foreground="#FF71848F" Text="点击快捷键框后直接按组合键；Backspace / Delete 清空。支持 F1–F12 与 Ctrl / Shift / Alt，启用项不能重复。" />
+                            <TextBlock x:Name="HotkeyRegistrationStatusText"
+                                       Margin="0,7,0,0"
+                                       FontSize="10"
+                                       Foreground="#FFFF9189"
+                                       TextWrapping="Wrap"
+                                       Visibility="Collapsed" />
                         </StackPanel>
                     </Border>
 
@@ -564,6 +624,7 @@
                                 <CheckBox x:Name="SmartSelectionCheck" Width="218" Content="自动识别窗口和控件" />
                                 <CheckBox x:Name="MagnifierCheck" Width="218" Content="显示像素放大镜与颜色" />
                                 <CheckBox x:Name="AutoCopyCheck" Width="190" Content="截图后自动复制" />
+                                <CheckBox x:Name="QuickCaptureTagsCheck" Width="218" Content="截图时快速添加标签" />
                             </WrapPanel>
                             <Grid Margin="0,9,0,0">
                                 <Grid.ColumnDefinitions>
@@ -644,6 +705,114 @@
                                 <StackPanel Grid.Column="4"><TextBlock Style="{StaticResource FieldLabel}" Text="最小重叠（12%–50%）"/><TextBox x:Name="LongOverlapBox"/></StackPanel>
                             </Grid>
                             <CheckBox x:Name="StartupCheck" Margin="0,16,0,0" Content="登录 Windows 后自动启动 QingSnap" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Padding="18" Margin="0,0,0,14" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource SectionLabel}" Text="ABOUT / UPDATE  /  关于与更新" />
+                                <CheckBox x:Name="AutoUpdateCheck"
+                                          Grid.Column="1"
+                                          Margin="18,0,0,0"
+                                          VerticalAlignment="Center"
+                                          Content="启动后自动检查更新" />
+                            </Grid>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="当前版本" />
+                                    <TextBlock x:Name="CurrentVersionText" Margin="0,3,0,0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Text="—" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="最新版本" />
+                                    <TextBlock x:Name="LatestVersionText" Margin="0,3,0,0" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Text="尚未检查" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="发布日期" />
+                                    <TextBlock x:Name="UpdatePublishedText" Margin="0,3,0,0" Foreground="{StaticResource TextPrimary}" Text="—" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="6">
+                                    <TextBlock Style="{StaticResource FieldLabel}" Text="文件大小" />
+                                    <TextBlock x:Name="UpdateFileSizeText" Margin="0,3,0,0" Foreground="{StaticResource TextPrimary}" Text="—" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Margin="0,14,0,0"
+                                    Padding="14,12"
+                                    Background="#FF0B171E"
+                                    BorderBrush="{StaticResource Line}"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="3" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border x:Name="UpdateStatusRail" Background="#FF76A1B1" CornerRadius="2" />
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock x:Name="UpdateStatusText" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" Text="尚未检查更新" />
+                                        <ScrollViewer Margin="0,7,0,0" MaxHeight="92" VerticalScrollBarVisibility="Auto">
+                                            <TextBlock x:Name="UpdateNotesText"
+                                                       Foreground="{StaticResource TextMuted}"
+                                                       LineHeight="18"
+                                                       Text="点击“检查更新”获取 GitHub Releases 中的最新版本。"
+                                                       TextWrapping="Wrap" />
+                                        </ScrollViewer>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <ProgressBar x:Name="UpdateDownloadProgress"
+                                         Margin="0,12,0,0"
+                                         Minimum="0"
+                                         Maximum="100"
+                                         Value="0"
+                                         Visibility="Collapsed"
+                                         Style="{StaticResource SlimProgress}" />
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="UpdateDownloadStatusText"
+                                           Margin="0,0,16,0"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource TextMuted}"
+                                           TextWrapping="Wrap" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="UpdateOpenFolderButton"
+                                            Visibility="Collapsed"
+                                            Style="{StaticResource ActionButton}"
+                                            Content="打开文件位置"
+                                            Click="OnOpenUpdateFolderClick" />
+                                    <Button x:Name="UpdateDownloadButton"
+                                            Visibility="Collapsed"
+                                            Style="{StaticResource ActionButton}"
+                                            Content="下载更新"
+                                            Click="OnDownloadUpdateClick" />
+                                    <Button x:Name="UpdateCheckButton"
+                                            Margin="0"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Content="检查更新"
+                                            Click="OnCheckUpdatesClick" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
 

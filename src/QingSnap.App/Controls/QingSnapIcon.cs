@@ -168,6 +168,23 @@ public sealed class QingSnapIcon : Control
             case QingSnapIconKind.Pin:
                 dc.DrawGeometry(null, pen, Geometry.Parse("M8,4 H16 L15,9 L18,12 H13 L12,20 L11,12 H6 L9,9 Z"));
                 break;
+            case QingSnapIconKind.Tag:
+                dc.DrawGeometry(null, pen, Geometry.Parse("M4,5.5 V12.2 L12.8,20 L20,12.8 L12.2,4 H5.5 A1.5,1.5 0 0 0 4,5.5 Z"));
+                dc.DrawEllipse(null, pen, new Point(8.2, 8.2), 1.4, 1.4);
+                break;
+            case QingSnapIconKind.ListView:
+                for (var y = 6; y <= 18; y += 6)
+                {
+                    dc.DrawRoundedRectangle(brush, null, new Rect(4, y - 1.5, 3, 3), 0.7, 0.7);
+                    Line(dc, pen, 10, y, 20, y);
+                }
+                break;
+            case QingSnapIconKind.GridView:
+                FillRect(dc, brush, 4, 4, 6, 6, 1);
+                FillRect(dc, brush, 14, 4, 6, 6, 1);
+                FillRect(dc, brush, 4, 14, 6, 6, 1);
+                FillRect(dc, brush, 14, 14, 6, 6, 1);
+                break;
             case QingSnapIconKind.Copy:
                 dc.DrawRoundedRectangle(null, pen, new Rect(8, 8, 11, 11), 1.5, 1.5);
                 dc.DrawRoundedRectangle(null, pen, new Rect(5, 5, 11, 11), 1.5, 1.5);
@@ -190,6 +207,16 @@ public sealed class QingSnapIcon : Control
                 Corner(dc, pen, 15, 4, 20, 4, 20, 9);
                 Corner(dc, pen, 4, 15, 4, 20, 9, 20);
                 Corner(dc, pen, 15, 20, 20, 20, 20, 15);
+                break;
+            case QingSnapIconKind.Lock:
+                dc.DrawRoundedRectangle(null, pen, new Rect(5, 10, 14, 10), 2, 2);
+                dc.DrawGeometry(null, pen, Geometry.Parse("M8,10 V7.5 A4,4 0 0 1 16,7.5 V10"));
+                Line(dc, pen, 12, 14, 12, 17);
+                break;
+            case QingSnapIconKind.Unlock:
+                dc.DrawRoundedRectangle(null, pen, new Rect(5, 10, 14, 10), 2, 2);
+                dc.DrawGeometry(null, pen, Geometry.Parse("M9,10 V7.5 A4,4 0 0 1 16.5,5.5"));
+                Line(dc, pen, 12, 14, 12, 17);
                 break;
             case QingSnapIconKind.Minimize:
                 Line(dc, pen, 6, 17, 18, 17);
@@ -272,11 +299,16 @@ public enum QingSnapIconKind
     LongCapture,
     Ocr,
     Pin,
+    Tag,
+    ListView,
+    GridView,
     Copy,
     Save,
     Confirm,
     Close,
     Geometry,
+    Lock,
+    Unlock,
     Minimize,
     Maximize,
     Restore

@@ -7,11 +7,11 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具，将智能选区�
 
 QingSnap is a lightweight screenshot utility for Windows 10/11. It combines smart capture, automatic and manual scrolling capture, annotation, desktop pins, and history in one workflow, with offline OCR available as an optional module.
 
-[当前正式版 v1.0.2 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.0.2/QingSnap-v1.0.2.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.0.2 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.0.2) · [完整更新日志 / Changelog](CHANGELOG.md)
+[当前正式版 v1.1.0 / Stable download](https://github.com/za5132-web/QingSnap/releases/download/v1.1.0/QingSnap-v1.1.0.zip) · [OCR 运行库模块 / OCR runtime module](https://github.com/za5132-web/QingSnap/releases/download/v1.0.0/QingSnap-OCR-Module-v1.0.0.zip) · [v1.1.0 源码 / Source](https://github.com/za5132-web/QingSnap/tree/v1.1.0) · [完整更新日志 / Changelog](CHANGELOG.md)
 
 | 项目 / Item | 当前状态 / Current status |
 | --- | --- |
-| 当前版本 / Current version | `v1.0.2` |
+| 当前版本 / Current version | `v1.1.0` |
 | 支持系统 / Platform | Windows 10/11 64-bit |
 | 技术基础 / Runtime | .NET 8 · WPF · Per-Monitor V2 DPI |
 | OCR | 可选运行库 + PP-OCRv6 Tiny / Small 模型（离线） / optional runtime and Tiny or Small model |
@@ -97,7 +97,19 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Select text directly inside both normal and long-image pins, then copy it with `Ctrl+C`.
 - Retry recognition or copy all text from the OCR result window.
 
-### 4. 可继续编辑的截图标注 / Editable annotation workflow
+### 4. 完全离线二维码识别 / Fully offline QR recognition
+
+- 二维码识别内置于基础包，无需安装 OCR 运行库，也不依赖在线服务器。
+- 截图工具栏 OCR 延伸菜单、截图历史右键以及普通/长图贴图右键均可启动识别。
+- 支持 QR Code，并可识别 Data Matrix、Aztec 与 PDF417；长图按重叠区域分块处理。
+- 多个二维码以列表展示；普通文本可复制，网址必须由用户主动点击后才会打开。
+
+- QR recognition is built into the base package, requires no OCR runtime, and never calls an online service.
+- Start it from the capture OCR menu, History context menu, or normal/long-pin context menu.
+- Supports QR Code plus Data Matrix, Aztec, and PDF417, with overlapping tiles for long images.
+- Shows multiple results as a list; copy text directly, while links open only after an explicit click.
+
+### 5. 可继续编辑的截图标注 / Editable annotation workflow
 
 - 提供自由画笔、直线、单头/双头箭头、矩形、椭圆、文字、序号、马赛克、高亮与区域模糊。
 - 自定义颜色、线条粗细和文字大小，并可在设置中保存默认样式。
@@ -111,10 +123,10 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Re-edit text and move objects forward, backward, to front, or to back.
 - Undo the latest operation or clear every annotation.
 
-### 5. 可以收纳到屏幕边缘的贴图 / Pins that stay out of the way
+### 6. 可以收纳到屏幕边缘的贴图 / Pins that stay out of the way
 
 - 连续按 `F3` 循环贴出最近五张图片；截图与外部剪贴板图片共用同一序列。
-- 普通贴图支持拖动、滚轮缩放、适应屏幕、`1:1` 原始大小和再次复制。
+- 普通贴图支持拖动、滚轮缩放、适应屏幕、`1:1` 原始大小、再次复制和二维码识别。
 - 按 `M` 将普通或长图贴图暂存为屏幕侧边缩略标签，再次按 `M` 或单击即可原位恢复。
 - 缩略标签自动靠近最近的屏幕边缘，平时仅露出提示条，鼠标悬停时展开。
 - 将展开的贴图拖到屏幕左侧或右侧松开，可通过动画直接缩成当前位置的缩略窗。
@@ -127,22 +139,39 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 - Drag an expanded pin to the left or right screen edge and release it to collapse with animation.
 - Keep expanded and docked positions independently so the desktop layout remains predictable.
 
-### 6. 截图历史与桌面工作流 / History and desktop workflow
+### 7. 截图历史与桌面工作流 / History and desktop workflow
 
 - 截图可自动复制并保存到历史记录。
-- 历史窗口提供虚拟化缩略图、日期/长图/收藏筛选、OCR 文字搜索、刷新与打开记录目录。
-- 每张历史图片都可贴图、OCR、打开、复制或删除。
+- 历史窗口提供虚拟化列表/图标双模式、日期/长图/收藏/标签筛选，并可搜索 OCR 文字、标签、来源程序和窗口标题。
+- 历史记录支持单选、`Ctrl` 增减、`Shift` 连选和 `Ctrl+A` 全选当前结果，可批量收藏、取消收藏、增删标签、复制文件路径或一次确认后删除到回收站。
+- 截图选区旁可快速选择已有标签或创建本次标签；设置中可隐藏该入口，跳过标签不会影响复制、保存或贴图。
+- 每张历史图片都可贴图、OCR、识别二维码、打开、复制或删除。
 - 支持 PNG、JPG、BMP 输出，可设置 JPG 质量、记录目录和自动清理天数。
 - 系统托盘可启动区域截图、自动/手动长截图、重复上次范围、贴图、历史和设置。
 - 系统托盘可导出本地诊断包；日志只保留 7 天，并且不包含截图或 OCR 正文。
 - 单实例运行，可选择登录 Windows 后自动启动。
 
 - Copy captures automatically and keep them in screenshot history.
-- Browse virtualized thumbnails; filter by date, long captures, or favorites; search recognized text; refresh; or open the history directory.
+- Browse virtualized thumbnails; filter by date, long captures, favorites, or tags; search recognized text, tags, source apps, and window titles; refresh; or open the history directory.
 - Pin, OCR, open, copy, or delete any saved image.
 - Save as PNG, JPG, or BMP, with configurable JPG quality, history location, and retention period.
 - Start region capture, automatic/manual scrolling capture, repeat capture, pins, history, and Settings from the system tray.
 - Run as a single instance and optionally start with Windows.
+
+## v1.1.0 正式版 / Stable release
+
+- 完整 Undo / Redo、多标注选择、框选、批量编辑和物理像素键盘移动。
+  Full Undo/Redo, multi-annotation selection, marquee selection, batch editing, and physical-pixel keyboard nudging.
+- 固定比例、固定尺寸、X/Y/W/H 精确输入，以及 `Alt` 中心缩放和 `Shift` 比例约束。
+  Fixed ratios, fixed sizes, exact X/Y/W/H input, Alt-centered scaling, and Shift ratio constraints.
+- SQLite 全量历史、截图来源、标签、批量操作，以及不受 500 张限制的分页搜索。
+  Full SQLite-backed history, capture source metadata, tags, batch actions, and paged search without the previous 500-item limit.
+- 完全离线二维码热点识别、全局快捷键 2.0 和带 SHA-256 校验的更新中心。
+  Fully offline QR hotspots, Global Hotkeys 2.0, and an update center with SHA-256 verification.
+- 280px 按需缩略图与 150 张 LRU，并完成 OCR、窗口、剪贴板、长截图和后台任务的资源生命周期加固。
+  On-demand 280px thumbnails with a 150-item LRU, plus lifecycle hardening for OCR, windows, clipboard, scrolling capture, and background work.
+
+[查看 v1.1.0 完整发布说明 / Full v1.1.0 release notes](docs/RELEASE_NOTES_v1.1.0.md) · [完整功能清单 / Complete feature list](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ## v1.0.2 正式版 / Stable release
 
@@ -237,12 +266,13 @@ A stashed pin leaves only a thumbnail tab at the screen edge, reveals itself on 
 
 ## 完整版本历程 / Complete version history
 
-下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0–v1.0.2。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
+下表按实际开发顺序记录 Preview v1–v48 与正式版 v1.0.0–v1.1.0。标记为“内部迭代”的版本曾生成本地测试包，但很快被后续版本替代。
 
-The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.2. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
+The table follows Preview v1–v48 and stable releases v1.0.0–v1.1.0. Builds marked “internal iteration” were local test packages quickly superseded by later versions.
 
 | 版本 / Version | 日期 / Date | 本次更新 / Changes |
 | --- | --- | --- |
+| v1.1.0 | 2026-09-05 | 完整 Undo/Redo、标注多选、比例/尺寸约束、SQLite 全量历史、标签和来源、分页搜索、离线二维码、快捷键 2.0、更新中心与资源稳定性优化。<br>Full Undo/Redo, multi-selection, ratio/size constraints, complete SQLite history, tags/source metadata, paged search, offline QR, hotkeys 2.0, update center, and resource hardening. |
 | v1.0.2 | 2026-09-04 | `R`/`F3` 分别循环最近五个选区与图片；放大镜改为像素边缘对齐；修复贴图极端缩放比例变形。<br>Cycles five recent regions/images with `R` and `F3`, aligns the magnifier to pixel boundaries, and preserves pin aspect ratio at zoom limits. |
 | v1.0.1 | 2026-08-29 | 新增首次使用教程、设置反馈入口和序号改号；`F2` 串联选择与编辑；修复外部剪贴板图片贴出变黑，并收紧反馈按钮文字。<br>Added onboarding, feedback, editable number markers, an F2 select/edit flow, fixed black external clipboard pins, and tightened the feedback action label. |
 | v1.0.0 | 2026-08-25 | 首个正式版：直线与箭头重新拆分；箭头面板保留单头/双头；修复四位数尺寸裁切、画笔图标、截图记录白边/日期控件及标注右键菜单。<br>First stable release: separated line and arrow tools; retained single/double arrow choices; fixed four-digit size clipping, the pen icon, History chrome/date selector, and annotation context menu. |
@@ -319,6 +349,11 @@ The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.2. Builds m
 | 区域截图 / Region capture | `F1` |
 | 贴出剪贴板图片或最近截图 / Pin clipboard image or latest capture | `F3` |
 | 重复上次截图范围 / Repeat the previous capture region | `Shift+F1` |
+| 自动长截图 / Automatic scrolling capture | 可配置，默认未设置 / configurable, unset by default |
+| 手动长截图 / Manual scrolling capture | 可配置，默认未设置 / configurable, unset by default |
+| OCR 最新截图 / OCR latest capture | 可配置，默认未设置 / configurable, unset by default |
+| 打开截图历史 / Open capture history | 可配置，默认未设置 / configurable, unset by default |
+| 暂停/恢复全局快捷键 / Pause or resume global hotkeys | 可配置，默认未设置 / configurable, unset by default |
 | 微调截图十字准星 / Nudge the capture crosshair | `W` `A` `S` `D` · 1 px |
 | 载入上次选区 / Reload the previous selection | `R` |
 | 复制当前 HEX 颜色 / Copy current HEX color | `I` |
@@ -329,9 +364,11 @@ The table follows Preview v1–v48 and stable releases v1.0.0–v1.0.2. Builds m
 | 确认截图 / Confirm capture | `Enter` 或双击 / or double-click |
 | 取消或关闭 / Cancel or close | `Esc` 或鼠标右键 / or right-click |
 
-三个全局快捷键可在设置中修改，支持 `Ctrl`、`Shift`、`Alt` 与 `F1–F12` 组合，且不能彼此重复。
+全局快捷键可在设置中逐项启用和修改，支持 `Ctrl`、`Shift`、`Alt` 与 `F1–F12` 组合；启用项不能彼此重复，单项注册失败不会影响其他快捷键。
+点击快捷键框后直接按下目标组合即可录入，不需要手动输入；按 `Backspace` 或 `Delete` 可清空该项。
 
-The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`, `Alt`, and `F1–F12`, and must remain unique.
+Global shortcuts can be enabled and configured per action with `Ctrl`, `Shift`, `Alt`, and `F1–F12`; enabled bindings must remain unique, and one registration failure does not disable the others.
+Focus a shortcut field and press the desired combination to record it directly; use `Backspace` or `Delete` to clear it.
 
 ### 贴图与长图阅读 / Pins and long-image reader
 
@@ -350,7 +387,7 @@ The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`
 
 | 分类 / Category | 可配置内容 / Options |
 | --- | --- |
-| 快捷键 / Shortcuts | 区域截图、贴图、重复上次范围 / capture, pin, repeat region |
+| 快捷键 / Shortcuts | 截图、最近范围、自动/手动长图、贴图、OCR、历史及暂停/恢复 / capture, repeat, scrolling capture, pin, OCR, history, pause/resume |
 | OCR | 运行库安装/卸载、Tiny/Small 模型、性能策略 / runtime, Tiny/Small models, performance |
 | 截图 / Capture | 智能选区、像素放大镜、自动复制、0/1/3/5 秒延时、关闭按钮 / selection, magnifier, copy, delay, close buttons |
 | 标注 / Annotation | 默认颜色、线条粗细、文字大小 / default color, stroke width, font size |
@@ -363,11 +400,13 @@ The three global shortcuts are configurable with combinations of `Ctrl`, `Shift`
 - 截图历史默认保存在 `%LOCALAPPDATA%\QingSnap\History`。
 - OCR 运行库和模型分别保存在 `%LOCALAPPDATA%\QingSnap\Ocr\Runtime` 与 `%LOCALAPPDATA%\QingSnap\Ocr\Models`。
 - 截图、OCR 图片和识别文本不会上传到云端。
+- 二维码识别完全在本机完成，图片和二维码内容不会上传。
 - 只有用户主动安装 OCR 模块和模型时才需要下载相关文件。
 
 - Screenshot history is stored in `%LOCALAPPDATA%\QingSnap\History` by default.
 - The OCR runtime and models are stored under `%LOCALAPPDATA%\QingSnap\Ocr\Runtime` and `%LOCALAPPDATA%\QingSnap\Ocr\Models`.
 - Captures, OCR images, and recognized text are not uploaded to the cloud.
+- QR recognition runs entirely on-device; images and decoded content are never uploaded.
 - Network access is used only when the user explicitly downloads an OCR model.
 
 ## 系统要求 / Requirements

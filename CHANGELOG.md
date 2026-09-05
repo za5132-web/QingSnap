@@ -3,6 +3,48 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.0] - 2026-09-05
+
+### 专业选区调整 / Professional region controls
+
+- 新增自由、`1:1`、`4:3`、`3:2`、`16:9`、`9:16` 和当前比例锁定；支持固定尺寸锁定及明确的 X/Y/W/H 物理像素输入。  Added free, `1:1`, `4:3`, `3:2`, `16:9`, `9:16`, and current-ratio constraints, plus fixed-size locking and labeled physical-pixel X/Y/W/H input.
+- 支持 `Shift` 临时锁定比例、`Alt` 中心缩放及 `Alt+Shift` 组合约束，兼容多显示器、负坐标和 Per-Monitor V2 DPI。  Added temporary ratio locking with `Shift`, center-based scaling with `Alt`, and combined `Alt+Shift` constraints across multiple monitors, negative coordinates, and Per-Monitor V2 DPI.
+
+### 标注 Undo / Redo、多选与精确移动 / Annotation history, multi-selection, and nudging
+
+- 标注系统升级为完整 Undo / Redo 双栈：`Ctrl+Z` 撤销，`Ctrl+Y` 或 `Ctrl+Shift+Z` 重做，覆盖绘制、删除、移动、缩放、端点、文字、序号、样式、图层、粘贴和清空。  Upgraded annotation editing to a full Undo/Redo history covering creation, deletion, movement, resizing, endpoints, text, numbers, styles, layers, paste, and clear-all.
+- 选择工具支持 `Shift+单击`、双向框选、整体移动、删除、复制粘贴和批量图层调整。  The selection tool now supports Shift-click, bidirectional marquee selection, group movement, deletion, copy/paste, and batch layer changes.
+- 选中标注后可用 `W/A/S/D` 移动 1 个物理像素，配合 `Shift` 移动 10 像素；连续拖动、滚轮和按键会合并为合理的历史记录。  Selected annotations can be nudged by one physical pixel with `W/A/S/D`, or ten with `Shift`; continuous drag, wheel, and key-repeat input is coalesced into manageable history entries.
+
+### SQLite 历史、标签和来源 / SQLite history, tags, and capture source
+
+- 建立可重建的 SQLite Metadata 层，图片仍以普通 PNG/JPG/BMP 文件保存；兼容旧收藏、OCR 索引、历史目录迁移和 `portable.flag`。  Added a rebuildable SQLite metadata layer while keeping images as ordinary PNG/JPG/BMP files, with compatibility for legacy favorites, OCR indexes, directory migration, and `portable.flag`.
+- 新截图保存来源程序、窗口标题、显示器和物理选区信息；历史搜索可匹配来源。  New captures store source process, window title, monitor, and physical capture bounds, all searchable in History.
+- 支持一图多标签、标签筛选和 `tag:` 搜索；截图工具栏可在完成前快速选择或创建标签。  Added multi-tag metadata, tag filtering, `tag:` search, and optional quick tagging directly from the capture toolbar.
+- 历史窗口提供列表/图标双模式、Ctrl/Shift 多选及批量收藏、标签、路径复制和回收站删除。  History now offers list/grid views, Ctrl/Shift multi-selection, and batch favorite, tagging, path-copy, and recycle-bin deletion operations.
+
+### 全量分页与缩略图内存优化 / Full-history paging and thumbnail memory
+
+- 移除最近 500 条限制：SQLite 全量搜索与筛选、每页 80 条增量加载、滚动预取和 250ms 搜索防抖。  Removed the 500-item ceiling with full SQLite search/filtering, 80-item incremental pages, scroll prefetch, and a 250ms search debounce.
+- OCR、标签、文件名、尺寸、来源、日期、长图和收藏搜索均覆盖完整历史，而非仅覆盖已经载入的卡片。  OCR, tags, file names, dimensions, source, date, long-capture, and favorite filters now cover the complete history rather than only loaded cards.
+- 历史卡片按 280px 宽度按需解码，使用最多 150 张的窗口级 LRU 缓存并继续保持 WPF Recycling 虚拟化。  History cards decode thumbnails on demand at 280px width and use a 150-item window-scoped LRU while retaining WPF recycling virtualization.
+
+### 全局快捷键 2.0 / Global hotkeys 2.0
+
+- 设置页用统一列表配置区域截图、最近范围、自动/手动长图、贴图、OCR 最新截图、历史和暂停/恢复快捷键。  Settings now configures region capture, recent region, automatic/manual scrolling capture, pin, latest OCR, History, and pause/resume actions in one extensible list.
+- 点击输入框后直接按组合键即可录入；支持 F1–F12 与 Ctrl/Shift/Alt，自动检查重复，单项注册失败不影响其他动作。  Capture a shortcut by pressing it directly, with F1–F12 and Ctrl/Shift/Alt support, duplicate detection, and per-action registration failure isolation.
+
+### 完全离线二维码 / Fully offline QR recognition
+
+- 基础包内置 QR Code、Data Matrix、Aztec 和 PDF417 本地识别，不依赖 OCR 模块或在线服务。  The base package now recognizes QR Code, Data Matrix, Aztec, and PDF417 locally without the OCR module or an online service.
+- 截图、历史、普通贴图和长图贴图均可识别；结果直接覆盖为悬停提示和可点击热区，URL 只在用户主动点击后打开。  Recognition is available in capture, History, normal pins, and long-image pins, with hoverable/clickable hotspots; URLs open only after explicit user action.
+
+### 更新中心与稳定性 / Update center and stability
+
+- 设置中新增版本检查、更新说明、下载进度、SHA-256 校验和打开下载目录；支持低频后台检查且不自动覆盖程序。  Added update checks, release notes, download progress, SHA-256 verification, and open-folder actions, with low-frequency background checks and no automatic self-overwrite.
+- 剪贴板、OCR、历史、缩略图、二维码、更新和长截图完成全量资源生命周期审查；OCR 原生工作区通过安全轮换引擎限制增长。  Completed lifecycle reviews for clipboard, OCR, History, thumbnails, QR, updates, and scrolling capture, including safe OCR engine rotation to cap native working-memory growth.
+- 自动化测试增至 149 项；Release 构建保持 0 警告、0 错误。  Automated coverage now includes 149 passing tests, with zero Release build warnings and errors.
+
 ## [1.0.2] - 2026-09-04
 
 ### 历史循环与像素精度 / History cycling and pixel precision
@@ -226,6 +268,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[1.1.0]: https://github.com/za5132-web/QingSnap/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/za5132-web/QingSnap/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/za5132-web/QingSnap/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/za5132-web/QingSnap/compare/preview-v48...v1.0.0

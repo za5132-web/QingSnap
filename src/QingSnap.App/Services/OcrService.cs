@@ -10,6 +10,7 @@ public sealed class OcrService : IDisposable
     private const int AdvancedSegmentHeight = 2400;
     private const int AdvancedSegmentationThreshold = 3200;
     private const int SegmentOverlap = 120;
+    private const int MaximumRecognitionsPerEngine = 24;
 
     private readonly AppSettingsService _settingsService;
     private readonly OcrModelManager _modelManager;
@@ -23,6 +24,8 @@ public sealed class OcrService : IDisposable
     private string? _loadedModel;
     private Task? _warmupTask;
     private DateTime _lastAdvancedUseUtc = DateTime.UtcNow;
+    private int _advancedRecognitionCount;
+    private int _engineRecycleScheduled;
     private bool _disposed;
 
     public OcrService(AppSettingsService settingsService)
@@ -31,7 +34,7 @@ public sealed class OcrService : IDisposable
         _modelManager = new OcrModelManager(settingsService.DataDirectory);
         _runtimeManager = new OcrRuntimeManager(settingsService.DataDirectory);
         _idleReleaseTimer = new System.Threading.Timer(
-            _ => _ = ReleaseIdleEngineAsync(),
+            _ => _ = ReleaseIdleEngineSafelyAsync(),
             null,
             TimeSpan.FromMinutes(1),
             TimeSpan.FromMinutes(1));
@@ -154,6 +157,7 @@ public sealed class OcrService : IDisposable
             _advancedEngine?.Dispose();
             _advancedEngine = null;
             _loadedModel = null;
+            _advancedRecognitionCount = 0;
             lock (_warmupSync)
             {
                 _warmupTask = null;
@@ -183,57 +187,69 @@ public sealed class OcrService : IDisposable
         IProgress<OcrProgress>? progress = null,
         bool includeWordBoxes = true)
     {
-        var cacheEntry = _resultCache.GetOrCreateValue(source);
-        var cached = includeWordBoxes ? cacheEntry.Detailed : cacheEntry.Basic ?? cacheEntry.Detailed;
-        if (cached is not null)
+        ResourceDiagnostics.Sample("OcrStarted", ("OCRCache", _contentCache.Count));
+        try
         {
-            DiagnosticLog.Info("OCR", "Object cache hit.");
-            return cached;
-        }
-
-        var fingerprint = _contentCache.CreateFingerprint(source);
-        if (fingerprint is { } key)
-        {
-            cached = _contentCache.TryGet(key, includeWordBoxes);
+            var cacheEntry = _resultCache.GetOrCreateValue(source);
+            var cached = includeWordBoxes ? cacheEntry.Detailed : cacheEntry.Basic ?? cacheEntry.Detailed;
             if (cached is not null)
             {
-                if (includeWordBoxes)
-                {
-                    cacheEntry.Detailed = cached;
-                }
-                else
-                {
-                    cacheEntry.Basic = cached;
-                }
-
-                DiagnosticLog.Info("OCR", "Content cache hit.");
+                DiagnosticLog.Info("OCR", "Object cache hit.");
                 return cached;
             }
-        }
 
-        var stopwatch = Stopwatch.StartNew();
-        var result = await RecognizeCoreAsync(source, cancellationToken, progress, includeWordBoxes);
-        stopwatch.Stop();
-        result = result with { ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds };
-        if (includeWordBoxes)
+            var fingerprint = _contentCache.CreateFingerprint(source);
+            if (fingerprint is { } key)
+            {
+                cached = _contentCache.TryGet(key, includeWordBoxes);
+                if (cached is not null)
+                {
+                    if (includeWordBoxes)
+                    {
+                        cacheEntry.Detailed = cached;
+                    }
+                    else
+                    {
+                        cacheEntry.Basic = cached;
+                    }
+
+                    DiagnosticLog.Info("OCR", "Content cache hit.");
+                    return cached;
+                }
+            }
+
+            var stopwatch = Stopwatch.StartNew();
+            var result = await RecognizeCoreAsync(source, cancellationToken, progress, includeWordBoxes);
+            ScheduleEngineRecycleIfNeeded();
+            stopwatch.Stop();
+            result = result with { ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds };
+            if (includeWordBoxes)
+            {
+                cacheEntry.Detailed = result;
+            }
+            else
+            {
+                cacheEntry.Basic = result;
+            }
+
+            if (fingerprint is { } completedKey)
+            {
+                _contentCache.Set(completedKey, includeWordBoxes, result);
+            }
+
+            DiagnosticLog.Info(
+                "OCR",
+                $"Recognition completed in {result.ElapsedMilliseconds:0.0} ms; lines={result.LineCount}; detailed={includeWordBoxes}.");
+
+            return result;
+        }
+        finally
         {
-            cacheEntry.Detailed = result;
+            ResourceDiagnostics.Sample(
+                "OcrFinished",
+                ("OCRCache", _contentCache.Count),
+                ("OCREngine", _advancedEngine is null ? 0 : 1));
         }
-        else
-        {
-            cacheEntry.Basic = result;
-        }
-
-        if (fingerprint is { } completedKey)
-        {
-            _contentCache.Set(completedKey, includeWordBoxes, result);
-        }
-
-        DiagnosticLog.Info(
-            "OCR",
-            $"Recognition completed in {result.ElapsedMilliseconds:0.0} ms; lines={result.LineCount}; detailed={includeWordBoxes}.");
-
-        return result;
     }
 
     public Task<OcrRecognitionResult> RecognizeFastAsync(
@@ -361,6 +377,7 @@ public sealed class OcrService : IDisposable
         _advancedEngine.Initialize(_modelManager.GetPaths(SelectedModel));
         _loadedModel = SelectedModel;
         _lastAdvancedUseUtc = DateTime.UtcNow;
+        ResourceDiagnostics.SetGauge("OCREngine", 1);
     }
 
     private static OcrRecognitionResult BuildResult(
@@ -384,11 +401,103 @@ public sealed class OcrService : IDisposable
 
     public void Dispose()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _disposed = true;
         _idleReleaseTimer.Dispose();
-        _advancedEngine?.Dispose();
-        _contentCache.Clear();
-        _engineLock.Dispose();
+        // Recognition and idle release both own the engine through this gate. Waiting here
+        // prevents the native OCR runtime from being disposed while an inference is active.
+        _engineLock.Wait();
+        try
+        {
+            _advancedEngine?.Dispose();
+            _advancedEngine = null;
+            _loadedModel = null;
+            _advancedRecognitionCount = 0;
+            _contentCache.Clear();
+            _resultCache.Clear();
+            ResourceDiagnostics.SetGauge("OCREngine", 0);
+        }
+        finally
+        {
+            _engineLock.Release();
+        }
+    }
+
+    private async Task ReleaseIdleEngineSafelyAsync()
+    {
+        try
+        {
+            await ReleaseIdleEngineAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("OCR", exception, "Idle OCR engine release failed.");
+        }
+    }
+
+    private void ScheduleEngineRecycleIfNeeded()
+    {
+        if (Interlocked.Increment(ref _advancedRecognitionCount) < MaximumRecognitionsPerEngine ||
+            Interlocked.CompareExchange(ref _engineRecycleScheduled, 1, 0) != 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(RecycleAdvancedEngineSafelyAsync);
+    }
+
+    private async Task RecycleAdvancedEngineSafelyAsync()
+    {
+        try
+        {
+            await _engineLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_disposed ||
+                    _advancedEngine is null ||
+                    Volatile.Read(ref _advancedRecognitionCount) < MaximumRecognitionsPerEngine)
+                {
+                    return;
+                }
+
+                _advancedEngine.Dispose();
+                _advancedEngine = null;
+                _loadedModel = null;
+                Interlocked.Exchange(ref _advancedRecognitionCount, 0);
+                ResourceDiagnostics.SetGauge("OCREngine", 0);
+                lock (_warmupSync)
+                {
+                    _warmupTask = null;
+                }
+
+                DiagnosticLog.Info(
+                    "OCR",
+                    $"Advanced engine recycled after {MaximumRecognitionsPerEngine} uncached recognitions to release native working buffers.");
+                ResourceDiagnostics.Sample("OcrEngineReleased", ("OCRCache", _contentCache.Count), ("OCREngine", 0));
+            }
+            finally
+            {
+                _engineLock.Release();
+            }
+
+            if (!_disposed &&
+                string.Equals(_settingsService.Current.OcrPerformanceMode, "Instant", StringComparison.OrdinalIgnoreCase))
+            {
+                await WarmUpAsync().ConfigureAwait(false);
+            }
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("OCR", exception, "Advanced engine recycle failed.");
+        }
+        finally
+        {
+            Volatile.Write(ref _engineRecycleScheduled, 0);
+        }
     }
 
     private async Task ReleaseIdleEngineAsync()
@@ -417,6 +526,8 @@ public sealed class OcrService : IDisposable
                     _advancedEngine.Dispose();
                     _advancedEngine = null;
                     _loadedModel = null;
+                    _advancedRecognitionCount = 0;
+                    ResourceDiagnostics.SetGauge("OCREngine", 0);
                     lock (_warmupSync)
                     {
                         _warmupTask = null;
@@ -425,6 +536,7 @@ public sealed class OcrService : IDisposable
                     DiagnosticLog.Info("OCR", force
                         ? "Advanced engine released after settings change."
                         : "Balanced mode released the idle advanced engine.");
+                    ResourceDiagnostics.Sample("OcrEngineReleased", ("OCRCache", _contentCache.Count), ("OCREngine", 0));
                 }
             }
             finally

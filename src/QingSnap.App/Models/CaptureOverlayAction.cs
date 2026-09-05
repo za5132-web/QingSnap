@@ -4,6 +4,7 @@ public enum CaptureOverlayAction
 {
     AutomaticLongCapture,
     Ocr,
+    QrCode,
     Pin,
     Copy,
     Confirm,

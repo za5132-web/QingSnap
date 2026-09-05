@@ -11,6 +11,17 @@ internal sealed class OcrResultCache
     private readonly Dictionary<OcrImageFingerprint, CacheEntry> _entries = [];
     private readonly LinkedList<OcrImageFingerprint> _recent = [];
 
+    internal int Count
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _entries.Count;
+            }
+        }
+    }
+
     public OcrImageFingerprint? CreateFingerprint(BitmapSource source)
     {
         try
@@ -83,6 +94,8 @@ internal sealed class OcrResultCache
                 _recent.RemoveFirst();
                 _entries.Remove(oldest.Value);
             }
+
+            ResourceDiagnostics.SetGauge("OCRCache", _entries.Count);
         }
     }
 
@@ -92,6 +105,7 @@ internal sealed class OcrResultCache
         {
             _entries.Clear();
             _recent.Clear();
+            ResourceDiagnostics.SetGauge("OCRCache", 0);
         }
     }
 

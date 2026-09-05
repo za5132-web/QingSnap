@@ -12,10 +12,11 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>QingSnap</AssemblyName>
     <RootNamespace>QingSnap.App</RootNamespace>
-    <Version>1.0.2</Version>
-    <AssemblyVersion>1.0.2.0</AssemblyVersion>
-    <FileVersion>1.0.2.0</FileVersion>
-    <InformationalVersion>v1.0.2</InformationalVersion>
+    <Version>1.1.0</Version>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <FileVersion>1.1.0.0</FileVersion>
+    <InformationalVersion>v1.1.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Deterministic>true</Deterministic>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -32,6 +33,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.20" />
+    <PackageReference Include="ZXing.Net" Version="0.16.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\QingSnap.ico" />
     <None Include="..\..\THIRD_PARTY_NOTICES.md"
           Link="THIRD_PARTY_NOTICES.md"
@@ -39,6 +45,15 @@
           CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\README.md"
           Link="README.md"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\CHANGELOG.md"
+          Link="CHANGELOG.md"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\QINGSNAP_COMPLETE_FEATURE_LIST.md"
+          Link="QINGSNAP_COMPLETE_FEATURE_LIST.md"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\RELEASE_NOTES_v1.1.0.md"
+          Link="RELEASE_NOTES_v1.1.0.md"
           CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\V45_OPTIMIZATION_REPORT.md"
           Link="V45_OPTIMIZATION_REPORT.md"

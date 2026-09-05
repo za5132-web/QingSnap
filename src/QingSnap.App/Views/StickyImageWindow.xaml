@@ -160,6 +160,9 @@
                           InputGestureText="Ctrl+C"
                           Style="{StaticResource PinMenuItem}"
                           Click="OnCopyClick" />
+                <MenuItem Header="识别二维码"
+                          Style="{StaticResource PinMenuItem}"
+                          Click="OnRecognizeQrCodeClick" />
                 <Separator Style="{StaticResource PinMenuSeparator}" />
                 <MenuItem x:Name="TopMenuItem"
                           Header="回到顶部"
@@ -221,6 +224,9 @@
                     MouseLeftButtonUp="OnTextOverlayMouseLeftButtonUp"
                     MouseLeave="OnTextOverlayMouseLeave" />
 
+            <icons:QrCodeHotspotLayer x:Name="QrCodeHotspotLayer"
+                                      Panel.ZIndex="30" />
+
             <ScrollViewer x:Name="LongImageScroller"
                           Visibility="Collapsed"
                           HorizontalScrollBarVisibility="Hidden"
@@ -245,6 +251,8 @@
                             MouseMove="OnTextOverlayMouseMove"
                             MouseLeftButtonUp="OnTextOverlayMouseLeftButtonUp"
                             MouseLeave="OnTextOverlayMouseLeave" />
+                    <icons:QrCodeHotspotLayer x:Name="LongQrCodeHotspotLayer"
+                                              Panel.ZIndex="30" />
                 </Grid>
             </ScrollViewer>
 
