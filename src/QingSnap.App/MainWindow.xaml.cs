@@ -120,6 +120,20 @@ public partial class MainWindow : Window
                     await Task.Delay(120);
                     _settingsWindow?.Close();
                     await Task.Delay(60);
+
+                    var tutorial = new FirstRunTutorialWindow
+                    {
+                        WindowStartupLocation = WindowStartupLocation.Manual,
+                        Left = SystemParameters.VirtualScreenLeft - 2000,
+                        Top = SystemParameters.VirtualScreenTop - 2000,
+                        ShowActivated = false,
+                        ShowInTaskbar = false
+                    };
+                    tutorial.Show();
+                    await Task.Delay(25);
+                    tutorial.RunNavigationStress(20);
+                    tutorial.Close();
+                    await Task.Delay(25);
                 }
 
                 ResourceDiagnostics.Sample($"StressRoundFinished{round}");
@@ -152,10 +166,17 @@ public partial class MainWindow : Window
             _tutorialWindow = null;
             if (markCompletedOnClose && !_settingsService.Current.HasCompletedFirstRunTutorial)
             {
-                _settingsService.Save(_settingsService.Current with
+                try
                 {
-                    HasCompletedFirstRunTutorial = true
-                });
+                    _settingsService.Save(_settingsService.Current with
+                    {
+                        HasCompletedFirstRunTutorial = true
+                    });
+                }
+                catch (Exception exception)
+                {
+                    DiagnosticLog.Error("Tutorial", exception, "Failed to persist first-run tutorial completion state.");
+                }
             }
         };
         _tutorialWindow.Show();

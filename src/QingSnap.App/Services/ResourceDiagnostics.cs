@@ -146,6 +146,7 @@ internal static class ResourceDiagnostics
         gauges["History"] = windows.Count(window => window.GetType().Name == "HistoryWindow");
         gauges["OCRWindow"] = windows.Count(window => window.GetType().Name == "OcrResultWindow");
         gauges["Settings"] = windows.Count(window => window.GetType().Name == "SettingsWindow");
+        gauges["Tutorial"] = windows.Count(window => window.GetType().Name == "FirstRunTutorialWindow");
         gauges["LongCapture"] = windows.Count(window =>
             window.GetType().Name is "LongCaptureControlWindow" or "LongCaptureOverlayWindow");
     }

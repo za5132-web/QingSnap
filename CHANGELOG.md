@@ -3,6 +3,21 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.1] - 2026-09-06
+
+### 首次使用教程 / First-run tutorial
+
+- 将首次教程重构为七页“一分钟核心工作流”，覆盖开始截图、精确选区、标注编辑、长图、贴图、信息提取和历史复用。  Reworked onboarding into a seven-page, one-minute core workflow covering capture, precision selection, annotation, scrolling capture, pins, information extraction, and history reuse.
+- 为七页全部加入内置模拟动画；教程不调用真实截图、OCR、二维码、历史、剪贴板或浏览器。  Added self-contained simulated animations to all seven pages without invoking real capture, OCR, QR, history, clipboard, or browser workflows.
+- 统一 Keycap、图标层级、圆角和操作提示，并修复收纳图钉、QR 热点及 OCR `Ctrl+C` 提示的裁切或遮挡。  Unified keycaps, visual layers, corners, and action hints, while fixing clipping or overlap around the stashed pin, QR hotspot, and OCR `Ctrl+C` prompt.
+- 尊重系统“减少动画”，关闭动画后仍展示每页可理解的关键状态。  Respects the Windows reduce-motion preference and keeps every page understandable through static key states.
+- 加固动画停止、页面复位和首次完成状态；50 个教程窗口、每窗 20 次七页往返压力回归未发现线性资源增长。  Hardened animation teardown, page reset, and first-run completion state; a 50-window stress run with 20 seven-page round trips per window showed no linear resource growth.
+- 重写 GitHub 项目主页，并提供简体中文、English、繁體中文、日本語、한국어五种独立语言页面与顶部切换按钮。  Rewrote the GitHub project homepage and added five independently readable language pages with top-level switches.
+
+### 质量 / Quality
+
+- 自动化测试：149 / 149 通过；Release 编译：0 Warning / 0 Error。  All 149 automated tests pass, with zero Release build warnings and errors.
+
 ## [1.1.0] - 2026-09-05
 
 ### 专业选区调整 / Professional region controls
@@ -268,6 +283,7 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[1.1.1]: https://github.com/za5132-web/QingSnap/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/za5132-web/QingSnap/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/za5132-web/QingSnap/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/za5132-web/QingSnap/compare/v1.0.0...v1.0.1
