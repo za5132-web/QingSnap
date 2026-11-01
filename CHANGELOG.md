@@ -3,6 +3,14 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.2] - 2026-11-01
+
+### 修复 / Fixed
+
+- 修复通过 `R` 或 `Shift+F1` 调出历史截图范围后，移动或缩放并松开鼠标可能导致选区消失、退化为零尺寸的问题。初始化并正确清理空选区与待采用的智能选区状态。  Fixed recalled capture regions disappearing or collapsing after moving/resizing and releasing the mouse by consistently initializing and resetting empty/pending selection state.
+- 增加历史选区状态及鼠标释放路径回归测试；保持现有快捷键、截图、贴图、OCR、历史数据与配置格式不变。  Added regression coverage for recalled selection state and mouse release, without changing shortcuts, OCR, history data, or configuration formats.
+- 感谢 @zch-soft 提交的修复（[PR #1](https://github.com/za5132-web/QingSnap/pull/1)）。  Thanks to @zch-soft for the fix in PR #1.
+
 ## [1.1.1] - 2026-09-06
 
 ### 首次使用教程 / First-run tutorial

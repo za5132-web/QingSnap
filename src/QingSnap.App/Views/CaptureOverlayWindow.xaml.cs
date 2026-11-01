@@ -54,14 +54,14 @@ public partial class CaptureOverlayWindow : Window
     private BitmapSource? _prefetchedOcrImage;
     private bool _creatingOcrPrefetch;
     private Point _dragStart;
-    private WpfRect _selection;
+    private WpfRect _selection = WpfRect.Empty;
     private WpfRect _selectionAtDragStart;
     private DrawingRectangle? _selectionPixelRegion;
     private DrawingRectangle? _selectionPixelAtDragStart;
     private DragMode _dragMode;
     private bool _isAnnotating;
-    private WpfRect _smartPreview;
-    private WpfRect _pendingSmartSelection;
+    private WpfRect _smartPreview = WpfRect.Empty;
+    private WpfRect _pendingSmartSelection = WpfRect.Empty;
     private bool _dragMoved;
     private MediaColor _currentPixelColor;
     private CaptureAnnotationTool _arrowTool = CaptureAnnotationTool.Arrow;
@@ -291,6 +291,7 @@ public partial class CaptureOverlayWindow : Window
         _selectionAtDragStart = _selection;
         _selectionPixelAtDragStart = GetLocalRegion();
         _dragMoved = false;
+        _pendingSmartSelection = WpfRect.Empty;
         if (_selection.IsEmpty && !_smartPreview.IsEmpty && _smartPreview.Contains(point))
         {
             _pendingSmartSelection = _smartPreview;
@@ -1143,6 +1144,7 @@ public partial class CaptureOverlayWindow : Window
     {
         _annotationController.Reset();
         _annotationController.SetBounds(WpfRect.Empty, Surface.ActualWidth, Surface.ActualHeight);
+        _selection = WpfRect.Empty;
         _selectionPixelRegion = null;
         _lockedSelectionSize = null;
         UpdateFixedSizeUi();

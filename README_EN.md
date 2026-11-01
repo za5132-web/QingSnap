@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.1](https://github.com/za5132-web/QingSnap/releases/download/v1.1.1/QingSnap-v1.1.1.zip)
-- [v1.1.1 release notes](docs/RELEASE_NOTES_v1.1.1.md)
+- [Download QingSnap v1.1.2](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
+- [v1.1.2 release notes](docs/RELEASE_NOTES_v1.1.2.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -86,6 +86,11 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.2
+
+- Fixed recalled capture regions disappearing after moving/resizing and releasing the mouse.
+- Thanks to [@zch-soft](https://github.com/zch-soft) for PR #1. Existing features and data remain compatible.
 
 ## What is new in v1.1.1
 

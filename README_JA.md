@@ -14,8 +14,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.1 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.1/QingSnap-v1.1.1.zip)
-- [v1.1.1 リリースノート](docs/RELEASE_NOTES_v1.1.1.md)
+- [QingSnap v1.1.2 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
+- [v1.1.2 リリースノート](docs/RELEASE_NOTES_v1.1.2.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -41,6 +41,11 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.2
+
+- 履歴から呼び出した範囲を移動・サイズ変更してマウスを離すと、選択範囲が消える問題を修正しました。
+- PR #1 を提供してくださった [@zch-soft](https://github.com/zch-soft) に感謝します。既存機能とデータ互換性を維持します。
 
 ## v1.1.1
 

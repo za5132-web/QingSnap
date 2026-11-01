@@ -15,8 +15,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.1](https://github.com/za5132-web/QingSnap/releases/download/v1.1.1/QingSnap-v1.1.1.zip)
-- [查看 v1.1.1 发布说明](docs/RELEASE_NOTES_v1.1.1.md)
+- [下载 QingSnap v1.1.2](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
+- [查看 v1.1.2 发布说明](docs/RELEASE_NOTES_v1.1.2.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -87,6 +87,11 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
 
+## v1.1.2 更新内容
+
+- 修复调用历史截图范围后，移动或缩放并松开鼠标可能导致选区消失的问题。
+- 感谢 [@zch-soft](https://github.com/zch-soft) 的修复贡献（PR #1）；保留现有功能与数据兼容性。
+
 ## v1.1.1 更新内容
 
 - 首次教程重构为七页“一分钟核心工作流”，不再逐项堆叠功能说明。
@@ -154,7 +159,7 @@ dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 ## 文档
 
 - [完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
-- [v1.1.1 发布说明](docs/RELEASE_NOTES_v1.1.1.md)
+- [v1.1.2 发布说明](docs/RELEASE_NOTES_v1.1.2.md)
 - [更新日志](CHANGELOG.md)
 - [OCR 模块说明](docs/OCR_MODULE.md)
 - [历史 Metadata 说明](docs/HISTORY_METADATA.md)
