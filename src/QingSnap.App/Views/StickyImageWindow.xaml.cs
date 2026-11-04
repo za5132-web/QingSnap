@@ -25,7 +25,6 @@ public partial class StickyImageWindow : Window
     private const double MinimumScale = 0.01;
     private const double MaximumScale = 4;
     private const double ZoomStep = 1.1;
-    private const double LongImageAspectThreshold = 2.15;
 
     private readonly BitmapSource _image;
     private readonly ClipboardService _clipboardService;
@@ -51,6 +50,7 @@ public partial class StickyImageWindow : Window
     private double _readerViewportHeight;
     private double _readerOffsetRatio;
     private bool _isLongReaderMode;
+    private NativeMethods.NativeRectangle? _readerBounds;
     private bool _isSelectingText;
     private int _selectionAnchorIndex = -1;
     private CancellationTokenSource? _ocrCancellation;
@@ -105,9 +105,10 @@ public partial class StickyImageWindow : Window
         _initialRegion = initialRegion;
         _initialPosition = initialPosition;
         _ocrPreloadTask = prefetchedOcr;
-        _isLongImage = _imageHeightDip / Math.Max(1, _imageWidthDip) >= LongImageAspectThreshold;
+        _isLongImage = LongImagePinLayout.NeedsReader(image.PixelWidth, image.PixelHeight, initialRegion);
 
         InitializeComponent();
+        InitializePinAnnotations(settings);
         QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         LongQrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         Title = $"QingSnap 贴图 — {Path.GetFileName(sourceName)}";
@@ -148,6 +149,8 @@ public partial class StickyImageWindow : Window
         ContentRendered += OnFirstContentRendered;
         Closed += (_, _) =>
         {
+            _isPinClosed = true;
+            ClosePinAnnotationToolbar();
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
             _dockTransitionTimer?.Stop();
@@ -302,32 +305,31 @@ public partial class StickyImageWindow : Window
 
     private void ScheduleOcrPreload()
     {
-        if (!_ocrService.IsOcrAvailable)
+        if (!_ocrService.IsOcrAvailable || _isEditingPin)
         {
             return;
         }
 
         Dispatcher.BeginInvoke(() =>
         {
-            if (_ocrResult is not null)
+            try
             {
-                return;
+                if (_ocrResult is not null || _isEditingPin || _isPinClosed || !IsLoaded) return;
+                if (_ocrPreloadTask is null)
+                {
+                    _ocrCancellation ??= new CancellationTokenSource();
+                    _ocrPreloadTask = _ocrService.RecognizeAsync(
+                        CreatePinOutput(), _ocrCancellation.Token, progress: null, includeWordBoxes: true);
+                }
+                if (!_isOcrPreloadObserved)
+                {
+                    _isOcrPreloadObserved = true;
+                    _ = ObserveOcrPreloadAsync(_ocrPreloadTask);
+                }
             }
-
-            if (_ocrPreloadTask is null)
+            catch (Exception exception)
             {
-                _ocrCancellation ??= new CancellationTokenSource();
-                _ocrPreloadTask = _ocrService.RecognizeAsync(
-                    _image,
-                    _ocrCancellation.Token,
-                    progress: null,
-                    includeWordBoxes: true);
-            }
-
-            if (!_isOcrPreloadObserved)
-            {
-                _isOcrPreloadObserved = true;
-                _ = ObserveOcrPreloadAsync(_ocrPreloadTask);
+                DiagnosticLog.Error("OCR", exception, "贴图识别准备失败。");
             }
         }, DispatcherPriority.ApplicationIdle);
     }
@@ -337,7 +339,8 @@ public partial class StickyImageWindow : Window
         try
         {
             var result = await preloadTask;
-            if (_ocrCancellation?.IsCancellationRequested != true)
+            if (_ocrCancellation?.IsCancellationRequested != true &&
+                ReferenceEquals(_ocrPreloadTask, preloadTask) && !_isEditingPin && !_isPinClosed)
             {
                 ApplyOcrResult(result);
             }
@@ -370,6 +373,8 @@ public partial class StickyImageWindow : Window
     {
         TextSelectionOverlay.Visibility = Visibility.Collapsed;
         LongTextSelectionOverlay.Visibility = Visibility.Collapsed;
+        UpdatePinAnnotationHost();
+        if (_isEditingPin) return;
         ActiveTextOverlay.Visibility = Visibility.Visible;
         Dispatcher.BeginInvoke(RenderTextOverlay, DispatcherPriority.Render);
     }
@@ -430,6 +435,13 @@ public partial class StickyImageWindow : Window
 
     private void OnTextOverlayMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // Long-image double-click switches views even when OCR text is under the cursor.
+        if (_isLongImage && e.ClickCount == 2)
+        {
+            OnImageMouseLeftButtonDown(sender, e);
+            return;
+        }
+
         if (sender is not Canvas overlay)
         {
             return;
@@ -600,6 +612,7 @@ public partial class StickyImageWindow : Window
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (HandlePinAnnotationWheel(e)) return;
         if (_isCollapsed || _isDockTransitioning)
         {
             e.Handled = true;
@@ -634,6 +647,8 @@ public partial class StickyImageWindow : Window
 
     private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (IsPinTextEditing) return;
+        if (HandlePinAnnotationKey(e)) return;
         var key = ResolveShortcutKey(e);
         if (key == Key.M && Keyboard.Modifiers == ModifierKeys.None)
         {
@@ -733,7 +748,7 @@ public partial class StickyImageWindow : Window
         ShowFeedback("正在识别二维码…");
         try
         {
-            var results = await _qrCodeService.RecognizeAsync(_image, cancellation.Token);
+            var results = await _qrCodeService.RecognizeAsync(CreatePinOutput(), cancellation.Token);
             if (cancellation.IsCancellationRequested || !ReferenceEquals(_qrCodeCancellation, cancellation))
             {
                 return;
@@ -1195,6 +1210,7 @@ public partial class StickyImageWindow : Window
 
     private void ToggleCollapsed()
     {
+        if (_isEditingPin) FinishPinAnnotations();
         if (_isDockTransitioning)
         {
             return;
@@ -1326,6 +1342,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        var readerOffsetRatio = _readerOffsetRatio;
         _isCollapsed = false;
         _isCollapsedDockRevealed = false;
         _collapsedDockHideTimer.Stop();
@@ -1338,6 +1355,12 @@ public partial class StickyImageWindow : Window
         UpdateLayout();
         AnimateWindowBounds(handle, collapsedBounds, expandedBounds, () =>
         {
+            if (_isLongReaderMode)
+            {
+                UpdateLayout();
+                LongImageScroller.ScrollToVerticalOffset(readerOffsetRatio * LongImageScroller.ScrollableHeight);
+                UpdateScrollProgress();
+            }
             Activate();
             Focus();
             if (_usesCloseButton)
@@ -1384,11 +1407,12 @@ public partial class StickyImageWindow : Window
     {
         try
         {
-            await _clipboardService.CopyImageAsync(_image);
+            await _clipboardService.CopyImageAsync(CreatePinOutput());
             ShowFeedback("已复制到剪贴板");
         }
         catch (Exception exception)
         {
+            DiagnosticLog.Error("PinAnnotation", exception, "贴图复制失败。");
             ShowFeedback(exception.Message);
         }
     }
@@ -1422,6 +1446,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        var offsetRatio = _readerOffsetRatio;
         var oldCenterX = Left + ActualWidth / 2;
         var oldCenterY = Top + ActualHeight / 2;
         _isLongReaderMode = true;
@@ -1440,8 +1465,13 @@ public partial class StickyImageWindow : Window
         var workArea = SystemParameters.WorkArea;
         if (useInitialPosition && _initialRegion is { Width: > 0, Height: > 0 } region)
         {
-            Left = Math.Clamp(region.Left - 1D, workArea.Left, Math.Max(workArea.Left, workArea.Right - Width));
-            Top = Math.Clamp(region.Top - 1D, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - Height));
+            RestoreReaderBounds(new DrawingRectangle(region.Left - 1, region.Top - 1,
+                region.Width + 2, region.Height + 2));
+        }
+        else if (!useInitialPosition && _readerBounds is { } savedBounds)
+        {
+            RestoreReaderBounds(new DrawingRectangle(savedBounds.Left, savedBounds.Top,
+                savedBounds.Width, savedBounds.Height));
         }
         else if (useInitialPosition && _initialPosition is { } initialPosition)
         {
@@ -1460,7 +1490,7 @@ public partial class StickyImageWindow : Window
         Dispatcher.BeginInvoke(() =>
         {
             LongImageScroller.ScrollToVerticalOffset(
-                _readerOffsetRatio * LongImageScroller.ScrollableHeight);
+                offsetRatio * LongImageScroller.ScrollableHeight);
             UpdateScrollProgress();
         }, DispatcherPriority.Loaded);
 
@@ -1477,6 +1507,16 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        var handle = new WindowInteropHelper(this).Handle;
+        if (NativeMethods.GetWindowRect(handle, out var bounds))
+        {
+            _readerBounds = bounds;
+        }
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var screen = System.Windows.Forms.Screen.FromHandle(handle).WorkingArea;
+        _fitScale = Math.Clamp(Math.Min(1, Math.Min(
+            screen.Width * 0.9 / dpi.DpiScaleX / _imageWidthDip,
+            screen.Height * 0.9 / dpi.DpiScaleY / _imageHeightDip)), MinimumScale, MaximumScale);
         _readerOffsetRatio = LongImageScroller.ScrollableHeight <= 0
             ? 0
             : LongImageScroller.VerticalOffset / LongImageScroller.ScrollableHeight;
@@ -1487,9 +1527,26 @@ public partial class StickyImageWindow : Window
         TopMenuItem.Visibility = Visibility.Collapsed;
         OverviewMenuItem.Visibility = Visibility.Collapsed;
         ReaderModeMenuItem.Visibility = Visibility.Visible;
-        SetScaleImmediate(_fitScale);
+        SetScaleImmediate(_fitScale, force: true);
         UpdateTextOverlayVisibility();
         ShowFeedback("完整概览 · 双击返回阅读窗");
+    }
+
+    private void RestoreReaderBounds(DrawingRectangle bounds)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        // Position the HWND first so Per-Monitor V2 has selected the destination DPI.
+        NativeMethods.SetWindowPos(handle, nint.Zero, bounds.Left, bounds.Top, bounds.Width, bounds.Height,
+            NativeMethods.SwpNoActivate | NativeMethods.SwpNoZOrder | NativeMethods.SwpNoOwnerZOrder);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var zoom = _readerBaseScale > 0 ? _readerScale / _readerBaseScale : 1;
+        (_readerViewportWidth, _readerViewportHeight) = LongImagePinLayout.Viewport(
+            bounds, dpi.DpiScaleX, dpi.DpiScaleY);
+        Width = bounds.Width / dpi.DpiScaleX;
+        Height = bounds.Height / dpi.DpiScaleY;
+        _readerBaseScale = _readerViewportWidth / Math.Max(1, _imageWidthDip);
+        _readerScale = _readerBaseScale * zoom;
+        ApplyReaderImageSize();
     }
 
     private void SetReaderScale(double scale, bool anchorAtCursor)
@@ -1550,7 +1607,7 @@ public partial class StickyImageWindow : Window
 
     private void OnLongImageScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
     {
-        if (_isLongReaderMode && LongImageScroller.ScrollableHeight > 0)
+        if (_isLongReaderMode && !_isCollapsed && !_isDockTransitioning && LongImageScroller.ScrollableHeight > 0)
         {
             _readerOffsetRatio = LongImageScroller.VerticalOffset / LongImageScroller.ScrollableHeight;
         }
@@ -1570,7 +1627,9 @@ public partial class StickyImageWindow : Window
         var trackHeight = ScrollRail.ActualHeight;
         var extentHeight = Math.Max(1, LongImageScroller.ExtentHeight);
         var viewportRatio = Math.Clamp(LongImageScroller.ViewportHeight / extentHeight, 0, 1);
-        var thumbHeight = Math.Clamp(trackHeight * viewportRatio, 32, trackHeight);
+        // Dock animations can temporarily make the rail shorter than the usual
+        // minimum thumb. Never give Clamp a minimum greater than its maximum.
+        var thumbHeight = Math.Clamp(trackHeight * viewportRatio, Math.Min(32, trackHeight), trackHeight);
         var travel = Math.Max(0, trackHeight - thumbHeight);
         var offsetRatio = LongImageScroller.ScrollableHeight <= 0
             ? 0
@@ -1604,7 +1663,7 @@ public partial class StickyImageWindow : Window
         }
     }
 
-    private void SetScaleImmediate(double scale)
+    private void SetScaleImmediate(double scale, bool force = false)
     {
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var current))
@@ -1626,7 +1685,7 @@ public partial class StickyImageWindow : Window
             dpi.DpiScaleY,
             borderX,
             borderY);
-        if (Math.Abs(size.Scale - _scale) < 0.00001)
+        if (!force && Math.Abs(size.Scale - _scale) < 0.00001)
         {
             return;
         }

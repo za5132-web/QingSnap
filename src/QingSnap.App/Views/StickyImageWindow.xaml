@@ -15,6 +15,27 @@
         PreviewKeyDown="OnPreviewKeyDown"
         PreviewMouseWheel="OnPreviewMouseWheel">
     <Window.Resources>
+        <Style x:Key="PinAnnotationButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF314754" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="PinContextMenu" TargetType="ContextMenu">
             <Setter Property="Width" Value="220" />
             <Setter Property="Background" Value="Transparent" />
@@ -160,6 +181,11 @@
                           InputGestureText="Ctrl+C"
                           Style="{StaticResource PinMenuItem}"
                           Click="OnCopyClick" />
+                <MenuItem x:Name="AnnotateMenuItem" Header="标注图片"
+                          InputGestureText="F2" Style="{StaticResource PinMenuItem}"
+                          Click="OnAnnotateClick" />
+                <MenuItem Header="另存图片" Style="{StaticResource PinMenuItem}"
+                          Click="OnSaveAnnotatedClick" />
                 <MenuItem Header="识别二维码"
                           Style="{StaticResource PinMenuItem}"
                           Click="OnRecognizeQrCodeClick" />
@@ -226,6 +252,8 @@
 
             <icons:QrCodeHotspotLayer x:Name="QrCodeHotspotLayer"
                                       Panel.ZIndex="30" />
+            <Viewbox x:Name="PinAnnotationHost" Stretch="Uniform"
+                     IsHitTestVisible="False" Panel.ZIndex="35" />
 
             <ScrollViewer x:Name="LongImageScroller"
                           Visibility="Collapsed"
@@ -253,6 +281,8 @@
                             MouseLeave="OnTextOverlayMouseLeave" />
                     <icons:QrCodeHotspotLayer x:Name="LongQrCodeHotspotLayer"
                                               Panel.ZIndex="30" />
+                    <Viewbox x:Name="LongPinAnnotationHost" Stretch="Fill"
+                             IsHitTestVisible="False" Panel.ZIndex="35" />
                 </Grid>
             </ScrollViewer>
 

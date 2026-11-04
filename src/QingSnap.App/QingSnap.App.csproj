@@ -12,10 +12,10 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>QingSnap</AssemblyName>
     <RootNamespace>QingSnap.App</RootNamespace>
-    <Version>1.1.2</Version>
-    <AssemblyVersion>1.1.2.0</AssemblyVersion>
-    <FileVersion>1.1.2.0</FileVersion>
-    <InformationalVersion>v1.1.2</InformationalVersion>
+    <Version>1.1.3</Version>
+    <AssemblyVersion>1.1.3.0</AssemblyVersion>
+    <FileVersion>1.1.3.0</FileVersion>
+    <InformationalVersion>v1.1.3</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Deterministic>true</Deterministic>
     <PublishSingleFile>true</PublishSingleFile>
@@ -61,14 +61,20 @@
     <None Include="..\..\docs\images\qingsnap-first-run-tutorial.png"
           Link="docs\images\qingsnap-first-run-tutorial.png"
           CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\images\qingsnap-v1.1.3-guide.png"
+          Link="docs\images\qingsnap-v1.1.3-guide.png"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\PIN_ANNOTATION_TRIAL_GUIDE.md"
+          Link="PIN_ANNOTATION_GUIDE.md"
+          CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\CHANGELOG.md"
           Link="CHANGELOG.md"
           CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\QINGSNAP_COMPLETE_FEATURE_LIST.md"
           Link="QINGSNAP_COMPLETE_FEATURE_LIST.md"
           CopyToPublishDirectory="PreserveNewest" />
-    <None Include="..\..\docs\RELEASE_NOTES_v1.1.2.md"
-          Link="RELEASE_NOTES_v1.1.2.md"
+    <None Include="..\..\docs\RELEASE_NOTES_v1.1.3.md"
+          Link="RELEASE_NOTES_v1.1.3.md"
           CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\V45_OPTIMIZATION_REPORT.md"
           Link="V45_OPTIMIZATION_REPORT.md"

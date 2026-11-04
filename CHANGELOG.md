@@ -3,6 +3,16 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.3] - 2026-11-04
+
+### 贴图编辑与长图阅读 / Pin annotation and long-image reading
+
+- 贴图右键或 F2 进入二次标注，复用原截图标注系统；支持绘制、文字/序号编辑、多选、撤销/重做、图层、完整图片复制及另存 PNG。原历史图片不被覆盖。  Added in-place pin annotation with existing annotation tools, editing, multi-selection, Undo/Redo, layers, full-image copy, and PNG export without overwriting history originals.
+- 长图按原截图选区位置和大小打开阅读窗，滚轮浏览；双击适屏概览，再双击返回阅读位置，覆盖宽长图和混合 DPI 坐标换算。  Long images open in the original capture-region viewport with wheel scrolling and double-click overview/return.
+- 修复长图边缘收纳后恢复动画在极小高度下抛错而中断的问题，并保留阅读进度。  Fixed long-image dock restoration failing at small animation heights and preserved reading progress.
+- 标注变更后清理旧 OCR/二维码结果，识别基于合成图片，避免旧任务结果回流。  Invalidated stale OCR/QR results after annotation changes and recognize the composited image.
+- 每次发布附操作示意图或动图；本次包含内置样例与真实工具条渲染的示意图。  Each release now includes a feature illustration or animation.
+
 ## [1.1.2] - 2026-11-01
 
 ### 修复 / Fixed

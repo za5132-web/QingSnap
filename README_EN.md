@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.2](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
-- [v1.1.2 release notes](docs/RELEASE_NOTES_v1.1.2.md)
+- [Download QingSnap v1.1.3](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
+- [v1.1.3 release notes](docs/RELEASE_NOTES_v1.1.3.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -86,6 +86,15 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.3
+
+- Annotate pins with F2 or the context menu, including text, arrows, multi-selection, Undo/Redo, full-image copy, and PNG export.
+- Long images open at the original capture-region size; scroll to read and double-click for overview/return.
+- Fixed interrupted edge-dock restoration and invalidated stale OCR/QR results after editing.
+- New annotations live in the current pin window. Copy or save before closing; history originals remain unchanged.
+
+![v1.1.3 workflow illustration](docs/images/qingsnap-v1.1.3-guide.png)
 
 ## What is new in v1.1.2
 

@@ -14,8 +14,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.2 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
-- [v1.1.2 リリースノート](docs/RELEASE_NOTES_v1.1.2.md)
+- [QingSnap v1.1.3 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
+- [v1.1.3 リリースノート](docs/RELEASE_NOTES_v1.1.3.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -41,6 +41,15 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.3
+
+- F2 または右クリックでピン画像に注釈を追加。文字、矢印、複数選択、Undo/Redo、画像全体のコピーと PNG 保存に対応。
+- 長い画像を元の選択範囲サイズで表示。ホイールで閲覧し、ダブルクリックで全体表示と閲覧位置を切り替え。
+- 画面端への収納から復元できなくなる問題を修正し、編集前の OCR/QR 結果を無効化。
+- 注釈は現在のピンウィンドウ内に保持されます。閉じる前にコピーまたは保存してください。履歴の原画像は変更しません。
+
+![v1.1.3 操作イメージ](docs/images/qingsnap-v1.1.3-guide.png)
 
 ## v1.1.2
 

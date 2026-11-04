@@ -14,8 +14,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.2](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
-- [v1.1.2 發布說明](docs/RELEASE_NOTES_v1.1.2.md)
+- [下載 QingSnap v1.1.3](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
+- [v1.1.3 發布說明](docs/RELEASE_NOTES_v1.1.3.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -41,6 +41,15 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.3 更新
+
+- 貼圖按 F2 或右鍵進入二次標註，支援文字、箭頭、多選、復原/重做及完整圖片複製、另存 PNG。
+- 長圖依原截圖選區大小開啟，滾輪閱讀，雙擊總覽後可返回閱讀位置。
+- 修復邊緣收納恢復中斷，並在編輯後清除舊 OCR / 二維碼結果。
+- 新增標註僅保留於目前貼圖視窗，關閉前請複製或另存，不覆蓋歷史原圖。
+
+![v1.1.3 操作示意](docs/images/qingsnap-v1.1.3-guide.png)
 
 ## v1.1.2 更新
 

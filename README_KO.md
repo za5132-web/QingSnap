@@ -14,8 +14,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.2 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.2/QingSnap-v1.1.2.zip)
-- [v1.1.2 릴리스 노트](docs/RELEASE_NOTES_v1.1.2.md)
+- [QingSnap v1.1.3 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
+- [v1.1.3 릴리스 노트](docs/RELEASE_NOTES_v1.1.3.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -41,6 +41,15 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.3 업데이트
+
+- F2 또는 우클릭으로 핀 이미지에 주석을 추가합니다. 텍스트, 화살표, 다중 선택, 실행 취소/다시 실행, 전체 이미지 복사 및 PNG 저장을 지원합니다.
+- 긴 이미지를 원래 캡처 영역 크기로 표시하고 휠로 읽습니다. 더블클릭으로 전체 보기와 읽던 위치를 전환합니다.
+- 화면 가장자리 수납 후 복원 중단 문제를 수정하고 편집 전 OCR/QR 결과를 무효화했습니다.
+- 주석은 현재 핀 창에 유지됩니다. 닫기 전에 복사하거나 저장하세요. 기록의 원본은 변경하지 않습니다.
+
+![v1.1.3 작업 흐름](docs/images/qingsnap-v1.1.3-guide.png)
 
 ## v1.1.2 업데이트
 

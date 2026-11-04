@@ -10,6 +10,7 @@ using Xunit;
 
 namespace QingSnap.Tests;
 
+[Collection("WpfWindowTests")]
 public sealed class CaptureOverlaySelectionRegressionTests
 {
     private const BindingFlags InstanceFlags = BindingFlags.NonPublic | BindingFlags.Instance;
