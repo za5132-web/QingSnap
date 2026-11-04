@@ -4,7 +4,13 @@
              xmlns:local="clr-namespace:QingSnap.App"
              ShutdownMode="OnExplicitShutdown">
     <Application.Resources>
-        <FontFamily x:Key="UiFont">Segoe UI</FontFamily>
-        <FontFamily x:Key="DataFont">Consolas</FontFamily>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/Dark.xaml" />
+                <ResourceDictionary Source="Themes/SharedStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <FontFamily x:Key="UiFont">Segoe UI</FontFamily>
+            <FontFamily x:Key="DataFont">Consolas</FontFamily>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -73,6 +73,7 @@ public sealed class AppSettingsService
             : OcrModelManager.NormalizeModel(settings.OcrModel);
         return settings with
         {
+            Theme = ThemeService.NormalizePreference(settings.Theme),
             Hotkeys = hotkeys,
             CaptureHotkey = FindGesture(hotkeys, HotkeyAction.RegionCapture),
             PinHotkey = FindGesture(hotkeys, HotkeyAction.PinRecentImage),

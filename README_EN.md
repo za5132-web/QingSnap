@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.3](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
-- [v1.1.3 release notes](docs/RELEASE_NOTES_v1.1.3.md)
+- [Download QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
+- [v1.1.4 release notes](docs/RELEASE_NOTES_v1.1.4.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -41,7 +41,8 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 
 ### Smart, pixel-precise capture
 
-- Detect windows and standard controls under the pointer, or draw a free region.
+- Detect windows and native controls immediately, then refine to supported panels in the background when the pointer settles. Free-region capture remains available.
+- Use `Alt+wheel` during preview to cycle candidate levels; unsupported applications retain native window selection.
 - Refine all edges and corners, enter physical X/Y/W/H values, and inspect pixels with the magnifier.
 - Lock `1:1`, `4:3`, `3:2`, `16:9`, `9:16`, the current ratio, or an exact fixed size.
 - Hold `Shift` for ratio constraints and `Alt` for center-based scaling.
@@ -86,6 +87,15 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.4
+
+- Automatic smart selection combines immediate window detection with background panel refinement; no mode switch is required. Use `Alt+wheel` to cycle candidate levels.
+- Pin zoom and edge docking use short, retargetable transitions. Fixed an initial zoom jump in some DPI configurations.
+- Choose Dark, Light, or System in Settings and save to apply. Original images, annotation colors, and exported pixels remain unchanged.
+- 235 automated tests passed; Release build: 0 warnings and 0 errors. Recognition depends on the target application; real mixed-DPI and high-refresh-rate behavior still needs hands-on validation.
+
+![v1.1.4 smart selection, pin motion, and themes](docs/images/qingsnap-v1.1.4-guide.png)
 
 ## What is new in v1.1.3
 
@@ -138,11 +148,13 @@ Automatic/manual scrolling capture, OCR latest capture, History, and pause/resum
 ```powershell
 dotnet restore QingSnap.sln
 dotnet build QingSnap.sln -c Release
-dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release
+dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release --filter "FullyQualifiedName!~HistoryDirectoryMigrationTests"
 dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 ```
 
 Main technologies: C#, .NET 8, WPF, native Windows capture/clipboard/hotkey/DPI APIs, Microsoft.Data.Sqlite, ZXing.Net, and optional RapidOCR.Net / PaddleOCR.
+
+The regression command excludes one legacy migration test that modifies real Windows Startup entries. That exclusion is not a verification pass.
 
 ## Documentation and feedback
 

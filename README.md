@@ -15,8 +15,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.3](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
-- [查看 v1.1.3 发布说明](docs/RELEASE_NOTES_v1.1.3.md)
+- [下载 QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
+- [查看 v1.1.4 发布说明](docs/RELEASE_NOTES_v1.1.4.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -41,7 +41,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ### 智能、精确的区域截图
 
-- 鼠标悬停识别窗口和标准控件，也可自由框选。
+- 鼠标悬停先识别窗口和标准控件，停稳后自动尝试细化到面板；也可自由框选。
+- 预选时用 `Alt+滚轮` 切换候选层级；目标应用不支持精细识别时保留窗口选区。
 - 支持八方向调整、X/Y/W/H 物理像素输入与像素放大镜。
 - 自由、`1:1`、`4:3`、`3:2`、`16:9`、`9:16` 和当前比例锁定。
 - 固定尺寸后只移动不缩放；`Shift` 保持比例，`Alt` 以中心缩放。
@@ -86,6 +87,15 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 支持列表/图标模式、多选、批量收藏、标签、复制路径和删除到回收站。
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
+
+## v1.1.4 更新内容
+
+- 智能选区自动结合即时窗口识别与后台面板细化，无需切换模式；`Alt+滚轮` 可选择候选层级。
+- 贴图滚轮缩放与边缘收纳改为短时、可连续衔接的运动；修正部分 DPI 环境下首次缩放突然跳大的问题。
+- 新增深色、浅色与跟随系统主题，在设置中保存后应用；不改变原图、标注颜色和导出内容。
+- 235 项自动化测试通过，Release 0 Warning / 0 Error；识别效果仍取决于目标应用，真实混合 DPI 和高刷新率体验仍需人工验证。
+
+![v1.1.4 智能选区、贴图动效与深浅主题示意](docs/images/qingsnap-v1.1.4-guide.png)
 
 ## v1.1.3 更新内容
 
@@ -159,16 +169,18 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 ```powershell
 dotnet restore QingSnap.sln
 dotnet build QingSnap.sln -c Release
-dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release
+dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release --filter "FullyQualifiedName!~HistoryDirectoryMigrationTests"
 dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 ```
 
 主要技术：C#、.NET 8、WPF、Windows 原生截图/剪贴板/热键/DPI API、Microsoft.Data.Sqlite、ZXing.Net，以及可选 RapidOCR.Net / PaddleOCR。
 
+上面的回归命令排除 1 项会修改真实 Windows 开机启动项的旧迁移测试；不要把排除项视为已经验证。
+
 ## 文档
 
 - [完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
-- [v1.1.3 发布说明](docs/RELEASE_NOTES_v1.1.3.md)
+- [v1.1.4 发布说明](docs/RELEASE_NOTES_v1.1.4.md)
 - [更新日志](CHANGELOG.md)
 - [OCR 模块说明](docs/OCR_MODULE.md)
 - [历史 Metadata 说明](docs/HISTORY_METADATA.md)

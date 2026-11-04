@@ -33,6 +33,7 @@ public partial class StickyImageWindow
     private bool _isEditingPin;
     private bool _isPinDrawing;
     private bool _isPinClosed;
+    private System.Windows.Threading.DispatcherOperation? _pinToolbarReposition;
     private bool IsPinTextEditing => _isEditingPin && Keyboard.FocusedElement is Wpf.TextBox;
 
     private void InitializePinAnnotations(AppSettings settings)
@@ -66,6 +67,7 @@ public partial class StickyImageWindow
     private void BeginPinAnnotations()
     {
         if (_isCollapsed || _isDockTransitioning) return;
+        CompletePinMotion();
         if (_pinAnnotations is null)
         {
             _pinAnnotations = new CaptureAnnotationController(_pinAnnotationLayer,
@@ -366,9 +368,10 @@ public partial class StickyImageWindow
         {
             var color = (Color)ColorConverter.ConvertFromString(hex);
             var button = PinToolButton(QingSnapIconKind.Color, name, () => _pinAnnotations!.SetColor(color));
-            button.Content = new Wpf.Border { Width = 18, Height = 12, CornerRadius = new CornerRadius(2),
-                Background = new SolidColorBrush(color), BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(120, 145, 156)) };
+            var swatch = new Wpf.Border { Width = 18, Height = 12, CornerRadius = new CornerRadius(2),
+                Background = new SolidColorBrush(color), BorderThickness = new Thickness(1) };
+            swatch.SetResourceReference(Wpf.Border.BorderBrushProperty, "ThemeBorderStrongBrush");
+            button.Content = swatch;
             actions.Children.Add(button);
         }
         _pinUndoButton = PinToolButton(QingSnapIconKind.Undo, "撤销 Ctrl+Z", () => _pinAnnotations!.Undo());
@@ -384,15 +387,22 @@ public partial class StickyImageWindow
         var content = new Wpf.StackPanel();
         content.Children.Add(tools);
         content.Children.Add(actions);
-        content.Children.Add(new Wpf.TextBlock { Text = "F2 选择/编辑 · 滚轮调整标注 · Ctrl+滚轮缩放 · Esc 完成",
-            FontSize = 10, Foreground = new SolidColorBrush(Color.FromRgb(150, 178, 190)), Margin = new Thickness(5) });
+        var hint = new Wpf.TextBlock { Text = "F2 选择/编辑 · 滚轮调整标注 · Ctrl+滚轮缩放 · Esc 完成",
+            FontSize = 10, Margin = new Thickness(5) };
+        hint.SetResourceReference(Wpf.TextBlock.ForegroundProperty, "ThemeMutedTextBrush");
+        content.Children.Add(hint);
+        var toolbarChrome = new Wpf.Border
+        {
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(5), Child = content
+        };
+        toolbarChrome.SetResourceReference(Wpf.Border.BackgroundProperty, "ThemeOverlayPanelBrush");
+        toolbarChrome.SetResourceReference(Wpf.Border.BorderBrushProperty, "ThemeBorderStrongBrush");
         _pinAnnotationToolbar = new Popup
         {
             PlacementTarget = Frame, Placement = PlacementMode.Bottom, StaysOpen = true,
             AllowsTransparency = true, VerticalOffset = 6,
-            Child = new Wpf.Border { Background = new SolidColorBrush(Color.FromRgb(13, 23, 30)),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(118, 223, 238)), BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6), Padding = new Thickness(5), Child = content }
+            Child = toolbarChrome
         };
         RefreshPinAnnotationButtons();
     }
@@ -402,10 +412,11 @@ public partial class StickyImageWindow
         var button = new Wpf.Button
         {
             Width = 34, Height = 30, Margin = new Thickness(0), ToolTip = hint,
-            Foreground = new SolidColorBrush(Color.FromRgb(118, 223, 238)), Focusable = false,
+            Focusable = false,
             Style = (Style)FindResource("PinAnnotationButton"),
             Content = new QingSnapIcon { Kind = icon, Width = 17, Height = 17 }
         };
+        button.SetResourceReference(Wpf.Button.ForegroundProperty, "ThemeAccentBrush");
         button.Click += (_, _) =>
         {
             try { action(); }
@@ -422,8 +433,11 @@ public partial class StickyImageWindow
     private void RefreshPinAnnotationButtons()
     {
         foreach (var pair in _pinToolButtons)
-            pair.Value.Background = pair.Key == _pinAnnotations!.ActiveTool
-                ? new SolidColorBrush(Color.FromRgb(40, 66, 76)) : Brushes.Transparent;
+        {
+            if (pair.Key == _pinAnnotations!.ActiveTool)
+                pair.Value.SetResourceReference(Wpf.Button.BackgroundProperty, "ThemeSelectedBrush");
+            else pair.Value.ClearValue(Wpf.Button.BackgroundProperty);
+        }
         if (_pinUndoButton is not null) _pinUndoButton.IsEnabled = _pinAnnotations!.CanUndo;
         if (_pinRedoButton is not null) _pinRedoButton.IsEnabled = _pinAnnotations!.CanRedo;
     }
@@ -431,12 +445,20 @@ public partial class StickyImageWindow
     private void RepositionPinAnnotationToolbar()
     {
         if (_pinAnnotationToolbar?.IsOpen != true) return;
-        _pinAnnotationToolbar.HorizontalOffset += 1;
-        _pinAnnotationToolbar.HorizontalOffset -= 1;
+        if (_pinToolbarReposition?.Status == System.Windows.Threading.DispatcherOperationStatus.Pending) return;
+        _pinToolbarReposition = Dispatcher.BeginInvoke(() =>
+        {
+            _pinToolbarReposition = null;
+            if (_isPinClosed || _pinAnnotationToolbar?.IsOpen != true) return;
+            _pinAnnotationToolbar.HorizontalOffset += 1;
+            _pinAnnotationToolbar.HorizontalOffset -= 1;
+        }, System.Windows.Threading.DispatcherPriority.Render);
     }
 
     private void ClosePinAnnotationToolbar()
     {
+        _pinToolbarReposition?.Abort();
+        _pinToolbarReposition = null;
         if (_pinAnnotationToolbar is not null) _pinAnnotationToolbar.IsOpen = false;
     }
 }

@@ -14,8 +14,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.3](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
-- [v1.1.3 發布說明](docs/RELEASE_NOTES_v1.1.3.md)
+- [下載 QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
+- [v1.1.4 發布說明](docs/RELEASE_NOTES_v1.1.4.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -41,6 +41,15 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.4 更新
+
+- 智慧選區自動結合即時視窗辨識與背景面板細化，無需切換模式；預選時可用 `Alt+滾輪` 切換候選層級。
+- 貼圖縮放與邊緣收納採用短暫、可連續銜接的動畫；修正部分 DPI 環境首次縮放突然跳大的問題。
+- 新增深色、淺色與跟隨系統主題，於設定儲存後套用；原圖、標註顏色與匯出內容不變。
+- 235 項自動化測試通過，Release 0 Warning / 0 Error；辨識仍取決於目標應用程式，真實混合 DPI 與高更新率體驗仍需人工驗證。
+
+![v1.1.4 智慧選區、貼圖動畫與深淺主題示意](docs/images/qingsnap-v1.1.4-guide.png)
 
 ## v1.1.3 更新
 
@@ -84,8 +93,10 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 ```powershell
 dotnet restore QingSnap.sln
 dotnet build QingSnap.sln -c Release
-dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release
+dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release --filter "FullyQualifiedName!~HistoryDirectoryMigrationTests"
 ```
+
+上述命令排除 1 項會修改真實 Windows 啟動項目的舊遷移測試，該項目不代表已驗證。
 
 問題請提交至 [GitHub Issues](https://github.com/za5132-web/QingSnap/issues)。目前未授予開源授權，使用、修改或再發布前請先取得作者同意；第三方元件依各自授權使用。
 

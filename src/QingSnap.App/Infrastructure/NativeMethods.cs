@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using QingSnap.App.Services;
 
 namespace QingSnap.App.Infrastructure;
 
@@ -20,6 +21,7 @@ internal static class NativeMethods
     internal const long WsExNoActivate = 0x08000000L;
     internal const int WmNcHitTest = 0x0084;
     internal const int DwmWindowAttributeCloak = 13;
+    private const int DwmWindowAttributeCloaked = 14;
     internal const uint IaceDefault = 0x0010;
     private const uint ChildWindowSkipInvisible = 0x0001;
     private const uint ChildWindowSkipDisabled = 0x0002;
@@ -54,6 +56,19 @@ internal static class NativeMethods
         int attribute,
         ref int attributeValue,
         int attributeSize);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(nint window, int attribute,
+        out NativeRectangle value, int attributeSize);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmGetWindowAttribute(nint window, int attribute,
+        out int value, int attributeSize);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetLayeredWindowAttributes(nint window, out uint color,
+        out byte alpha, out uint flags);
 
     [DllImport("dwmapi.dll")]
     internal static extern int DwmFlush();
@@ -258,6 +273,65 @@ internal static class NativeMethods
         }
 
         return current;
+    }
+
+    // A separate smart-preview path leaves capture-source metadata's original Win32 contract intact.
+    internal static SmartSelectionWindowHit? FindSmartSelectionWindows(
+        NativePoint screenPoint, uint excludedProcessId, System.Drawing.Rectangle captureBounds)
+    {
+        var pointer = new System.Drawing.Point(screenPoint.X, screenPoint.Y);
+        nint root = nint.Zero;
+        uint rootProcessId = 0;
+        var rawRoot = System.Drawing.Rectangle.Empty;
+        var visibleRoot = System.Drawing.Rectangle.Empty;
+        EnumWindows((window, _) =>
+        {
+            if (!IsWindowVisible(window) || !GetWindowRect(window, out var native)) return true;
+            var bounds = new System.Drawing.Rectangle(native.Left, native.Top, native.Width, native.Height);
+            if (!bounds.Contains(pointer)) return true;
+            GetWindowThreadProcessId(window, out var processId);
+            if (processId == excludedProcessId) return true;
+            var style = GetWindowLongPtr(window, GwlExStyle).ToInt64();
+            if ((style & WsExTransparent) != 0) return true;
+            if (DwmGetWindowAttribute(window, DwmWindowAttributeCloaked, out int cloak, sizeof(int)) >= 0 && cloak != 0)
+                return true;
+            const long layered = 0x00080000;
+            if ((style & layered) != 0 && GetLayeredWindowAttributes(window, out var colorKey, out var alpha, out var flags) &&
+                (flags & 2) != 0 && alpha == 0) return true;
+            var visible = bounds;
+            // DWMWA_EXTENDED_FRAME_BOUNDS excludes invisible resize borders and uses physical pixels.
+            if (DwmGetWindowAttribute(window, 9, out NativeRectangle frame,
+                    Marshal.SizeOf<NativeRectangle>()) >= 0 && frame.Width > 0 && frame.Height > 0)
+                visible = new System.Drawing.Rectangle(frame.Left, frame.Top, frame.Width, frame.Height);
+            if (!visible.Contains(pointer)) return true;
+            root = window;
+            rootProcessId = processId;
+            rawRoot = bounds;
+            visibleRoot = visible;
+            return false;
+        }, nint.Zero);
+        if (root == nint.Zero) return null;
+
+        var candidates = new List<SmartSelectionCandidate>
+        {
+            new(visibleRoot, SmartSelectionKind.Window)
+        };
+        var current = root;
+        for (var depth = 0; depth < 8; depth++)
+        {
+            var clientPoint = screenPoint;
+            if (!ScreenToClient(current, ref clientPoint)) break;
+            var child = ChildWindowFromPointEx(current, clientPoint,
+                ChildWindowSkipInvisible | ChildWindowSkipDisabled | ChildWindowSkipTransparent);
+            if (child == nint.Zero || child == current) break;
+            current = child;
+            if (GetWindowRect(child, out var rect))
+                candidates.Add(new SmartSelectionCandidate(System.Drawing.Rectangle.Intersect(visibleRoot,
+                    new System.Drawing.Rectangle(rect.Left, rect.Top, rect.Width, rect.Height)),
+                    SmartSelectionKind.NativeChild));
+        }
+        return new SmartSelectionWindowHit(root, rootProcessId, rawRoot,
+            SmartSelectionCandidates.Normalize(candidates, pointer, captureBounds));
     }
 
     [StructLayout(LayoutKind.Sequential)]

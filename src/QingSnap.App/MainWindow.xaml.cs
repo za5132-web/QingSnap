@@ -9,6 +9,8 @@ public partial class MainWindow : Window
 {
     private readonly CaptureCoordinator _captureCoordinator;
     private readonly AppSettingsService _settingsService;
+    private readonly ThemeService _themeService;
+    private AppSettings _lastAppliedSettings;
     private readonly OcrService _ocrService;
     private readonly QrCodeService _qrCodeService;
     private readonly CaptureHistoryService _historyService;
@@ -27,6 +29,9 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settingsService = new AppSettingsService();
+        _lastAppliedSettings = _settingsService.Current;
+        _themeService = new ThemeService(System.Windows.Application.Current.Resources, Dispatcher);
+        _themeService.Apply(_settingsService.Current.Theme);
         _updateService = new UpdateService(_settingsService.DataDirectory);
         var captureService = new ScreenCaptureService();
         _clipboardService = new ClipboardService();
@@ -289,12 +294,22 @@ public partial class MainWindow : Window
     private void ConfigureTray()
     {
         _tray?.Dispose();
-        _tray = new TrayIconService(_captureCoordinator, _settingsService, OpenSettingsWindow);
+        _tray = new TrayIconService(_captureCoordinator, _settingsService, OpenSettingsWindow, _themeService);
         _tray.ExitRequested += (_, _) => CloseApplication();
     }
 
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
+        var current = _settingsService.Current;
+        var previous = _lastAppliedSettings;
+        _lastAppliedSettings = current;
+        _themeService.Apply(current.Theme);
+        if ((current with { Theme = previous.Theme, Hotkeys = previous.Hotkeys }) == previous &&
+            current.Hotkeys.SequenceEqual(previous.Hotkeys))
+        {
+            // A palette-only save must not interrupt registered hotkeys or OCR work.
+            return;
+        }
         ConfigureTray();
         ConfigureHotkeys();
         _ = ApplyOcrSettingsAsync();
@@ -350,6 +365,7 @@ public partial class MainWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         _tray?.Dispose();
+        _themeService.Dispose();
         _hotkeys?.Dispose();
         _historyOcrIndexer.Dispose();
         _historyService.Dispose();

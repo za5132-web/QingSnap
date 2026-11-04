@@ -12,7 +12,7 @@
         ShowInTaskbar="False"
         Background="Transparent"
         AllowsTransparency="True"
-        Foreground="#FFF2F7F9"
+        Foreground="{DynamicResource ThemeTextBrush}"
         PreviewKeyDown="OnPreviewKeyDown">
     <Window.Resources>
         <Style x:Key="TagActionButton" TargetType="Button">
@@ -23,9 +23,9 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFE4EEF2" />
-            <Setter Property="Background" Value="#FF21313D" />
-            <Setter Property="BorderBrush" Value="#445B7180" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -41,8 +41,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF2A404D" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#AA76DFEE" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -53,7 +53,7 @@
         <Style x:Key="TagCloseButton" TargetType="Button">
             <Setter Property="Width" Value="34" />
             <Setter Property="Height" Value="34" />
-            <Setter Property="Foreground" Value="#FF91A2AC" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="17" />
@@ -66,8 +66,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF26343E" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -78,9 +78,9 @@
         <Style x:Key="TagListItem" TargetType="ListBoxItem">
             <Setter Property="Margin" Value="0,0,0,5" />
             <Setter Property="Padding" Value="10,7" />
-            <Setter Property="Foreground" Value="#FFC9D7DD" />
-            <Setter Property="Background" Value="#FF111D25" />
-            <Setter Property="BorderBrush" Value="#FF263843" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeChromeBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeHoverBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Cursor" Value="Hand" />
@@ -101,19 +101,19 @@
                                 <TextBlock x:Name="SelectedMark"
                                            HorizontalAlignment="Right"
                                            FontFamily="{StaticResource DataFont}"
-                                           Foreground="#FF76DFEE"
+                                           Foreground="{DynamicResource ThemeAccentBrush}"
                                            Text="✓"
                                            Visibility="Collapsed" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#7776DFEE" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#FF17313B" />
-                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#CC76DFEE" />
-                                <Setter Property="Foreground" Value="#FFF3FBFD" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
+                                <Setter TargetName="ItemBorder" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                                 <Setter TargetName="SelectedMark" Property="Visibility" Value="Visible" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -123,8 +123,8 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#FF0D171F"
-            BorderBrush="#FF344957"
+    <Border Background="{DynamicResource ThemePopupBrush}"
+            BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
             BorderThickness="1"
             CornerRadius="9">
         <Grid>
@@ -134,8 +134,8 @@
                 <RowDefinition Height="60" />
             </Grid.RowDefinitions>
 
-            <Border Background="#FF101C24"
-                    BorderBrush="#253D5362"
+            <Border Background="{DynamicResource ThemeChromeBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderBrush}"
                     BorderThickness="0,0,0,1"
                     CornerRadius="9,9,0,0"
                     MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
@@ -164,7 +164,7 @@
                 <TextBlock x:Name="IntroText"
                            FontFamily="{StaticResource UiFont}"
                            FontSize="12"
-                           Foreground="#FF9DB0BA"
+                           Foreground="{DynamicResource ThemeMutedTextBrush}"
                            TextWrapping="Wrap" />
                 <TextBox x:Name="CustomTagsBox"
                          Grid.Row="1"
@@ -174,17 +174,17 @@
                          VerticalContentAlignment="Center"
                          FontFamily="{StaticResource UiFont}"
                          FontSize="13"
-                         Foreground="#FFF3F7F9"
-                         Background="#FF091219"
-                         BorderBrush="#FF304550"
+                         Foreground="{DynamicResource ThemeTextBrush}"
+                         Background="{DynamicResource ThemeFieldBrush}"
+                         BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                          BorderThickness="1"
-                         CaretBrush="#FF76DFEE" />
+                         CaretBrush="{DynamicResource ThemeAccentBrush}" />
                 <TextBlock x:Name="ListLabelText"
                            Grid.Row="2"
                            Margin="0,14,0,7"
                            FontFamily="{StaticResource UiFont}"
                            FontSize="11"
-                           Foreground="#FF78909C"
+                           Foreground="{DynamicResource ThemeSubtleTextBrush}"
                            Text="已有标签 · 可多选" />
                 <Grid Grid.Row="3">
                     <ListBox x:Name="TagList"
@@ -198,7 +198,7 @@
                                VerticalAlignment="Center"
                                FontFamily="{StaticResource UiFont}"
                                FontSize="12"
-                               Foreground="#FF61737D"
+                               Foreground="{DynamicResource ThemeSubtleTextBrush}"
                                Text="还没有可选择的标签"
                                Visibility="Collapsed" />
                 </Grid>
@@ -207,23 +207,24 @@
                            Margin="0,7,0,0"
                            FontFamily="{StaticResource UiFont}"
                            FontSize="11"
-                           Foreground="#FFFFB060"
+                           Foreground="{DynamicResource ThemeWarningBrush}"
                            Visibility="Collapsed" />
             </Grid>
 
             <Border Grid.Row="2"
                     Padding="14,0"
-                    Background="#FF101C24"
-                    BorderBrush="#253D5362"
+                    Background="{DynamicResource ThemeChromeBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderBrush}"
                     BorderThickness="0,1,0,0"
                     CornerRadius="0,0,9,9">
                 <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
                     <Button Style="{StaticResource TagActionButton}" Content="取消" Click="OnCancelClick" />
                     <Button x:Name="ApplyButton"
                             Style="{StaticResource TagActionButton}"
-                            Foreground="#FF071116"
-                            Background="#FF76DFEE"
-                            BorderBrush="#FF76DFEE"
+                            Foreground="{DynamicResource ThemeOnAccentBrush}"
+                            Template="{DynamicResource ThemePrimaryButtonTemplate}"
+                            Background="{DynamicResource ThemeAccentBrush}"
+                            BorderBrush="{DynamicResource ThemeAccentBrush}"
                             Content="添加"
                             Click="OnApplyClick" />
                 </StackPanel>

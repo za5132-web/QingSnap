@@ -18,35 +18,35 @@
         <Rectangle x:Name="LeftShade" Fill="#88090E14" />
         <Rectangle x:Name="RightShade" Fill="#88090E14" />
 
-        <Rectangle x:Name="TopRail" Fill="#FF76DFEE" />
-        <Rectangle x:Name="BottomRail" Fill="#FF76DFEE" />
-        <Rectangle x:Name="LeftRail" Fill="#FF76DFEE" />
-        <Rectangle x:Name="RightRail" Fill="#FF76DFEE" />
+        <Rectangle x:Name="TopRail" Fill="{DynamicResource ThemeAccentBrush}" />
+        <Rectangle x:Name="BottomRail" Fill="{DynamicResource ThemeAccentBrush}" />
+        <Rectangle x:Name="LeftRail" Fill="{DynamicResource ThemeAccentBrush}" />
+        <Rectangle x:Name="RightRail" Fill="{DynamicResource ThemeAccentBrush}" />
 
         <Border x:Name="StateBadge"
                 Padding="11,7,12,7"
-                Background="#F20E171F"
-                BorderBrush="#6676DFEE"
+                Background="{DynamicResource ThemeOverlayPanelBrush}"
+                BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                 BorderThickness="1"
                 CornerRadius="6">
             <StackPanel Orientation="Horizontal">
                 <Border Width="3"
                         Margin="0,1,9,1"
-                        Background="#FF76DFEE"
+                        Background="{DynamicResource ThemeAccentBrush}"
                         CornerRadius="2" />
                 <StackPanel>
                     <TextBlock x:Name="ModeText"
                                FontFamily="{StaticResource DataFont}"
                                FontSize="9"
                                FontWeight="Bold"
-                               Foreground="#FF76DFEE"
+                               Foreground="{DynamicResource ThemeAccentBrush}"
                                Text="LONG CAPTURE" />
                     <TextBlock x:Name="StateText"
                                Margin="0,2,0,0"
                                FontFamily="{StaticResource UiFont}"
                                FontSize="11"
                                FontWeight="SemiBold"
-                               Foreground="#FFF3F7F9"
+                               Foreground="{DynamicResource ThemeTextBrush}"
                                Text="选区保持显示 · Enter 停止 · Esc 取消" />
                 </StackPanel>
             </StackPanel>

@@ -83,6 +83,7 @@ public partial class SettingsWindow : Window
 
     private void LoadSettings(AppSettings settings)
     {
+        SelectComboByTag(ThemeCombo, settings.Theme);
         StartupCheck.IsChecked = settings.StartWithWindows;
         AutoUpdateCheck.IsChecked = settings.AutoCheckUpdates;
         HistoryDirectoryBox.Text = settings.HistoryDirectory;
@@ -91,7 +92,6 @@ public partial class SettingsWindow : Window
         JpegQualityBox.Text = settings.JpegQuality.ToString();
         AutoCopyCheck.IsChecked = settings.AutoCopy;
         SelectComboByTag(DelayCombo, settings.CaptureDelaySeconds.ToString());
-        SmartSelectionCheck.IsChecked = settings.SmartWindowSelection;
         MagnifierCheck.IsChecked = settings.ShowMagnifier;
         QuickCaptureTagsCheck.IsChecked = settings.ShowQuickCaptureTags;
         SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
@@ -115,6 +115,7 @@ public partial class SettingsWindow : Window
 
             var settings = _settingsService.Current with
             {
+                Theme = SelectedTag(ThemeCombo, "Dark"),
                 Hotkeys = hotkeys,
                 StartWithWindows = StartupCheck.IsChecked == true,
                 AutoCheckUpdates = AutoUpdateCheck.IsChecked == true,
@@ -124,7 +125,6 @@ public partial class SettingsWindow : Window
                 JpegQuality = ParseInt(JpegQualityBox, "JPG 质量"),
                 AutoCopy = AutoCopyCheck.IsChecked == true,
                 CaptureDelaySeconds = int.Parse(SelectedTag(DelayCombo, "0")),
-                SmartWindowSelection = SmartSelectionCheck.IsChecked == true,
                 ShowMagnifier = MagnifierCheck.IsChecked == true,
                 ShowQuickCaptureTags = QuickCaptureTagsCheck.IsChecked == true,
                 CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
@@ -144,21 +144,18 @@ public partial class SettingsWindow : Window
             if (failures.Count == 0)
             {
                 StatusText.Text = "设置已保存并应用";
-                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(118, 223, 238));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeAccentBrush");
             }
             else
             {
                 StatusText.Text = $"设置已保存；有 {failures.Count} 个快捷键未能注册";
-                StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(255, 145, 137));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeDangerBrush");
             }
         }
         catch (Exception exception)
         {
             StatusText.Text = exception.Message;
-            StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(255, 145, 137));
+            StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeDangerBrush");
         }
     }
 
@@ -216,8 +213,7 @@ public partial class SettingsWindow : Window
         }
 
         StatusText.Text = "请直接按下组合键；Backspace 或 Delete 可清空";
-        StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(118, 223, 238));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeAccentBrush");
     }
 
     private void OnHotkeyBoxLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
@@ -279,15 +275,13 @@ public partial class SettingsWindow : Window
             row.Gesture = string.Join('+', parts);
             row.IsEnabled = true;
             StatusText.Text = $"“{row.DisplayName}”已录入 {row.Gesture}";
-            StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-                System.Windows.Media.Color.FromRgb(118, 223, 238));
+            StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeAccentBrush");
             e.Handled = true;
             return;
         }
 
         StatusText.Text = "这里只接受 F1–F12 与 Ctrl / Shift / Alt 组合";
-        StatusText.Foreground = new System.Windows.Media.SolidColorBrush(
-            System.Windows.Media.Color.FromRgb(255, 145, 137));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeDangerBrush");
         e.Handled = true;
     }
 
@@ -350,7 +344,7 @@ public partial class SettingsWindow : Window
     {
         BeginUpdateOperation();
         UpdateStatusText.Text = "正在连接 GitHub 检查最新版本…";
-        UpdateStatusRail.Background = BrushFromRgb(118, 161, 177);
+        UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeMutedTextBrush");
         UpdateNotesText.Text = string.Empty;
         UpdateDownloadButton.Visibility = Visibility.Collapsed;
         UpdateOpenFolderButton.Visibility = Visibility.Collapsed;
@@ -370,22 +364,20 @@ public partial class SettingsWindow : Window
                     UpdateStatusText.Text = result.Release?.CanDownload == true
                         ? $"发现新版本 {result.Release.TagName}"
                         : $"发现新版本 {result.Release?.TagName}，但发布页没有可用的 SHA256";
-                    UpdateStatusRail.Background = BrushFromRgb(
-                        result.Release?.CanDownload == true ? (byte)118 : (byte)255,
-                        result.Release?.CanDownload == true ? (byte)223 : (byte)178,
-                        result.Release?.CanDownload == true ? (byte)238 : (byte)92);
+                    UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty,
+                        result.Release?.CanDownload == true ? "ThemeAccentBrush" : "ThemeWarningBrush");
                     break;
                 case UpdateCheckStatus.UpToDate:
                     UpdateStatusText.Text = "当前已经是最新版本";
-                    UpdateStatusRail.Background = BrushFromRgb(118, 223, 238);
+                    UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeAccentBrush");
                     break;
                 case UpdateCheckStatus.NoCompatiblePackage:
                     UpdateStatusText.Text = result.Message ?? "最新发布没有可用的便携 ZIP。";
-                    UpdateStatusRail.Background = BrushFromRgb(255, 178, 92);
+                    UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeWarningBrush");
                     break;
                 case UpdateCheckStatus.Error:
                     UpdateStatusText.Text = result.Message ?? "检查更新失败，请稍后重试。";
-                    UpdateStatusRail.Background = BrushFromRgb(255, 145, 137);
+                    UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeDangerBrush");
                     break;
                 case UpdateCheckStatus.Skipped:
                     UpdateStatusText.Text = "最近已经检查过更新。";
@@ -431,7 +423,7 @@ public partial class SettingsWindow : Window
             UpdateDownloadProgress.Value = 100;
             UpdateDownloadStatusText.Text = "下载完成，SHA256 校验通过。请解压后手动更新。";
             UpdateOpenFolderButton.Visibility = Visibility.Visible;
-            UpdateStatusRail.Background = BrushFromRgb(118, 223, 238);
+            UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeAccentBrush");
         }
         catch (OperationCanceledException)
         {
@@ -441,7 +433,7 @@ public partial class SettingsWindow : Window
         {
             DiagnosticLog.Error("Update", exception, "更新包下载或校验失败。");
             UpdateDownloadStatusText.Text = exception.Message;
-            UpdateStatusRail.Background = BrushFromRgb(255, 145, 137);
+            UpdateStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "ThemeDangerBrush");
         }
         finally
         {
@@ -512,8 +504,6 @@ public partial class SettingsWindow : Window
         AutoUpdateCheck.IsEnabled = !busy;
     }
 
-    private static System.Windows.Media.SolidColorBrush BrushFromRgb(byte red, byte green, byte blue) =>
-        new(System.Windows.Media.Color.FromRgb(red, green, blue));
 
     private static string FormatFileSize(long bytes)
     {
@@ -673,9 +663,8 @@ public partial class SettingsWindow : Window
             : !modelSelected
             ? "OCR 运行库 · 已安装，尚未选择模型"
             : $"{OcrModelManager.GetDisplayName(model)} · 未安装";
-        OcrStatusRail.Background = new System.Windows.Media.SolidColorBrush(ready
-            ? System.Windows.Media.Color.FromRgb(118, 223, 238)
-            : System.Windows.Media.Color.FromRgb(255, 178, 92));
+        OcrStatusRail.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty,
+            ready ? "ThemeAccentBrush" : "ThemeWarningBrush");
         SetOcrStageState(OcrRuntimeStageText, runtimeInstalled);
         SetOcrStageState(OcrModelStageText, modelInstalled);
         SetOcrStageState(OcrReadyStageText, ready);
@@ -733,9 +722,8 @@ public partial class SettingsWindow : Window
     private static void SetOcrStageState(TextBlock text, bool completed)
     {
         text.Text = completed ? "● " + text.Text.TrimStart('○', '●', ' ') : "○ " + text.Text.TrimStart('○', '●', ' ');
-        text.Foreground = new System.Windows.Media.SolidColorBrush(completed
-            ? System.Windows.Media.Color.FromRgb(118, 223, 238)
-            : System.Windows.Media.Color.FromRgb(113, 132, 143));
+        text.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            completed ? "ThemeAccentBrush" : "ThemeSubtleTextBrush");
     }
 
     private void OnTitleBarMouseLeftButtonDown(object sender, MouseButtonEventArgs e)

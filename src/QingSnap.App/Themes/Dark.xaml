@@ -1,0 +1,29 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="ThemeWindowBrush" Color="#FF091017" />
+    <SolidColorBrush x:Key="ThemeChromeBrush" Color="#FF0C151D" />
+    <SolidColorBrush x:Key="ThemePanelBrush" Color="#FF101B23" />
+    <SolidColorBrush x:Key="ThemeFieldBrush" Color="#FF0A141B" />
+    <SolidColorBrush x:Key="ThemePopupBrush" Color="#FF0D171F" />
+    <SolidColorBrush x:Key="ThemeBorderBrush" Color="#4D59707C" />
+    <SolidColorBrush x:Key="ThemeBorderStrongBrush" Color="#FF536A76" />
+    <SolidColorBrush x:Key="ThemeTextBrush" Color="#FFF3F7F9" />
+    <SolidColorBrush x:Key="ThemeMutedTextBrush" Color="#FF8FA2AD" />
+    <SolidColorBrush x:Key="ThemeSubtleTextBrush" Color="#FF71848F" />
+    <SolidColorBrush x:Key="ThemeAccentBrush" Color="#FF76DFEE" />
+    <SolidColorBrush x:Key="ThemeOnAccentBrush" Color="#FF071116" />
+    <SolidColorBrush x:Key="ThemeAccentHoverBrush" Color="#FF9EEAF4" />
+    <SolidColorBrush x:Key="ThemeAccentPressedBrush" Color="#FF59C9DA" />
+    <SolidColorBrush x:Key="ThemeHoverBrush" Color="#FF1C303B" />
+    <SolidColorBrush x:Key="ThemePressedBrush" Color="#FF16242D" />
+    <SolidColorBrush x:Key="ThemeSelectedBrush" Color="#FF17303A" />
+    <SolidColorBrush x:Key="ThemeButtonBrush" Color="#FF1D2E39" />
+    <SolidColorBrush x:Key="ThemeDangerBrush" Color="#FFFF9189" />
+    <SolidColorBrush x:Key="ThemeDangerSurfaceBrush" Color="#FF3A222A" />
+    <SolidColorBrush x:Key="ThemeWarningBrush" Color="#FFFFB25C" />
+    <SolidColorBrush x:Key="ThemeSelectionBrush" Color="#8076DFEE" />
+    <SolidColorBrush x:Key="ThemeImageBackdropBrush" Color="#FF070B0E" />
+    <SolidColorBrush x:Key="ThemeLoadingScrimBrush" Color="#D9091017" />
+    <SolidColorBrush x:Key="ThemeScrollbarBrush" Color="#B34C6673" />
+    <SolidColorBrush x:Key="ThemeOverlayPanelBrush" Color="#F70D171E" />
+</ResourceDictionary>

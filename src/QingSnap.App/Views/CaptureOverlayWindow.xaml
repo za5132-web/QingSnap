@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
-        Background="#090E14"
+        Background="{DynamicResource ThemeImageBackdropBrush}"
         Cursor="Cross"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
@@ -24,7 +24,7 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFDCE7EC" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Cursor" Value="Hand" />
@@ -39,11 +39,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF25343F" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF314754" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemePressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.34" />
@@ -54,23 +54,23 @@
             </Setter>
         </Style>
         <Style x:Key="CaptureFeatureButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
-            <Setter Property="Foreground" Value="#FF76DFEE" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
         </Style>
         <Style x:Key="CaptureAnnotationButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
             <Setter Property="MinWidth" Value="32" />
             <Setter Property="Padding" Value="6,0" />
-            <Setter Property="Foreground" Value="#FFFF8A93" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeDangerBrush}" />
         </Style>
         <Style x:Key="CaptureConfirmButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
-            <Setter Property="Foreground" Value="#FF071116" />
-            <Setter Property="Background" Value="#FF76DFEE" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeOnAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
             <Setter Property="MinWidth" Value="40" />
         </Style>
         <Style x:Key="QuickTagToolbarButton" TargetType="Button" BasedOn="{StaticResource CaptureToolButton}">
             <Setter Property="Width" Value="34" />
             <Setter Property="MinWidth" Value="34" />
             <Setter Property="Padding" Value="6,0" />
-            <Setter Property="Foreground" Value="#FF76DFEE" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
         </Style>
         <Style x:Key="ColorSwatchButton" TargetType="Button">
             <Setter Property="Width" Value="26" />
@@ -78,7 +78,7 @@
             <Setter Property="Margin" Value="3" />
             <Setter Property="Padding" Value="3" />
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -94,7 +94,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="SwatchChrome" Property="BorderBrush" Value="#FFF5FAFC" />
+                                <Setter TargetName="SwatchChrome" Property="BorderBrush" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="SwatchChrome" Property="Opacity" Value="0.72" />
@@ -118,7 +118,7 @@
             <Setter Property="Padding" Value="5,0" />
             <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
             <Setter Property="FontSize" Value="10" />
-            <Setter Property="BorderBrush" Value="#44536A76" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
         <Style x:Key="QuickTagChip" TargetType="ToggleButton">
@@ -128,9 +128,9 @@
             <Setter Property="Padding" Value="10,0" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#FFB8C8D0" />
-            <Setter Property="Background" Value="#FF13232D" />
-            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -146,13 +146,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="#CC76DFEE" />
-                                <Setter Property="Foreground" Value="#FFF5FAFC" />
+                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="ChipChrome" Property="Background" Value="#FF76DFEE" />
-                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="#FF76DFEE" />
-                                <Setter Property="Foreground" Value="#FF071116" />
+                                <Setter TargetName="ChipChrome" Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter TargetName="ChipChrome" Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeOnAccentBrush}" />
                                 <Setter Property="FontWeight" Value="SemiBold" />
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -165,10 +165,10 @@
             <Setter Property="Padding" Value="8,5" />
             <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#FFE7F0F4" />
-            <Setter Property="CaretBrush" Value="#FF76DFEE" />
-            <Setter Property="Background" Value="#FF101D25" />
-            <Setter Property="BorderBrush" Value="#66536A76" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="CaretBrush" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeFieldBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
@@ -177,7 +177,7 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFE7F0F4" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="OverridesDefaultStyle" Value="True" />
@@ -196,7 +196,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="MenuAccent"
                                         Width="3"
-                                        Background="#FF76DFEE"
+                                        Background="{DynamicResource ThemeAccentBrush}"
                                         CornerRadius="2"
                                         Opacity="0" />
                                 <ContentPresenter Grid.Column="1"
@@ -209,15 +209,15 @@
                                            FontFamily="{StaticResource DataFont}"
                                            FontSize="10"
                                            FontWeight="Normal"
-                                           Foreground="#FF8FA0AA"
+                                           Foreground="{DynamicResource ThemeMutedTextBrush}"
                                            Text="{TemplateBinding InputGestureText}" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="MenuChrome" Property="Background" Value="#FF23333E" />
+                                <Setter TargetName="MenuChrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
                                 <Setter TargetName="MenuAccent" Property="Opacity" Value="1" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="MenuChrome" Property="Opacity" Value="0.38" />
@@ -233,7 +233,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Separator">
-                        <Border Height="1" Margin="12,3" Background="#334D5C65" />
+                        <Border Height="1" Margin="12,3" Background="{DynamicResource ThemeBorderBrush}" />
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -248,8 +248,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Padding="5"
-                                Background="#F70D171E"
-                                BorderBrush="#6676DFEE"
+                                Background="{DynamicResource ThemeOverlayPanelBrush}"
+                                BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                                 BorderThickness="1"
                                 CornerRadius="7">
                             <Border.Effect>
@@ -343,8 +343,8 @@
             <Border x:Name="SizeBadge"
                     Visibility="Collapsed"
                     Padding="9,5"
-                    Background="#EE111A22"
-                    BorderBrush="#6676DFEE"
+                    Background="{DynamicResource ThemeOverlayPanelBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                     BorderThickness="1"
                     CornerRadius="5"
                     IsHitTestVisible="False">
@@ -352,13 +352,13 @@
                            FontFamily="{StaticResource DataFont}"
                            FontSize="12"
                            FontWeight="SemiBold"
-                           Foreground="#FFF5FAFC" />
+                           Foreground="{DynamicResource ThemeTextBrush}" />
             </Border>
 
             <Border x:Name="HintBadge"
                     Padding="13,8"
-                    Background="#E6111A22"
-                    BorderBrush="#3DFFFFFF"
+                    Background="{DynamicResource ThemeOverlayPanelBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="7"
                     IsHitTestVisible="False">
@@ -366,21 +366,21 @@
                     <TextBlock FontFamily="{StaticResource UiFont}"
                                FontSize="12"
                                FontWeight="SemiBold"
-                               Foreground="#FFF5FAFC"
+                               Foreground="{DynamicResource ThemeTextBrush}"
                                Text="拖动选择" />
                     <TextBlock x:Name="HintActionText"
                                Margin="9,0,0,0"
                                FontFamily="{StaticResource DataFont}"
                                FontSize="11"
-                               Foreground="#FF76DFEE"
+                               Foreground="{DynamicResource ThemeAccentBrush}"
                                Text="R 循环历史选区  ·  双击 / ENTER 复制  ·  ESC 取消" />
                 </StackPanel>
             </Border>
 
             <Border x:Name="CaptureToolbar"
                     Visibility="Collapsed"
-                    Background="#F20E171F"
-                    BorderBrush="#6676DFEE"
+                    Background="{DynamicResource ThemeOverlayPanelBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                     BorderThickness="1"
                     CornerRadius="7"
                     PreviewMouseLeftButtonDown="OnCaptureToolbarPreviewMouseLeftButtonDown">
@@ -393,9 +393,9 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Background="#FF76DFEE" CornerRadius="6,0,0,6" />
+                    <Border Background="{DynamicResource ThemeAccentBrush}" CornerRadius="6,0,0,6" />
                     <Border Grid.Column="1" MinWidth="116" Margin="6,5,4,5" Padding="8,0"
-                            Background="#B314222C" CornerRadius="4"
+                            Background="{DynamicResource ThemeFieldBrush}" CornerRadius="4"
                             Cursor="Hand" ToolTip="点击输入坐标和尺寸"
                             MouseLeftButtonDown="OnToolbarSizeMouseLeftButtonDown">
                         <Grid VerticalAlignment="Center">
@@ -403,13 +403,13 @@
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <icons:QingSnapIcon Kind="Geometry" Width="17" Height="17" Foreground="#FF76DFEE" />
+                            <icons:QingSnapIcon Kind="Geometry" Width="17" Height="17" Foreground="{DynamicResource ThemeAccentBrush}" />
                             <TextBlock x:Name="ToolbarSizeText" Grid.Column="1"
                                        Margin="7,0,0,0"
                                        VerticalAlignment="Center"
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10"
-                                       Foreground="#FFC5D2D8"
+                                       Foreground="{DynamicResource ThemeMutedTextBrush}"
                                        TextWrapping="NoWrap"
                                        Text="0 × 0" />
                         </Grid>
@@ -542,7 +542,7 @@
                                 Click="OnClearClick">
                             <icons:QingSnapIcon Kind="Clear" />
                         </Button>
-                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Border Width="1" Height="22" Margin="5,7" Background="{DynamicResource ThemeBorderBrush}" />
                         <Button Style="{StaticResource CaptureFeatureButton}"
                                 Width="34"
                                 ToolTip="自动滚动长截图"
@@ -576,7 +576,7 @@
                                            Text="⌄" />
                             </Grid>
                         </Button>
-                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Border Width="1" Height="22" Margin="5,7" Background="{DynamicResource ThemeBorderBrush}" />
                         <Button Style="{StaticResource CaptureToolButton}"
                                 Width="34"
                                 ToolTip="复制选区并关闭"
@@ -591,7 +591,7 @@
                                 Click="OnSaveClick">
                             <icons:QingSnapIcon Kind="Save" />
                         </Button>
-                        <Border Width="1" Height="22" Margin="5,7" Background="#3DFFFFFF" />
+                        <Border Width="1" Height="22" Margin="5,7" Background="{DynamicResource ThemeBorderBrush}" />
                         <Button x:Name="QuickTagButton"
                                 Visibility="Collapsed"
                                 Style="{StaticResource QuickTagToolbarButton}"
@@ -635,7 +635,7 @@
                                 ToolTip="关闭截图"
                                 AutomationProperties.Name="关闭截图"
                                 Click="OnCloseCaptureClick">
-                            <icons:QingSnapIcon Kind="Close" Foreground="#FFFF7180" />
+                            <icons:QingSnapIcon Kind="Close" Foreground="{DynamicResource ThemeDangerBrush}" />
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -650,8 +650,8 @@
                StaysOpen="True"
                Closed="OnQuickTagPopupClosed">
             <Border Width="318" MaxHeight="280" Padding="13"
-                    Background="#FB0D171E"
-                    BorderBrush="#8876DFEE"
+                    Background="{DynamicResource ThemeOverlayPanelBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                     BorderThickness="1"
                     CornerRadius="7">
                 <Border.Effect>
@@ -664,23 +664,23 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Orientation="Horizontal">
-                            <icons:QingSnapIcon Kind="Tag" Width="15" Height="15" Foreground="#FF76DFEE" />
+                            <icons:QingSnapIcon Kind="Tag" Width="15" Height="15" Foreground="{DynamicResource ThemeAccentBrush}" />
                             <TextBlock Margin="7,0,0,0" VerticalAlignment="Center"
                                        FontFamily="{StaticResource UiFont}" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#FFF3F8FA" Text="本次截图标签" />
+                                       Foreground="{DynamicResource ThemeTextBrush}" Text="本次截图标签" />
                         </StackPanel>
                         <TextBlock x:Name="QuickTagSummaryText" Grid.Column="1"
                                    VerticalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="10"
-                                   Foreground="#FF76DFEE" Text="未选择" />
+                                   Foreground="{DynamicResource ThemeAccentBrush}" Text="未选择" />
                     </Grid>
                     <TextBlock Margin="0,5,0,10" FontFamily="{StaticResource UiFont}" FontSize="10"
-                               Foreground="#FF7F939D" Text="标签将在截图保存后写入记录，不影响复制或钉图。" />
+                               Foreground="{DynamicResource ThemeSubtleTextBrush}" Text="标签将在截图保存后写入记录，不影响复制或钉图。" />
                     <ScrollViewer MaxHeight="142" VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <WrapPanel x:Name="QuickTagItemsPanel" />
                     </ScrollViewer>
                     <Border x:Name="QuickTagCreatePanel" Margin="0,4,0,0" Padding="8"
-                            Background="#FF101D25" BorderBrush="#44536A76" BorderThickness="1"
+                            Background="{DynamicResource ThemeFieldBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1"
                             CornerRadius="4" Visibility="Collapsed">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -689,8 +689,8 @@
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="QuickTagTextBox" Height="30" Padding="8,4"
                                      FontFamily="{StaticResource UiFont}" FontSize="11"
-                                     Foreground="#FFEAF2F5" CaretBrush="#FF76DFEE"
-                                     Background="#FF0B151C" BorderBrush="#6676DFEE" BorderThickness="1"
+                                     Foreground="{DynamicResource ThemeTextBrush}" CaretBrush="{DynamicResource ThemeAccentBrush}"
+                                     Background="{DynamicResource ThemeFieldBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1"
                                      VerticalContentAlignment="Center"
                                      MaxLength="32" ToolTip="输入标签名称"
                                      KeyDown="OnQuickTagTextBoxKeyDown" />
@@ -701,7 +701,7 @@
                     </Border>
                     <TextBlock x:Name="QuickTagStatusText" Margin="1,5,0,0"
                                FontFamily="{StaticResource UiFont}" FontSize="10"
-                               Foreground="#FFFF9189" Visibility="Collapsed" />
+                               Foreground="{DynamicResource ThemeDangerBrush}" Visibility="Collapsed" />
                 </StackPanel>
             </Border>
         </Popup>
@@ -716,12 +716,12 @@
                 <Path Width="14" Height="7"
                       HorizontalAlignment="Center"
                       Stretch="Fill"
-                      Fill="#FA111A22"
+                      Fill="{DynamicResource ThemeOverlayPanelBrush}"
                       Data="M 0,7 L 7,0 L 14,7 Z" />
                 <Border Margin="0,-1,0,0"
                         Padding="5"
-                        Background="#FA111A22"
-                        BorderBrush="#6676DFEE"
+                        Background="{DynamicResource ThemeOverlayPanelBrush}"
+                        BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                         BorderThickness="1"
                         CornerRadius="6">
                     <StackPanel x:Name="AnnotationPalettePanel" Orientation="Horizontal">
@@ -746,12 +746,12 @@
                 <Path Width="14" Height="7"
                       HorizontalAlignment="Center"
                       Stretch="Fill"
-                      Fill="#FA111A22"
+                      Fill="{DynamicResource ThemeOverlayPanelBrush}"
                       Data="M 0,7 L 7,0 L 14,7 Z" />
                 <Border Margin="0,-1,0,0"
                         Padding="5"
-                        Background="#FA111A22"
-                        BorderBrush="#6676DFEE"
+                        Background="{DynamicResource ThemeOverlayPanelBrush}"
+                        BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                         BorderThickness="1"
                         CornerRadius="6">
                     <StackPanel>
@@ -767,7 +767,7 @@
                                 <icons:QingSnapIcon Kind="DoubleArrow" />
                             </Button>
                         </StackPanel>
-                        <Border Height="1" Margin="5,4,5,3" Background="#3DFFFFFF" />
+                        <Border Height="1" Margin="5,4,5,3" Background="{DynamicResource ThemeBorderBrush}" />
                         <StackPanel x:Name="ArrowColorPanel" Orientation="Horizontal">
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
@@ -791,12 +791,12 @@
                 <Path Width="14" Height="7"
                       HorizontalAlignment="Center"
                       Stretch="Fill"
-                      Fill="#FA111A22"
+                      Fill="{DynamicResource ThemeOverlayPanelBrush}"
                       Data="M 0,7 L 7,0 L 14,7 Z" />
                 <Border Margin="0,-1,0,0"
                         Padding="5"
-                        Background="#FA111A22"
-                        BorderBrush="#6676DFEE"
+                        Background="{DynamicResource ThemeOverlayPanelBrush}"
+                        BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                         BorderThickness="1"
                         CornerRadius="6">
                     <StackPanel>
@@ -824,7 +824,7 @@
                         </StackPanel>
                         <Border x:Name="RegionColorDivider"
                                 Height="1" Margin="5,4,5,3"
-                                Background="#3DFFFFFF" />
+                                Background="{DynamicResource ThemeBorderBrush}" />
                         <StackPanel x:Name="RegionColorPanel" Orientation="Horizontal">
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
                             <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
@@ -844,22 +844,22 @@
                 VerticalAlignment="Top"
                 Visibility="Collapsed"
                 IsHitTestVisible="False"
-                Background="#F2111A22"
-                BorderBrush="#9976DFEE"
+                Background="{DynamicResource ThemeOverlayPanelBrush}"
+                BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                 BorderThickness="1"
                 CornerRadius="5">
             <TextBlock x:Name="AdjustmentText"
                        FontFamily="{StaticResource DataFont}"
                        FontSize="11"
                        FontWeight="SemiBold"
-                       Foreground="#FFF5FAFC" />
+                       Foreground="{DynamicResource ThemeTextBrush}" />
         </Border>
 
         <Border x:Name="MagnifierOverlay"
                 Width="294" Height="168" Padding="6"
                 HorizontalAlignment="Left" VerticalAlignment="Top"
                 Visibility="Collapsed" IsHitTestVisible="False"
-                Background="#F20B151C" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="6">
+                Background="{DynamicResource ThemeOverlayPanelBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" CornerRadius="6">
             <Grid><Grid.RowDefinitions><RowDefinition Height="120"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <Grid x:Name="MagnifierImageHost" ClipToBounds="True">
                     <Image x:Name="MagnifierImage" Stretch="Fill" RenderOptions.BitmapScalingMode="NearestNeighbor" />
@@ -881,38 +881,38 @@
                     <TextBlock x:Name="MagnifierCoordinateText"
                                VerticalAlignment="Center"
                                FontFamily="{StaticResource DataFont}" FontSize="10.5"
-                               Foreground="#FFEAF2F5" TextTrimming="None" />
+                               Foreground="{DynamicResource ThemeTextBrush}" TextTrimming="None" />
                     <TextBlock x:Name="MagnifierColorText" Grid.Column="2"
                                VerticalAlignment="Center"
                                FontFamily="{StaticResource DataFont}" FontSize="10.5"
-                               Foreground="#FF76DFEE" TextTrimming="None" />
+                               Foreground="{DynamicResource ThemeAccentBrush}" TextTrimming="None" />
                     <TextBlock Grid.Column="4" VerticalAlignment="Center"
                                FontFamily="{StaticResource DataFont}" FontSize="10"
-                               Foreground="#FF9EB0B9" Text="I 复制" />
+                               Foreground="{DynamicResource ThemeMutedTextBrush}" Text="I 复制" />
                 </Grid>
             </Grid>
         </Border>
 
         <Border x:Name="GeometryEditor" Width="500" Padding="16"
                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                Visibility="Collapsed" Background="#FA0E171F" BorderBrush="#9976DFEE" BorderThickness="1" CornerRadius="7">
+                Visibility="Collapsed" Background="{DynamicResource ThemeOverlayPanelBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" CornerRadius="7">
             <StackPanel>
-                <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold" Foreground="#FF76DFEE" Text="SELECTION GEOMETRY"/>
+                <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ThemeAccentBrush}" Text="SELECTION GEOMETRY"/>
                 <Grid Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition Width="36"/></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,7,0">
-                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="X 坐标" />
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="X 坐标" />
                         <TextBox x:Name="GeometryXBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区左边缘 X 坐标"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="0,0,7,0">
-                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="Y 坐标" />
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="Y 坐标" />
                         <TextBox x:Name="GeometryYBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区上边缘 Y 坐标"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Margin="0,0,7,0">
-                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="宽度 W" />
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="宽度 W" />
                         <TextBox x:Name="GeometryWidthBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区宽度（像素）" TextChanged="OnGeometryDimensionTextChanged"/>
                     </StackPanel>
                     <StackPanel Grid.Column="3">
-                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="#FF91A5AF" Text="高度 H" />
+                        <TextBlock Margin="1,0,0,4" FontFamily="{StaticResource UiFont}" FontSize="10" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="高度 H" />
                         <TextBox x:Name="GeometryHeightBox" Style="{StaticResource GeometryTextBox}" ToolTip="选区高度（像素）" TextChanged="OnGeometryDimensionTextChanged"/>
                     </StackPanel>
                     <Button x:Name="FixedSizeLockButton" Grid.Column="4" Width="32" Height="32" Margin="4,14,0,0"
@@ -928,7 +928,7 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <TextBlock VerticalAlignment="Center" FontFamily="{StaticResource UiFont}" FontSize="11"
-                               Foreground="#FF91A5AF" Text="宽高比" />
+                               Foreground="{DynamicResource ThemeMutedTextBrush}" Text="宽高比" />
                     <UniformGrid Grid.Column="1" Columns="7">
                         <Button x:Name="AspectFreeButton" Style="{StaticResource AspectRatioButton}" Tag="Free" Content="自由" Click="OnAspectRatioClick" />
                         <Button x:Name="AspectSquareButton" Style="{StaticResource AspectRatioButton}" Tag="Square" Content="1:1" Click="OnAspectRatioClick" />
@@ -940,7 +940,7 @@
                     </UniformGrid>
                 </Grid>
                 <TextBlock x:Name="GeometryHintText" Margin="54,5,0,0" FontFamily="{StaticResource UiFont}" FontSize="9.5"
-                           Foreground="#FF76909C" Text="Shift + 角点临时锁定比例；Alt + 角点以中心缩放；两者可组合" />
+                           Foreground="{DynamicResource ThemeSubtleTextBrush}" Text="Shift + 角点临时锁定比例；Alt + 角点以中心缩放；两者可组合" />
                 <StackPanel Margin="0,12,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource CaptureToolButton}" Content="取消" Click="OnGeometryCancelClick"/>
                     <Button Style="{StaticResource CaptureConfirmButton}" Margin="6,0,0,0" Content="应用" Click="OnGeometryApplyClick"/>

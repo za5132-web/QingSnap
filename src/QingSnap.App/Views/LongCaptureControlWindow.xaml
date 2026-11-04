@@ -9,8 +9,8 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
-        Background="#FF0B1118"
-        Foreground="#FFF3F7F9"
+        Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}"
         PreviewKeyDown="OnPreviewKeyDown">
     <Window.Resources>
         <Style x:Key="ControlButton" TargetType="Button">
@@ -20,9 +20,9 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFF3F7F9" />
-            <Setter Property="Background" Value="#FF22313D" />
-            <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -38,8 +38,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF2B3E4C" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9976DFEE" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.72" />
@@ -53,19 +53,20 @@
             </Setter>
         </Style>
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ControlButton}">
-            <Setter Property="Foreground" Value="#FF071116" />
-            <Setter Property="Background" Value="#FF76DFEE" />
-            <Setter Property="BorderBrush" Value="#FF9EEAF4" />
+            <Setter Property="Template" Value="{DynamicResource ThemePrimaryButtonTemplate}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeOnAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentHoverBrush}" />
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#6676DFEE" BorderThickness="1" Background="#FF0E171F">
+    <Border BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" Background="{DynamicResource ThemeChromeBrush}">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="5" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Border Background="#FF76DFEE" />
+            <Border Background="{DynamicResource ThemeAccentBrush}" />
             <Grid Grid.Column="1" Margin="16,12,14,13">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -86,14 +87,14 @@
                                FontFamily="{StaticResource DataFont}"
                                FontSize="10"
                                FontWeight="Bold"
-                               Foreground="#FF76DFEE"
+                               Foreground="{DynamicResource ThemeAccentBrush}"
                                Text="AUTO SCROLL" />
                     <TextBlock x:Name="StatsText"
                                Grid.Column="2"
                                VerticalAlignment="Center"
                                FontFamily="{StaticResource DataFont}"
                                FontSize="10"
-                               Foreground="#FF8D9AA5"
+                               Foreground="{DynamicResource ThemeMutedTextBrush}"
                                Text="正在记录首屏" />
                 </Grid>
 
@@ -103,7 +104,7 @@
                            FontFamily="{StaticResource UiFont}"
                            FontSize="13"
                            FontWeight="SemiBold"
-                           Foreground="#FFF3F7F9"
+                           Foreground="{DynamicResource ThemeTextBrush}"
                            Text="正在记录首屏…" />
 
                 <ProgressBar x:Name="ScrollProgress"
@@ -111,15 +112,15 @@
                              Height="3"
                              Margin="0,8,0,0"
                              IsIndeterminate="True"
-                             Foreground="#FF76DFEE"
-                             Background="#FF22313D" />
+                             Foreground="{DynamicResource ThemeAccentBrush}"
+                             Background="{DynamicResource ThemeButtonBrush}" />
 
                 <TextBlock x:Name="HintText"
                            Grid.Row="3"
                            Margin="0,5,0,0"
                            FontFamily="{StaticResource UiFont}"
                            FontSize="10.5"
-                           Foreground="#FF7F8D97"
+                           Foreground="{DynamicResource ThemeSubtleTextBrush}"
                            Text="程序会自动滚动并检测页面底部；Enter 停止，Esc 取消。" />
 
                 <StackPanel Grid.Row="4" Margin="0,11,0,0" Orientation="Horizontal">

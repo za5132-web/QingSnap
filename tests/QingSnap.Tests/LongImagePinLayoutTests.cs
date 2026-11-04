@@ -73,6 +73,7 @@ public sealed class LongImagePinLayoutTests
                 window.Show();
                 window.Opacity = 0;
                 Call(window, "CollapseToDock");
+                PumpAnimation();
                 Call(window, "RestoreFromDock");
                 var frame = new System.Windows.Threading.DispatcherFrame();
                 var timer = new System.Windows.Threading.DispatcherTimer

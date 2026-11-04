@@ -14,7 +14,6 @@ using DrawingRectangle = System.Drawing.Rectangle;
 using DrawingPoint = System.Drawing.Point;
 using WpfPoint = System.Windows.Point;
 using ShapeRectangle = System.Windows.Shapes.Rectangle;
-using MediaColor = System.Windows.Media.Color;
 using WpfCursors = System.Windows.Input.Cursors;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 
@@ -72,7 +71,6 @@ public partial class StickyImageWindow : Window
     private bool _isCollapsedDockRevealed;
     private DrawingRectangle _collapsedDockWorkArea;
     private NativeMethods.NativeRectangle? _collapsedDockRestingBounds;
-    private DispatcherTimer? _dockTransitionTimer;
     private bool _isDockTransitioning;
 
     public StickyImageWindow(
@@ -136,9 +134,16 @@ public partial class StickyImageWindow : Window
         _collapsedDockHideTimer.Tick += (_, _) =>
         {
             _collapsedDockHideTimer.Stop();
-            if (_isCollapsed && !_isDraggingCollapsedDock && !CollapsedDock.IsMouseOver)
+            if (_isCollapsed && !_isDraggingCollapsedDock && !IsCursorInCollapsedDockZone())
             {
                 SetCollapsedDockRevealed(false);
+            }
+            else if (_isCollapsed && _isCollapsedDockRevealed && !_isDraggingCollapsedDock &&
+                     !CollapsedDock.IsMouseOver)
+            {
+                // MouseLeave is not raised a second time after leaving the small
+                // hysteresis margin. Recheck only while parked in that margin.
+                _collapsedDockHideTimer.Start();
             }
         };
         RenderOptions.SetBitmapScalingMode(PinnedImage, BitmapScalingMode.Linear);
@@ -147,13 +152,15 @@ public partial class StickyImageWindow : Window
         SourceInitialized += OnSourceInitialized;
         Loaded += OnLoaded;
         ContentRendered += OnFirstContentRendered;
+        DpiChanged += OnPinMotionDpiChanged;
         Closed += (_, _) =>
         {
             _isPinClosed = true;
             ClosePinAnnotationToolbar();
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
-            _dockTransitionTimer?.Stop();
+            StopPinMotion();
+            DpiChanged -= OnPinMotionDpiChanged;
             _ocrCancellation?.Cancel();
             _ocrCancellation?.Dispose();
             _qrCodeCancellation?.Cancel();
@@ -289,6 +296,7 @@ public partial class StickyImageWindow : Window
 
         if (e.LeftButton == MouseButtonState.Pressed)
         {
+            CompletePinMotion();
             var handle = new WindowInteropHelper(this).Handle;
             var beforeDrag = default(NativeMethods.NativeRectangle);
             var hadBounds = handle != nint.Zero &&
@@ -386,9 +394,9 @@ public partial class StickyImageWindow : Window
     private void RenderTextOverlay()
     {
         var overlay = ActiveTextOverlay;
-        overlay.Children.Clear();
         if (_ocrResult is null || _selectedWordIndices.Count == 0)
         {
+            overlay.Children.Clear();
             return;
         }
 
@@ -403,26 +411,33 @@ public partial class StickyImageWindow : Window
             .Where(word => _selectedWordIndices.Contains(word.Index))
             .GroupBy(word => word.LineIndex)
             .OrderBy(group => group.Key);
+        var renderedCount = 0;
         foreach (var line in selectedLines)
         {
             var left = line.Min(word => word.Bounds.X) * scaleX;
             var top = line.Min(word => word.Bounds.Y) * scaleY;
             var right = line.Max(word => word.Bounds.Right) * scaleX;
             var bottom = line.Max(word => word.Bounds.Bottom) * scaleY;
-            var rectangle = new ShapeRectangle
+            // Resizing a pin changes every overlay size. Reuse the existing per-line
+            // highlights rather than allocate a new visual tree for each frame.
+            var rectangle = renderedCount < overlay.Children.Count
+                ? (ShapeRectangle)overlay.Children[renderedCount]
+                : new ShapeRectangle
             {
-                Width = Math.Max(2, right - left),
-                Height = Math.Max(2, bottom - top),
                 RadiusX = 1,
                 RadiusY = 1,
-                Fill = new SolidColorBrush(MediaColor.FromArgb(104, 72, 171, 255)),
                 StrokeThickness = 0,
                 IsHitTestVisible = false
             };
+            rectangle.SetResourceReference(ShapeRectangle.FillProperty, "ThemeSelectionBrush");
+            if (renderedCount >= overlay.Children.Count) overlay.Children.Add(rectangle);
+            rectangle.Width = Math.Max(2, right - left);
+            rectangle.Height = Math.Max(2, bottom - top);
             Canvas.SetLeft(rectangle, left);
             Canvas.SetTop(rectangle, top);
-            overlay.Children.Add(rectangle);
+            renderedCount++;
         }
+        while (overlay.Children.Count > renderedCount) overlay.Children.RemoveAt(overlay.Children.Count - 1);
     }
 
     private void OnTextOverlaySizeChanged(object sender, SizeChangedEventArgs e)
@@ -640,8 +655,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        var wheelSteps = Math.Clamp(e.Delta / 120D, -4, 4);
-        SetScaleImmediate(_scale * Math.Pow(ZoomStep, wheelSteps));
+        QueuePinZoom(e.Delta);
         e.Handled = true;
     }
 
@@ -875,6 +889,7 @@ public partial class StickyImageWindow : Window
 
     private void OnCollapsedDockMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (_pinMotionKind == PinMotionKind.Reveal) CompletePinMotion();
         var handle = new WindowInteropHelper(this).Handle;
         if (_isDockTransitioning || e.ChangedButton != MouseButton.Left || handle == nint.Zero ||
             !NativeMethods.GetCursorPos(out _collapsedDockDragStart) ||
@@ -1026,16 +1041,16 @@ public partial class StickyImageWindow : Window
             dpi.DpiScaleY);
         var left = reveal ? layout.RevealedBounds.Left : layout.RestingBounds.Left;
         _isCollapsedDockRevealed = reveal;
-        NativeMethods.SetWindowPos(
-            handle,
-            nint.Zero,
-            left,
-            bounds.Top,
-            bounds.Width,
-            bounds.Height,
-            NativeMethods.SwpNoActivate |
-            NativeMethods.SwpNoZOrder |
-            NativeMethods.SwpNoOwnerZOrder);
+        var destination = new NativeMethods.NativeRectangle
+        {
+            Left = left, Top = bounds.Top,
+            Right = left + bounds.Width, Bottom = bounds.Top + bounds.Height
+        };
+        AnimateWindowBounds(handle, bounds, destination, () =>
+        {
+            if (_isCollapsed && reveal && !IsCursorInCollapsedDockZone())
+                _collapsedDockHideTimer.Start();
+        }, revealOnly: true);
     }
 
     private void UpdateCollapsedDockBadgePosition()
@@ -1131,7 +1146,7 @@ public partial class StickyImageWindow : Window
         };
         AnimateWindowBounds(handle, animationFrom, revealedBounds, () =>
         {
-            if (_isCollapsed && !CollapsedDock.IsMouseOver)
+            if (_isCollapsed && !IsCursorInCollapsedDockZone())
             {
                 _collapsedDockHideTimer.Stop();
                 _collapsedDockHideTimer.Start();
@@ -1159,26 +1174,21 @@ public partial class StickyImageWindow : Window
         nint handle,
         NativeMethods.NativeRectangle from,
         NativeMethods.NativeRectangle to,
-        Action? completed = null)
+        Action? completed = null,
+        bool revealOnly = false)
     {
-        _dockTransitionTimer?.Stop();
-        _isDockTransitioning = true;
-        var started = System.Diagnostics.Stopwatch.GetTimestamp();
-        const double durationMilliseconds = 190;
-        var timer = new DispatcherTimer(DispatcherPriority.Render)
+        _isDockTransitioning = !revealOnly;
+        var previous = from;
+        StartPinMotion(revealOnly ? PinMotionKind.Reveal : PinMotionKind.Dock,
+            revealOnly ? 120 : 190, progress =>
         {
-            Interval = TimeSpan.FromMilliseconds(16)
-        };
-        _dockTransitionTimer = timer;
-        timer.Tick += (_, _) =>
-        {
-            var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
-            var progress = Math.Clamp(elapsed / durationMilliseconds, 0, 1);
-            var eased = 1 - Math.Pow(1 - progress, 3);
+            var eased = PinMotionMath.EaseOut(progress);
             var left = (int)Math.Round(from.Left + (to.Left - from.Left) * eased);
             var top = (int)Math.Round(from.Top + (to.Top - from.Top) * eased);
             var width = Math.Max(1, (int)Math.Round(from.Width + (to.Width - from.Width) * eased));
             var height = Math.Max(1, (int)Math.Round(from.Height + (to.Height - from.Height) * eased));
+            if (left == previous.Left && top == previous.Top &&
+                width == previous.Width && height == previous.Height) return;
             NativeMethods.SetWindowPos(
                 handle,
                 nint.Zero,
@@ -1189,23 +1199,15 @@ public partial class StickyImageWindow : Window
                 NativeMethods.SwpNoActivate |
                 NativeMethods.SwpNoZOrder |
                 NativeMethods.SwpNoOwnerZOrder);
-
-            if (progress < 1)
+            previous = new NativeMethods.NativeRectangle
             {
-                return;
-            }
-
-            timer.Stop();
-            if (ReferenceEquals(_dockTransitionTimer, timer))
-            {
-                _dockTransitionTimer = null;
-            }
-
+                Left = left, Top = top, Right = left + width, Bottom = top + height
+            };
+        }, () =>
+        {
             _isDockTransitioning = false;
-            NativeMethods.DwmFlush();
             completed?.Invoke();
-        };
-        timer.Start();
+        });
     }
 
     private void ToggleCollapsed()
@@ -1215,6 +1217,8 @@ public partial class StickyImageWindow : Window
         {
             return;
         }
+
+        CompletePinMotion();
 
         if (_isCollapsed)
         {
@@ -1287,49 +1291,15 @@ public partial class StickyImageWindow : Window
         _isCollapsedDockRevealed = false;
         UpdateCollapsedDockBadgePosition();
 
-        var cloaked = NativeMethods.SetWindowCloaked(handle, true);
-        try
+        _collapsedDockRestingBounds = new NativeMethods.NativeRectangle
         {
-            _isCollapsed = true;
-            _collapsedDockHideTimer.Stop();
-            _feedbackTimer.Stop();
-            FeedbackBadge.Visibility = Visibility.Collapsed;
-            PinCloseButton.BeginAnimation(OpacityProperty, null);
-            PinCloseButton.Opacity = 0;
-            ExpandedPinContent.Visibility = Visibility.Collapsed;
-            CollapsedDock.Visibility = Visibility.Visible;
-            CollapseMenuItem.Header = "恢复贴图";
-            Frame.Background = System.Windows.Media.Brushes.Transparent;
-            Frame.BorderThickness = new Thickness(0);
-            Frame.CornerRadius = new CornerRadius(0);
-            NativeMethods.SetWindowPos(
-                handle,
-                nint.Zero,
-                left,
-                top,
-                width,
-                height,
-                NativeMethods.SwpNoActivate |
-                NativeMethods.SwpNoZOrder |
-                NativeMethods.SwpNoOwnerZOrder);
-            _collapsedDockRestingBounds = new NativeMethods.NativeRectangle
-            {
-                Left = left,
-                Top = top,
-                Right = left + width,
-                Bottom = top + height
-            };
-            UpdateLayout();
-            NativeMethods.DwmFlush();
-        }
-        finally
+            Left = left, Top = top, Right = left + width, Bottom = top + height
+        };
+        PrepareCollapsedVisualState();
+        AnimateWindowBounds(handle, currentBounds, _collapsedDockRestingBounds.Value, () =>
         {
-            if (cloaked)
-            {
-                NativeMethods.SetWindowCloaked(handle, false);
-                NativeMethods.DwmFlush();
-            }
-        }
+            if (IsCursorInCollapsedDockZone()) SetCollapsedDockRevealed(true);
+        });
     }
 
     private void RestoreFromDock()
@@ -1349,7 +1319,7 @@ public partial class StickyImageWindow : Window
         CollapsedDock.Visibility = Visibility.Collapsed;
         ExpandedPinContent.Visibility = Visibility.Visible;
         CollapseMenuItem.Header = "暂时收起";
-        Frame.Background = new SolidColorBrush(MediaColor.FromRgb(7, 11, 14));
+        Frame.SetResourceReference(Border.BackgroundProperty, "ThemeImageBackdropBrush");
         Frame.BorderThickness = new Thickness(1);
         Frame.CornerRadius = new CornerRadius(0);
         UpdateLayout();
@@ -1446,6 +1416,8 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        CompletePinMotion();
+
         var offsetRatio = _readerOffsetRatio;
         var oldCenterX = Left + ActualWidth / 2;
         var oldCenterY = Top + ActualHeight / 2;
@@ -1506,6 +1478,8 @@ public partial class StickyImageWindow : Window
         {
             return;
         }
+
+        CompletePinMotion();
 
         var handle = new WindowInteropHelper(this).Handle;
         if (NativeMethods.GetWindowRect(handle, out var bounds))
@@ -1665,6 +1639,9 @@ public partial class StickyImageWindow : Window
 
     private void SetScaleImmediate(double scale, bool force = false)
     {
+        if (_pinMotionKind is PinMotionKind.Dock or PinMotionKind.Reveal) CompletePinMotion();
+        else StopPinMotion();
+        _lastZoomBounds = null;
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var current))
         {
@@ -1672,6 +1649,15 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        ApplyScaleAtAnchor(scale, current.Left + current.Width / 2D,
+            current.Top + current.Height / 2D, force);
+        _lastZoomBounds = null;
+    }
+
+    private void ApplyScaleAtAnchor(double scale, double centerX, double centerY, bool force = false)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var current)) return;
         var dpi = VisualTreeHelper.GetDpi(this);
         var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
         var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
@@ -1690,15 +1676,20 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        var centerX = current.Left + current.Width / 2;
-        var centerY = current.Top + current.Height / 2;
-
         _scale = size.Scale;
+        var left = PinMotionMath.AnchoredOrigin(centerX, size.Width);
+        var top = PinMotionMath.AnchoredOrigin(centerY, size.Height);
+        if (current.Left == left && current.Top == top && current.Width == size.Width &&
+            current.Height == size.Height)
+        {
+            _lastZoomBounds = current;
+            return;
+        }
         NativeMethods.SetWindowPos(
             handle,
             nint.Zero,
-            centerX - size.Width / 2,
-            centerY - size.Height / 2,
+            left,
+            top,
             size.Width,
             size.Height,
             NativeMethods.SwpNoActivate |
@@ -1734,14 +1725,15 @@ public partial class StickyImageWindow : Window
             NativeMethods.SetWindowPos(
                 handle,
                 nint.Zero,
-                centerX - corrected.Width / 2,
-                centerY - corrected.Height / 2,
+                PinMotionMath.AnchoredOrigin(centerX, corrected.Width),
+                PinMotionMath.AnchoredOrigin(centerY, corrected.Height),
                 corrected.Width,
                 corrected.Height,
                 NativeMethods.SwpNoActivate |
                 NativeMethods.SwpNoZOrder |
                 NativeMethods.SwpNoOwnerZOrder);
         }
+        if (NativeMethods.GetWindowRect(handle, out var applied)) _lastZoomBounds = applied;
     }
 
     private void ShowFeedback(string message)

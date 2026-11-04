@@ -10,8 +10,8 @@
         Topmost="True"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
-        Background="#FF070B0E"
-        Foreground="#FFF3F7F9"
+        Background="{DynamicResource ThemeImageBackdropBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}"
         PreviewKeyDown="OnPreviewKeyDown"
         PreviewMouseWheel="OnPreviewMouseWheel">
     <Window.Resources>
@@ -26,7 +26,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF314754" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemePressedBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.35" />
@@ -46,8 +46,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Padding="5"
-                                Background="#F70D171E"
-                                BorderBrush="#6676DFEE"
+                                Background="{DynamicResource ThemeOverlayPanelBrush}"
+                                BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                                 BorderThickness="1"
                                 CornerRadius="7">
                             <Border.Effect>
@@ -66,7 +66,7 @@
 
         <Style x:Key="PinMenuItem" TargetType="MenuItem">
             <Setter Property="Height" Value="36" />
-            <Setter Property="Foreground" Value="#FFEAF1F4" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -88,7 +88,7 @@
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="Accent"
                                         Width="3"
-                                        Background="#FF76DFEE"
+                                        Background="{DynamicResource ThemeAccentBrush}"
                                         CornerRadius="2"
                                         Opacity="0" />
                                 <ContentPresenter Grid.Column="1"
@@ -102,15 +102,15 @@
                                            FontFamily="{StaticResource DataFont}"
                                            FontSize="10"
                                            FontWeight="Normal"
-                                           Foreground="#FF8FA0AA"
+                                           Foreground="{DynamicResource ThemeMutedTextBrush}"
                                            Text="{TemplateBinding InputGestureText}" />
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemChrome" Property="Background" Value="#FF22333D" />
+                                <Setter TargetName="ItemChrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
                                 <Setter TargetName="Accent" Property="Opacity" Value="1" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ItemChrome" Property="Opacity" Value="0.42" />
@@ -129,7 +129,7 @@
                     <ControlTemplate TargetType="Separator">
                         <Border Height="1"
                                 Margin="12,3"
-                                Background="#334D5C65" />
+                                Background="{DynamicResource ThemeBorderBrush}" />
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -138,10 +138,10 @@
         <Style x:Key="PinCloseButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="28" />
             <Setter Property="Height" Value="28" />
-            <Setter Property="Background" Value="#E615222A" />
-            <Setter Property="BorderBrush" Value="#6676DFEE" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#FFF2F7F9" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Template">
@@ -158,9 +158,11 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#F2C84552" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="#FFFF8A94" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="#FFE45764" />
+                                <Setter Property="Foreground" Value="#FFFFFFFF" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -172,8 +174,8 @@
     <Border x:Name="Frame"
             SnapsToDevicePixels="True"
             UseLayoutRounding="True"
-            Background="#FF070B0E"
-            BorderBrush="#FF76DFEE"
+            Background="{DynamicResource ThemeImageBackdropBrush}"
+            BorderBrush="{DynamicResource ThemeAccentBrush}"
             BorderThickness="1">
         <Border.ContextMenu>
             <ContextMenu Style="{StaticResource PinContextMenu}">
@@ -293,11 +295,11 @@
                   Visibility="Collapsed"
                   IsHitTestVisible="False"
                   SizeChanged="OnScrollRailSizeChanged">
-                <Border Background="#4D07151B" CornerRadius="2" />
+                <Border Background="{DynamicResource ThemeBorderBrush}" CornerRadius="2" />
                 <Border x:Name="ScrollThumb"
                         Height="36"
                         VerticalAlignment="Top"
-                        Background="#E676DFEE"
+                        Background="{DynamicResource ThemeAccentBrush}"
                         CornerRadius="2">
                     <Border.RenderTransform>
                         <TranslateTransform />
@@ -332,8 +334,8 @@
                     Padding="10,5"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Bottom"
-                    Background="#ED10222A"
-                    BorderBrush="#9976DFEE"
+                    Background="{DynamicResource ThemeOverlayPanelBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                     BorderThickness="1"
                     CornerRadius="5"
                     Visibility="Collapsed">
@@ -341,13 +343,13 @@
                            FontFamily="{StaticResource UiFont}"
                            FontSize="11"
                            FontWeight="SemiBold"
-                           Foreground="#FFF3F7F9" />
+                           Foreground="{DynamicResource ThemeTextBrush}" />
             </Border>
             </Grid>
 
             <Border x:Name="CollapsedDock"
-                    Background="#FF111A20"
-                    BorderBrush="#DD76DFEE"
+                    Background="{DynamicResource ThemePanelBrush}"
+                    BorderBrush="{DynamicResource ThemeAccentBrush}"
                     BorderThickness="1"
                     CornerRadius="0"
                     Cursor="Hand"

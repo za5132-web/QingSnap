@@ -94,7 +94,6 @@ public static class DiagnosticLog
                     OcrModel = settings.OcrModel,
                     OcrPerformanceMode = settings.OcrPerformanceMode,
                     OutputFormat = settings.OutputFormat,
-                    SmartWindowSelection = settings.SmartWindowSelection,
                     LongScrollWheelDelta = settings.LongScrollWheelDelta,
                     LongMatchRetryCount = settings.LongMatchRetryCount,
                     LongMinimumOverlapPercent = settings.LongMinimumOverlapPercent,

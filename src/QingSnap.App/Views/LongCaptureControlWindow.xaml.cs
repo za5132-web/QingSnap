@@ -7,7 +7,6 @@ using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
 using QingSnap.App.Services;
 using DrawingRectangle = System.Drawing.Rectangle;
-using MediaColor = System.Windows.Media.Color;
 
 namespace QingSnap.App.Views;
 
@@ -391,14 +390,12 @@ public partial class LongCaptureControlWindow : Window
 
         if (!result.Accepted)
         {
-            StatusText.Foreground = new SolidColorBrush(
-                result.IsDuplicate
-                    ? MediaColor.FromRgb(255, 218, 143)
-                    : MediaColor.FromRgb(255, 170, 157));
+            StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                result.IsDuplicate ? "ThemeWarningBrush" : "ThemeDangerBrush");
             return;
         }
 
-        StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(243, 247, 249));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeTextBrush");
     }
 
     private int AdjustWheelDelta(int currentDelta, int appendedHeight)
@@ -450,23 +447,23 @@ public partial class LongCaptureControlWindow : Window
         {
             case AutomaticStopReason.BottomReached:
                 StatusText.Text = "已检测到页面底部，可以完成拼接或手动补截。";
-                StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(118, 223, 238));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeAccentBrush");
                 break;
             case AutomaticStopReason.UnreliableMatch:
                 StatusText.Text = "匹配仍不稳定，已回到最后成功位置；请小幅下滚后补截。";
-                StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 218, 143));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeWarningBrush");
                 break;
             case AutomaticStopReason.InputFailed:
                 StatusText.Text = "无法发送滚动操作，已切换为手动补截。";
-                StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 170, 157));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeDangerBrush");
                 break;
             case AutomaticStopReason.SafetyLimit:
                 StatusText.Text = "已达到长截图安全上限，请完成并保存当前结果。";
-                StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 218, 143));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeWarningBrush");
                 break;
             default:
                 StatusText.Text = "自动滚动已停止，可以完成拼接或手动补截。";
-                StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(243, 247, 249));
+                StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeTextBrush");
                 break;
         }
     }
@@ -474,7 +471,7 @@ public partial class LongCaptureControlWindow : Window
     private void SetErrorStatus(string message)
     {
         StatusText.Text = message;
-        StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 170, 157));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeDangerBrush");
     }
 
     private void LogFrameResult(LongCaptureFrameResult result)
@@ -530,7 +527,7 @@ public partial class LongCaptureControlWindow : Window
 
         StatsText.Text = $"{_assembler.FrameCount} 屏  ·  {_assembler.OutputWidth} × {_assembler.OutputHeight} px";
         StatusText.Text = "已撤掉上一段；请向上滚回上一屏，再小幅下滚后截取。";
-        StatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(118, 223, 238));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeAccentBrush");
         SetButtonsEnabled(true);
     }
 

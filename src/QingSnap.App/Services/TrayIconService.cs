@@ -10,20 +10,26 @@ public sealed class TrayIconService : IDisposable
     private readonly NotifyIcon _notifyIcon;
     private readonly Icon _appIcon;
     private readonly ToastNotificationService _toastNotifications = new();
+    private readonly ThemeService _themeService;
+    private readonly ThemeToolStripRenderer _themeRenderer;
     private bool _disposed;
 
     public TrayIconService(
         CaptureCoordinator captureCoordinator,
         AppSettingsService settingsService,
-        Action openSettings)
+        Action openSettings,
+        ThemeService themeService)
     {
         _captureCoordinator = captureCoordinator;
+        _themeService = themeService;
+        _themeRenderer = new ThemeToolStripRenderer(themeService) { RoundedEdges = false };
         _appIcon = QingSnapTrayIconFactory.Create();
 
         var menu = new ContextMenuStrip
         {
             ShowImageMargin = false,
-            Font = new Font("Segoe UI", 9F)
+            Font = new Font("Segoe UI", 9F),
+            Renderer = _themeRenderer
         };
         var settings = settingsService.Current;
         menu.Items.Add(CreateItem($"区域截图{ShortcutSuffix(settings, HotkeyAction.RegionCapture)}", (_, _) => _captureCoordinator.StartRegionCapture(), true));
@@ -48,6 +54,8 @@ public sealed class TrayIconService : IDisposable
             Visible = true
         };
         _notifyIcon.DoubleClick += (_, _) => _captureCoordinator.StartRegionCapture();
+        _themeService.ThemeChanged += OnThemeChanged;
+        ApplyMenuPalette();
     }
 
     public event EventHandler? ExitRequested;
@@ -87,6 +95,19 @@ public sealed class TrayIconService : IDisposable
 
     public void ShowDelay(int seconds) => _toastNotifications.ShowCountdown(seconds);
 
+    private void OnThemeChanged(object? sender, EventArgs e) => ApplyMenuPalette();
+
+    private void ApplyMenuPalette()
+    {
+        if (_disposed || _notifyIcon.ContextMenuStrip is not { } menu)
+        {
+            return;
+        }
+        menu.BackColor = _themeRenderer.GetColor("ThemePopupBrush");
+        menu.ForeColor = _themeRenderer.GetColor("ThemeTextBrush");
+        menu.Invalidate();
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -95,6 +116,7 @@ public sealed class TrayIconService : IDisposable
         }
 
         _disposed = true;
+        _themeService.ThemeChanged -= OnThemeChanged;
         _toastNotifications.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.ContextMenuStrip?.Dispose();

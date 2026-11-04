@@ -14,8 +14,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.3 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.3/QingSnap-v1.1.3.zip)
-- [v1.1.3 릴리스 노트](docs/RELEASE_NOTES_v1.1.3.md)
+- [QingSnap v1.1.4 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
+- [v1.1.4 릴리스 노트](docs/RELEASE_NOTES_v1.1.4.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -41,6 +41,15 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.4 업데이트
+
+- 즉각적인 창 인식과 백그라운드 패널 인식을 자동으로 결합해 모드 전환이 필요하지 않습니다. 미리보기 중 `Alt+휠`로 후보 계층을 전환할 수 있습니다.
+- 핀 확대/축소와 가장자리 보관을 연속 입력에 대응하는 짧은 애니메이션으로 개선했습니다. 일부 DPI 환경에서 첫 확대/축소가 갑자기 커지는 문제를 수정했습니다.
+- 어두운 테마, 밝은 테마, 시스템 설정 따르기를 추가했습니다. 설정을 저장하면 적용되며 원본, 주석 색상, 내보낸 이미지는 변하지 않습니다.
+- 자동화 테스트 235개 통과, Release 빌드 0 Warning / 0 Error. 인식 결과는 대상 앱에 따라 달라지며 실제 혼합 DPI 및 높은 주사율 환경은 추가 수동 검증이 필요합니다.
+
+![v1.1.4 스마트 선택, 핀 애니메이션 및 테마](docs/images/qingsnap-v1.1.4-guide.png)
 
 ## v1.1.3 업데이트
 
@@ -84,8 +93,10 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 ```powershell
 dotnet restore QingSnap.sln
 dotnet build QingSnap.sln -c Release
-dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release
+dotnet test tests\QingSnap.Tests\QingSnap.Tests.csproj -c Release --filter "FullyQualifiedName!~HistoryDirectoryMigrationTests"
 ```
+
+위 명령은 실제 Windows 시작 프로그램 항목을 변경하는 기존 마이그레이션 테스트 1개를 제외합니다. 제외된 항목은 검증을 통과한 것이 아닙니다.
 
 문제는 [GitHub Issues](https://github.com/za5132-web/QingSnap/issues)에 남겨 주세요. 현재 오픈 소스 라이선스는 부여되지 않았으며, 사용·수정·재배포에는 작성자의 허가가 필요합니다.
 

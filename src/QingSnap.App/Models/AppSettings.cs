@@ -4,6 +4,8 @@ public sealed record AppSettings
 {
     public bool HasCompletedFirstRunTutorial { get; init; }
 
+    public string Theme { get; init; } = "Dark";
+
     public string CaptureHotkey { get; init; } = "F1";
 
     public string PinHotkey { get; init; } = "F3";
@@ -27,8 +29,6 @@ public sealed record AppSettings
     public bool AutoCopy { get; init; } = true;
 
     public int CaptureDelaySeconds { get; init; }
-
-    public bool SmartWindowSelection { get; init; } = true;
 
     public bool ShowMagnifier { get; init; } = true;
 

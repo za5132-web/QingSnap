@@ -57,6 +57,35 @@ internal static class StickyImageScaleCalculator
             contentWidth / (Math.Max(1, imageWidth) * Math.Max(0.01, scaleX)),
             contentHeight / (Math.Max(1, imageHeight) * Math.Max(0.01, scaleY)));
     }
+
+    public static double ResolveDisplayedScale(
+        double imageWidth,
+        double imageHeight,
+        double storedScale,
+        int physicalWidth,
+        int physicalHeight,
+        double minimumScale,
+        double maximumScale,
+        double scaleX,
+        double scaleY,
+        double borderX,
+        double borderY)
+    {
+        var expected = Calculate(imageWidth, imageHeight, storedScale, minimumScale, maximumScale,
+            scaleX, scaleY, borderX, borderY);
+        // Preserve the precise scale on ordinary completed notches: repeatedly
+        // deriving it from rounded pixels would introduce slow scale drift.
+        if (Math.Abs(expected.Width - physicalWidth) <= 1 &&
+            Math.Abs(expected.Height - physicalHeight) <= 1) return expected.Scale;
+
+        // Initial screenshot placement and a monitor DPI change can resize the HWND
+        // independently of its stored DIP scale. Uniform content uses one fitted
+        // scale for both axes; never infer independent X/Y magnifications.
+        var displayed = ScaleThatFits(imageWidth, imageHeight, physicalWidth, physicalHeight,
+            scaleX, scaleY, borderX, borderY);
+        return Calculate(imageWidth, imageHeight, displayed, minimumScale, maximumScale,
+            scaleX, scaleY, borderX, borderY).Scale;
+    }
 }
 
 internal readonly record struct StickyImageScaleResult(double Scale, int Width, int Height);

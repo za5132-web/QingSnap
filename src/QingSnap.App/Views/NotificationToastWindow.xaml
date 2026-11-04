@@ -15,8 +15,8 @@
         UseLayoutRounding="True">
     <Border x:Name="ToastCard"
             Margin="1"
-            Background="#F2383D42"
-            BorderBrush="#334FDDEC"
+            Background="{DynamicResource ThemeOverlayPanelBrush}"
+            BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
             BorderThickness="1"
             CornerRadius="9"
             RenderTransformOrigin="0.5,0.5">
@@ -34,9 +34,9 @@
                   Height="54"
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center">
-                <Ellipse Stroke="#496FDFEE" StrokeThickness="1" />
+                <Ellipse Stroke="{DynamicResource ThemeBorderStrongBrush}" StrokeThickness="1" />
                 <Path Data="M 13,28 L 23,38 L 43,16"
-                      Stroke="#FFE8FAFC"
+                      Stroke="{DynamicResource ThemeTextBrush}"
                       StrokeThickness="3.2"
                       StrokeStartLineCap="Round"
                       StrokeEndLineCap="Round"
@@ -49,9 +49,9 @@
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center"
                   Visibility="Collapsed">
-                <Ellipse Stroke="#CCFFB45A" StrokeThickness="2" />
+                <Ellipse Stroke="{DynamicResource ThemeWarningBrush}" StrokeThickness="2" />
                 <TextBlock Text="!"
-                           Foreground="#FFFFD79A"
+                           Foreground="{DynamicResource ThemeWarningBrush}"
                            FontFamily="Segoe UI"
                            FontSize="31"
                            FontWeight="SemiBold"
@@ -66,9 +66,9 @@
                   HorizontalAlignment="Center"
                   VerticalAlignment="Center"
                   Visibility="Collapsed">
-                <Ellipse Stroke="#9976DFEE" StrokeThickness="2" />
+                <Ellipse Stroke="{DynamicResource ThemeBorderStrongBrush}" StrokeThickness="2" />
                 <Path Data="M 27,13 L 27,28 L 38,34"
-                      Stroke="#FFE8FAFC"
+                      Stroke="{DynamicResource ThemeTextBrush}"
                       StrokeThickness="2.6"
                       StrokeStartLineCap="Round"
                       StrokeEndLineCap="Round"
@@ -78,7 +78,7 @@
             <TextBlock x:Name="MessageText"
                        Grid.Row="1"
                        Margin="0,7,0,0"
-                       Foreground="#FFF7FAFC"
+                       Foreground="{DynamicResource ThemeTextBrush}"
                        FontFamily="Microsoft YaHei UI"
                        FontSize="12"
                        FontWeight="Medium"

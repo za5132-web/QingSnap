@@ -86,6 +86,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SmartElementProbeWorker.ShutdownShared();
         ResourceDiagnostics.Sample("FinalIdle");
         DiagnosticLog.Info("Application", $"Application exiting with code {e.ApplicationExitCode}.");
         TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;

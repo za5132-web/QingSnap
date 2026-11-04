@@ -7,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using System.Diagnostics;
 using QingSnap.App.Controls;
 using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
@@ -62,6 +63,24 @@ public partial class CaptureOverlayWindow : Window
     private bool _isAnnotating;
     private WpfRect _smartPreview = WpfRect.Empty;
     private WpfRect _pendingSmartSelection = WpfRect.Empty;
+    private DrawingRectangle? _pendingSmartPixelRegion;
+    private readonly Guid _smartSessionId = Guid.NewGuid();
+    private readonly DispatcherTimer _smartRefinementTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private SmartElementProbeWorker? _smartWorker;
+    private IReadOnlyList<SmartSelectionCandidate> _smartCandidates = [];
+    private IReadOnlyList<SmartSelectionCandidate> _smartNativeCandidates = [];
+    private int _smartCandidateIndex;
+    private int _smartDisplayedCandidateCount;
+    private nint _smartRoot;
+    private uint _smartRootProcessId;
+    private DrawingRectangle _smartRootBounds;
+    private System.Drawing.Point _smartPointer;
+    private long _smartPointerChangedAt;
+    private long _smartRequestVersion;
+    private long _smartSubmittedAt;
+    private bool _smartRequestSubmitted;
+    private bool _smartManualCandidate;
+    private bool _smartWindowClosed;
     private bool _dragMoved;
     private MediaColor _currentPixelColor;
     private CaptureAnnotationTool _arrowTool = CaptureAnnotationTool.Arrow;
@@ -116,6 +135,7 @@ public partial class CaptureOverlayWindow : Window
             AdjustmentBadge.Visibility = Visibility.Collapsed;
         };
         _ocrPrefetchTimer.Tick += OnOcrPrefetchTimerTick;
+        _smartRefinementTimer.Tick += OnSmartRefinementTick;
         QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
 
         BackgroundImage.Source = snapshot.Image;
@@ -134,6 +154,7 @@ public partial class CaptureOverlayWindow : Window
         {
             HintActionText.Text = $"R 循环历史选区  ·  {confirmationHint}";
         }
+        HintActionText.Text += "  ·  Alt+滚轮切换区域";
         _cornerMarks =
         [
             TopLeftHorizontal,
@@ -155,6 +176,9 @@ public partial class CaptureOverlayWindow : Window
         Loaded += OnLoaded;
         Closed += (_, _) =>
         {
+            _smartWindowClosed = true;
+            ResetSmartRecognition();
+            _smartRefinementTimer.Tick -= OnSmartRefinementTick;
             _adjustmentBadgeTimer.Stop();
             CancelOcrPrefetch();
             CancelQrCodeRecognition(clearResults: false);
@@ -209,6 +233,17 @@ public partial class CaptureOverlayWindow : Window
         if (_initialLocalRegion is { Width: > 0, Height: > 0 } initialRegion)
         {
             LoadLocalSelection(initialRegion);
+        }
+        else if (Surface.ActualWidth > 0 && Surface.ActualHeight > 0 &&
+                 NativeMethods.GetCursorPos(out var cursor) &&
+                 _snapshot.Bounds.Contains(cursor.X, cursor.Y))
+        {
+            // Establish the fast native preview on F1 even if the mouse has not
+            // moved. The snapshot origin can be negative and its pixels need not
+            // equal the overlay's DIPs on a mixed-DPI desktop.
+            UpdateSmartPreview(new Point(
+                (cursor.X - _snapshot.Bounds.Left) * Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width),
+                (cursor.Y - _snapshot.Bounds.Top) * Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height)));
         }
     }
 
@@ -292,13 +327,12 @@ public partial class CaptureOverlayWindow : Window
         _selectionPixelAtDragStart = GetLocalRegion();
         _dragMoved = false;
         _pendingSmartSelection = WpfRect.Empty;
-        if (_selection.IsEmpty && !_smartPreview.IsEmpty && _smartPreview.Contains(point))
+        _pendingSmartPixelRegion = null;
+        if (TryAdoptSmartPreview(point))
         {
-            _pendingSmartSelection = _smartPreview;
             // Adopt the preview immediately so a normal click cannot collapse into a
             // one-pixel drag if Windows delivers a synthetic move between down/up.
             // A deliberate drag still switches back to free-form selection below.
-            SetSelection(_pendingSmartSelection);
             _dragMode = DragMode.Create;
             Surface.CaptureMouse();
             e.Handled = true;
@@ -320,7 +354,7 @@ public partial class CaptureOverlayWindow : Window
     {
         var pointer = ClampPoint(e.GetPosition(Surface));
         UpdateMagnifier(pointer);
-        if (_dragMode == DragMode.None && _selection.IsEmpty && _settings.SmartWindowSelection)
+        if (_dragMode == DragMode.None && _selection.IsEmpty)
         {
             UpdateSmartPreview(pointer);
         }
@@ -357,6 +391,7 @@ public partial class CaptureOverlayWindow : Window
 
             _dragMoved = true;
             _pendingSmartSelection = WpfRect.Empty;
+            _pendingSmartPixelRegion = null;
             SetSelection(new WpfRect(_dragStart, _dragStart));
         }
 
@@ -382,8 +417,10 @@ public partial class CaptureOverlayWindow : Window
 
         if (!_pendingSmartSelection.IsEmpty && !_dragMoved)
         {
-            SetSelection(_pendingSmartSelection);
+            if (_pendingSmartPixelRegion is { } smartPixels) SetSelectionFromPixels(smartPixels);
+            else SetSelection(_pendingSmartSelection);
             _pendingSmartSelection = WpfRect.Empty;
+            _pendingSmartPixelRegion = null;
             _selectionPixelAtDragStart = null;
             _dragMode = DragMode.None;
             Surface.ReleaseMouseCapture();
@@ -948,6 +985,21 @@ public partial class CaptureOverlayWindow : Window
 
     private void SetSelection(WpfRect rect) => SetSelectionCore(rect, ToPhysicalRectangle(rect));
 
+    private bool TryAdoptSmartPreview(Point point)
+    {
+        if (!_selection.IsEmpty || _smartPreview.IsEmpty || !_smartPreview.Contains(point)) return false;
+        _pendingSmartSelection = _smartPreview;
+        if (_smartCandidateIndex >= 0 && _smartCandidateIndex < _smartCandidates.Count)
+        {
+            var pixels = _smartCandidates[_smartCandidateIndex].Bounds;
+            _pendingSmartPixelRegion = new DrawingRectangle(pixels.X - _snapshot.Bounds.X,
+                pixels.Y - _snapshot.Bounds.Y, pixels.Width, pixels.Height);
+        }
+        if (_pendingSmartPixelRegion is { } smartPixels) SetSelectionFromPixels(smartPixels);
+        else SetSelection(_pendingSmartSelection);
+        return true;
+    }
+
     private void SetSelectionFromPixels(DrawingRectangle rect)
     {
         if (rect.Width <= 0 || rect.Height <= 0)
@@ -974,6 +1026,7 @@ public partial class CaptureOverlayWindow : Window
 
     private void SetSelectionCore(WpfRect rect, DrawingRectangle pixelRegion)
     {
+        ResetSmartRecognition();
         CancelQrCodeRecognition(clearResults: true);
         _smartPreview = WpfRect.Empty;
         _selection = rect;
@@ -996,45 +1049,141 @@ public partial class CaptureOverlayWindow : Window
 
     private void UpdateSmartPreview(Point point)
     {
+        if (!CanRefineSmartPreview) return;
         var scaleX = _snapshot.Bounds.Width / Math.Max(1, Surface.ActualWidth);
         var scaleY = _snapshot.Bounds.Height / Math.Max(1, Surface.ActualHeight);
-        var target = NativeMethods.FindWindowAtPointExcludingProcess(
+        var pointer = new System.Drawing.Point(
+            _snapshot.Bounds.X + (int)Math.Round(point.X * scaleX),
+            _snapshot.Bounds.Y + (int)Math.Round(point.Y * scaleY));
+        var hit = NativeMethods.FindSmartSelectionWindows(
             new NativeMethods.NativePoint(
-                _snapshot.Bounds.X + (int)Math.Round(point.X * scaleX),
-                _snapshot.Bounds.Y + (int)Math.Round(point.Y * scaleY)),
-            (uint)Environment.ProcessId);
-
-        if (target == nint.Zero || !NativeMethods.GetWindowRect(target, out var windowRect))
+                pointer.X, pointer.Y),
+            (uint)Environment.ProcessId, _snapshot.Bounds);
+        if (hit is null || hit.Candidates.Count == 0)
         {
             ClearSmartPreview();
             return;
         }
-
-        NativeMethods.GetWindowThreadProcessId(target, out var processId);
-        if (processId == Environment.ProcessId)
+        var rootChanged = _smartRoot != hit.RootWindow || _smartRootProcessId != hit.RootProcessId ||
+            _smartRootBounds != hit.RootBounds;
+        var previous = _smartCandidates.ElementAtOrDefault(_smartCandidateIndex);
+        _smartNativeCandidates = hit.Candidates;
+        if (!rootChanged && previous is not null && previous.Bounds.Contains(pointer))
         {
-            ClearSmartPreview();
+            _smartCandidates = SmartSelectionCandidates.Normalize(_smartCandidates.Concat(hit.Candidates),
+                pointer, _snapshot.Bounds);
+            _smartCandidateIndex = _smartCandidates.ToList().FindIndex(candidate => candidate.Bounds == previous.Bounds);
+        }
+        else
+        {
+            _smartCandidates = hit.Candidates;
+            _smartCandidateIndex = 0;
+            _smartManualCandidate = false;
+        }
+        if (rootChanged || pointer != _smartPointer)
+        {
+            _smartWorker?.CancelSession(_smartSessionId);
+            _smartRequestVersion++;
+            _smartRequestSubmitted = false;
+            _smartPointerChangedAt = Stopwatch.GetTimestamp();
+        }
+        _smartRoot = hit.RootWindow;
+        _smartRootProcessId = hit.RootProcessId;
+        _smartRootBounds = hit.RootBounds;
+        _smartPointer = pointer;
+        PresentSmartCandidate();
+        if (!_smartManualCandidate)
+            _smartRefinementTimer.Start();
+    }
+
+    private bool CanRefineSmartPreview => !_smartWindowClosed &&
+        _dragMode == DragMode.None && _selection.IsEmpty && !_isAnnotating &&
+        Keyboard.FocusedElement is not WpfTextBox && !CaptureToolbar.IsMouseOver &&
+        GeometryEditor.Visibility != Visibility.Visible && !QuickTagPopup.IsOpen &&
+        !AnnotationPalettePopup.IsOpen && !ArrowToolPopup.IsOpen && !RegionToolPopup.IsOpen;
+
+    private void OnSmartRefinementTick(object? sender, EventArgs e)
+    {
+        if (!CanRefineSmartPreview || _smartRoot == nint.Zero ||
+            _smartManualCandidate)
+        {
+            StopSmartRefinement();
             return;
         }
-
-        var leftPx = Math.Max(windowRect.Left, _snapshot.Bounds.Left);
-        var topPx = Math.Max(windowRect.Top, _snapshot.Bounds.Top);
-        var rightPx = Math.Min(windowRect.Right, _snapshot.Bounds.Right);
-        var bottomPx = Math.Min(windowRect.Bottom, _snapshot.Bounds.Bottom);
-        if (rightPx - leftPx < 20 || bottomPx - topPx < 20)
+        if (_smartWorker is { } worker)
         {
-            ClearSmartPreview();
+            if (!worker.IsAvailable)
+            {
+                StopSmartRefinement();
+                return;
+            }
+            if (worker.TakeResult(_smartSessionId, _smartRequestVersion) is { } result &&
+                SmartSelectionCandidates.IsCurrent(result.Request, _smartSessionId, _smartRequestVersion,
+                    _smartRoot, _smartRootProcessId, _smartRootBounds) &&
+                SmartElementProbeWorker.RootStillMatches(result.Request))
+            {
+                _smartCandidates = SmartSelectionCandidates.Normalize(
+                    result.Candidates.Concat(_smartNativeCandidates), _smartPointer, _snapshot.Bounds);
+                _smartCandidateIndex = 0;
+                PresentSmartCandidate();
+                _smartRefinementTimer.Stop();
+                return;
+            }
+        }
+        if (_smartRequestSubmitted)
+        {
+            if (Stopwatch.GetElapsedTime(_smartSubmittedAt) > TimeSpan.FromMilliseconds(650))
+                StopSmartRefinement();
             return;
         }
+        if (Stopwatch.GetElapsedTime(_smartPointerChangedAt) < TimeSpan.FromMilliseconds(120)) return;
+        _smartWorker ??= SmartElementProbeWorker.Shared;
+        _smartRequestSubmitted = _smartWorker.Submit(new SmartElementRequest(_smartSessionId,
+            _smartRequestVersion, _smartRoot, _smartRootProcessId, _smartRootBounds, _smartPointer, _snapshot.Bounds));
+        _smartSubmittedAt = Stopwatch.GetTimestamp();
+        if (!_smartRequestSubmitted) _smartRefinementTimer.Stop();
+    }
 
+    private void PresentSmartCandidate()
+    {
+        if (_smartCandidateIndex < 0 || _smartCandidateIndex >= _smartCandidates.Count) return;
+        var pixels = _smartCandidates[_smartCandidateIndex].Bounds;
         var toDipX = Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width);
         var toDipY = Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height);
-        _smartPreview = new WpfRect(
-            (leftPx - _snapshot.Bounds.X) * toDipX,
-            (topPx - _snapshot.Bounds.Y) * toDipY,
-            (rightPx - leftPx) * toDipX,
-            (bottomPx - topPx) * toDipY);
+        var preview = new WpfRect((pixels.X - _snapshot.Bounds.X) * toDipX,
+            (pixels.Y - _snapshot.Bounds.Y) * toDipY, pixels.Width * toDipX, pixels.Height * toDipY);
+        if (preview == _smartPreview && _smartDisplayedCandidateCount == _smartCandidates.Count) return;
+        _smartPreview = preview;
+        _smartDisplayedCandidateCount = _smartCandidates.Count;
         ShowSmartPreview(_smartPreview);
+    }
+
+    private void StopSmartRefinement()
+    {
+        _smartRefinementTimer.Stop();
+        _smartWorker?.CancelSession(_smartSessionId);
+        _smartRequestVersion++;
+        _smartRequestSubmitted = false;
+    }
+
+    private void ResetSmartRecognition()
+    {
+        StopSmartRefinement();
+        _smartCandidates = _smartNativeCandidates = [];
+        _smartRoot = nint.Zero;
+        _smartRootProcessId = 0;
+        _smartCandidateIndex = _smartDisplayedCandidateCount = 0;
+        _smartManualCandidate = false;
+    }
+
+    private bool TryCycleSmartCandidate(int delta)
+    {
+        if (!CanRefineSmartPreview || _smartCandidates.Count < 2 || delta == 0) return false;
+        StopSmartRefinement();
+        _smartManualCandidate = true;
+        _smartCandidateIndex = SmartSelectionCandidates.CycleIndex(_smartCandidateIndex, _smartCandidates.Count, delta);
+        PresentSmartCandidate();
+        return true;
     }
 
     private void ShowSmartPreview(WpfRect rect)
@@ -1045,7 +1194,7 @@ public partial class CaptureOverlayWindow : Window
         SelectionBorder.Width = rect.Width;
         SelectionBorder.Height = rect.Height;
         UpdateShades(rect);
-        UpdateSizeBadge(rect);
+        UpdateSizeBadge(rect, smartPreview: true);
         CaptureToolbar.Visibility = Visibility.Collapsed;
         QuickTagButton.Visibility = Visibility.Collapsed;
         QuickTagPopup.IsOpen = false;
@@ -1058,6 +1207,7 @@ public partial class CaptureOverlayWindow : Window
 
     private void ClearSmartPreview()
     {
+        ResetSmartRecognition();
         if (_smartPreview.IsEmpty || !_selection.IsEmpty)
         {
             return;
@@ -1142,6 +1292,8 @@ public partial class CaptureOverlayWindow : Window
 
     private void ShowFullShade()
     {
+        ResetSmartRecognition();
+        _smartPreview = WpfRect.Empty;
         _annotationController.Reset();
         _annotationController.SetBounds(WpfRect.Empty, Surface.ActualWidth, Surface.ActualHeight);
         _selection = WpfRect.Empty;
@@ -1189,12 +1341,16 @@ public partial class CaptureOverlayWindow : Window
         SetPosition(BottomRightVertical, rect.Right - 2, rect.Bottom - 15);
     }
 
-    private void UpdateSizeBadge(WpfRect rect)
+    private void UpdateSizeBadge(WpfRect rect, bool smartPreview = false)
     {
-        var physical = _selectionPixelRegion ?? ToPhysicalRectangle(rect);
+        var physical = smartPreview && _smartCandidateIndex >= 0 && _smartCandidateIndex < _smartCandidates.Count
+            ? _smartCandidates[_smartCandidateIndex].Bounds
+            : _selectionPixelRegion ?? ToPhysicalRectangle(rect);
         var physicalWidth = physical.Width;
         var physicalHeight = physical.Height;
         SizeText.Text = $"{physicalWidth} × {physicalHeight} px";
+        if (smartPreview && _smartCandidates.Count > 1)
+            SizeText.Text += "  ·  Alt+滚轮切换区域";
         var constraintLabel = _lockedSelectionSize is not null
             ? _aspectRatioMode == CaptureAspectRatioMode.Free
                 ? "固定"
@@ -1669,14 +1825,12 @@ public partial class CaptureOverlayWindow : Window
 
     private void UpdateArrowToolPopup()
     {
-        var inactive = new SolidColorBrush(Colors.Transparent);
-        var active = new SolidColorBrush(MediaColor.FromRgb(49, 71, 84));
         foreach (var button in ArrowModePanel.Children.OfType<WpfButton>())
         {
             var selected = button.Tag is string value &&
                            Enum.TryParse(value, out CaptureAnnotationTool tool) &&
                            tool == _arrowTool;
-            button.Background = selected ? active : inactive;
+            SetToolSelectionBrush(button, selected);
         }
 
         UpdatePaletteSelection();
@@ -1720,14 +1874,12 @@ public partial class CaptureOverlayWindow : Window
 
     private void UpdateRegionToolPopup()
     {
-        var inactive = new SolidColorBrush(Colors.Transparent);
-        var active = new SolidColorBrush(MediaColor.FromRgb(49, 71, 84));
         foreach (var button in RegionModePanel.Children.OfType<WpfButton>())
         {
             var selected = button.Tag is string value &&
                            Enum.TryParse(value, out CaptureAnnotationTool tool) &&
                            tool == _regionTool;
-            button.Background = selected ? active : inactive;
+            SetToolSelectionBrush(button, selected);
         }
 
         var usesColor = _regionTool is CaptureAnnotationTool.Rectangle or CaptureAnnotationTool.Highlight;
@@ -1758,8 +1910,8 @@ public partial class CaptureOverlayWindow : Window
         {
             var selected = button.Tag is string value &&
                            (MediaColor)System.Windows.Media.ColorConverter.ConvertFromString(value) == _annotationController.CurrentColor;
-            button.BorderBrush = new SolidColorBrush(
-                selected ? Colors.White : MediaColor.FromArgb(102, 83, 106, 118));
+            button.SetResourceReference(WpfButton.BorderBrushProperty,
+                selected ? "ThemeAccentBrush" : "ThemeBorderStrongBrush");
             button.BorderThickness = new Thickness(selected ? 2 : 1);
         }
 
@@ -1767,8 +1919,8 @@ public partial class CaptureOverlayWindow : Window
         {
             var selected = button.Tag is string value &&
                            (MediaColor)System.Windows.Media.ColorConverter.ConvertFromString(value) == _annotationController.CurrentColor;
-            button.BorderBrush = new SolidColorBrush(
-                selected ? Colors.White : MediaColor.FromArgb(102, 83, 106, 118));
+            button.SetResourceReference(WpfButton.BorderBrushProperty,
+                selected ? "ThemeAccentBrush" : "ThemeBorderStrongBrush");
             button.BorderThickness = new Thickness(selected ? 2 : 1);
         }
 
@@ -1776,14 +1928,19 @@ public partial class CaptureOverlayWindow : Window
         {
             var selected = button.Tag is string value &&
                            (MediaColor)System.Windows.Media.ColorConverter.ConvertFromString(value) == _annotationController.CurrentColor;
-            button.BorderBrush = new SolidColorBrush(
-                selected ? Colors.White : MediaColor.FromArgb(102, 83, 106, 118));
+            button.SetResourceReference(WpfButton.BorderBrushProperty,
+                selected ? "ThemeAccentBrush" : "ThemeBorderStrongBrush");
             button.BorderThickness = new Thickness(selected ? 2 : 1);
         }
     }
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (Keyboard.Modifiers == ModifierKeys.Alt && TryCycleSmartCandidate(e.Delta))
+        {
+            e.Handled = true;
+            return;
+        }
         if (CaptureToolbar.IsMouseOver ||
             AnnotationPalettePopup.Child is UIElement { IsMouseOver: true } ||
             RegionToolPopup.Child is UIElement { IsMouseOver: true } ||
@@ -2055,7 +2212,8 @@ public partial class CaptureOverlayWindow : Window
         QuickTagPopup.PlacementTarget = QuickTagButton;
         QuickTagCreatePanel.Visibility = Visibility.Collapsed;
         QuickTagStatusText.Text = _quickTagsLoaded ? string.Empty : "正在读取已有标签…";
-        QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(127, 147, 157));
+        QuickTagStatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            "ThemeSubtleTextBrush");
         QuickTagStatusText.Visibility = _quickTagsLoaded ? Visibility.Collapsed : Visibility.Visible;
         RenderQuickTagButtons();
         QuickTagPopup.IsOpen = true;
@@ -2083,7 +2241,8 @@ public partial class CaptureOverlayWindow : Window
         {
             _quickTagsLoaded = true;
             QuickTagStatusText.Text = "已有标签暂时无法读取，仍可添加新标签。";
-            QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 145, 137));
+            QuickTagStatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                "ThemeDangerBrush");
             QuickTagStatusText.Visibility = Visibility.Visible;
             DiagnosticLog.Error("HistoryTags", exception, "截图时读取快速标签失败。");
         }
@@ -2113,9 +2272,9 @@ public partial class CaptureOverlayWindow : Window
         {
             Content = "＋ 添加标签",
             Style = (Style)FindResource("QuickTagChip"),
-            Foreground = new SolidColorBrush(MediaColor.FromRgb(118, 223, 238)),
             ToolTip = "创建并选中一个新标签"
         };
+        addButton.SetResourceReference(WpfToggleButton.ForegroundProperty, "ThemeAccentBrush");
         addButton.Click += OnShowQuickTagCreateClick;
         QuickTagItemsPanel.Children.Add(addButton);
         UpdateQuickTagSummary();
@@ -2179,7 +2338,8 @@ public partial class CaptureOverlayWindow : Window
         if (tag.Length == 0)
         {
             QuickTagStatusText.Text = "请输入标签名称。";
-            QuickTagStatusText.Foreground = new SolidColorBrush(MediaColor.FromRgb(255, 145, 137));
+            QuickTagStatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+                "ThemeDangerBrush");
             QuickTagStatusText.Visibility = Visibility.Visible;
             QuickTagTextBox.Focus();
             return;
@@ -2460,15 +2620,11 @@ public partial class CaptureOverlayWindow : Window
         FixedSizeLockButton.ToolTip = locked
             ? $"已锁定 {_lockedSelectionSize!.Value.Width} × {_lockedSelectionSize.Value.Height} px；点击解锁"
             : "锁定当前宽度和高度";
-        FixedSizeLockButton.Background = locked
-            ? new SolidColorBrush(MediaColor.FromRgb(44, 76, 88))
-            : System.Windows.Media.Brushes.Transparent;
-        FixedSizeLockButton.Foreground = locked
-            ? new SolidColorBrush(MediaColor.FromRgb(118, 223, 238))
-            : new SolidColorBrush(MediaColor.FromRgb(220, 231, 236));
-        GeometryHintText.Foreground = warning
-            ? new SolidColorBrush(MediaColor.FromRgb(255, 190, 92))
-            : new SolidColorBrush(MediaColor.FromRgb(118, 161, 177));
+        SetToolSelectionBrush(FixedSizeLockButton, locked);
+        FixedSizeLockButton.SetResourceReference(WpfButton.ForegroundProperty,
+            locked ? "ThemeAccentBrush" : "ThemeTextBrush");
+        GeometryHintText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            warning ? "ThemeWarningBrush" : "ThemeSubtleTextBrush");
         GeometryHintText.Text = message ?? (locked
             ? $"已锁定 {_lockedSelectionSize!.Value.Width} × {_lockedSelectionSize.Value.Height} px；选区只能移动"
             : "Shift + 角点临时锁定比例；Alt + 角点以中心缩放；两者可组合");
@@ -2494,12 +2650,9 @@ public partial class CaptureOverlayWindow : Window
             var active = button.Tag is string value &&
                          Enum.TryParse<CaptureAspectRatioMode>(value, out var mode) &&
                          mode == _aspectRatioMode;
-            button.Background = active
-                ? new SolidColorBrush(MediaColor.FromRgb(44, 76, 88))
-                : System.Windows.Media.Brushes.Transparent;
-            button.Foreground = active
-                ? new SolidColorBrush(MediaColor.FromRgb(118, 223, 238))
-                : new SolidColorBrush(MediaColor.FromRgb(197, 210, 216));
+            SetToolSelectionBrush(button, active);
+            button.SetResourceReference(WpfButton.ForegroundProperty,
+                active ? "ThemeAccentBrush" : "ThemeTextBrush");
         }
     }
 
@@ -2532,8 +2685,6 @@ public partial class CaptureOverlayWindow : Window
 
     private void UpdateAnnotationButtons()
     {
-        var inactive = new SolidColorBrush(Colors.Transparent);
-        var active = new SolidColorBrush(MediaColor.FromRgb(69, 42, 48));
         (WpfButton Button, CaptureAnnotationTool Tool)[] buttons =
         [
             (PenButton, CaptureAnnotationTool.Pen),
@@ -2544,20 +2695,26 @@ public partial class CaptureOverlayWindow : Window
         ];
         foreach (var (button, tool) in buttons)
         {
-            button.Background = _annotationController.ActiveTool == tool ? active : inactive;
+            SetToolSelectionBrush(button, _annotationController.ActiveTool == tool, "ThemeDangerSurfaceBrush");
         }
 
-        LineButton.Background = _annotationController.ActiveTool == CaptureAnnotationTool.Line ? active : inactive;
-        ArrowButton.Background = _annotationController.ActiveTool is
-            CaptureAnnotationTool.Arrow or CaptureAnnotationTool.DoubleArrow ? active : inactive;
-        RectangleButton.Background = _annotationController.ActiveTool is
+        SetToolSelectionBrush(LineButton, _annotationController.ActiveTool == CaptureAnnotationTool.Line,
+            "ThemeDangerSurfaceBrush");
+        SetToolSelectionBrush(ArrowButton, _annotationController.ActiveTool is
+            CaptureAnnotationTool.Arrow or CaptureAnnotationTool.DoubleArrow, "ThemeDangerSurfaceBrush");
+        SetToolSelectionBrush(RectangleButton, _annotationController.ActiveTool is
             CaptureAnnotationTool.Rectangle or CaptureAnnotationTool.Mosaic or
-            CaptureAnnotationTool.Highlight or CaptureAnnotationTool.Blur
-            ? active
-            : inactive;
+            CaptureAnnotationTool.Highlight or CaptureAnnotationTool.Blur, "ThemeDangerSurfaceBrush");
 
         UndoButton.IsEnabled = _annotationController.CanUndo;
         ClearButton.IsEnabled = _annotationController.HasAnnotations;
+    }
+
+    private static void SetToolSelectionBrush(WpfButton button, bool selected,
+        string resourceKey = "ThemeSelectedBrush")
+    {
+        if (selected) button.SetResourceReference(WpfButton.BackgroundProperty, resourceKey);
+        else button.ClearValue(WpfButton.BackgroundProperty);
     }
 
     private Point ClampPoint(Point point) => new(

@@ -98,9 +98,8 @@ public partial class FeedbackWindow : Window
     private void SetStatus(string message, bool isError)
     {
         StatusText.Text = message;
-        StatusText.Foreground = new System.Windows.Media.SolidColorBrush(isError
-            ? System.Windows.Media.Color.FromRgb(255, 145, 137)
-            : System.Windows.Media.Color.FromRgb(118, 223, 238));
+        StatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            isError ? "ThemeDangerBrush" : "ThemeAccentBrush");
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

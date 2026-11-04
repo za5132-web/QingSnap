@@ -287,23 +287,35 @@ internal sealed class QrCodeHotspotMarker : FrameworkElement
         }
 
         var panel = new StackPanel { MaxWidth = 420 };
-        panel.Children.Add(new TextBlock
+        var actionText = new TextBlock
         {
             Text = result.IsUrl ? "单击打开链接" : "单击复制内容",
             FontFamily = new WpfFontFamily("Microsoft YaHei UI"),
             FontSize = 11,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = new SolidColorBrush(WpfColor.FromRgb(118, 223, 238))
-        });
-        panel.Children.Add(new TextBlock
+            FontWeight = FontWeights.SemiBold
+        };
+        actionText.SetResourceReference(TextBlock.ForegroundProperty, "ThemeAccentBrush");
+        panel.Children.Add(actionText);
+        var contentText = new TextBlock
         {
             Text = display,
             Margin = new Thickness(0, 5, 0, 0),
             FontFamily = new WpfFontFamily(result.IsUrl ? "Segoe UI" : "Microsoft YaHei UI"),
             FontSize = 12,
-            Foreground = new SolidColorBrush(WpfColor.FromRgb(243, 247, 249)),
             TextWrapping = TextWrapping.Wrap
-        });
+        };
+        contentText.SetResourceReference(TextBlock.ForegroundProperty, "ThemeTextBrush");
+        panel.Children.Add(contentText);
+
+        var chrome = new Border
+        {
+            Padding = new Thickness(11, 9, 11, 9),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Child = panel
+        };
+        chrome.SetResourceReference(Border.BackgroundProperty, "ThemeOverlayPanelBrush");
+        chrome.SetResourceReference(Border.BorderBrushProperty, "ThemeBorderStrongBrush");
 
         return new WpfToolTip
         {
@@ -311,15 +323,7 @@ internal sealed class QrCodeHotspotMarker : FrameworkElement
             Background = WpfBrushes.Transparent,
             BorderThickness = new Thickness(0),
             Padding = new Thickness(0),
-            Content = new Border
-            {
-                Padding = new Thickness(11, 9, 11, 9),
-                Background = new SolidColorBrush(WpfColor.FromArgb(248, 13, 27, 35)),
-                BorderBrush = new SolidColorBrush(WpfColor.FromArgb(150, 118, 223, 238)),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Child = panel
-            }
+            Content = chrome
         };
     }
 }

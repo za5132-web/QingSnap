@@ -12,8 +12,8 @@
         WindowStyle="None"
         ResizeMode="CanResize"
         Topmost="True"
-        Background="#FF0B1118"
-        Foreground="#FFF3F7F9"
+        Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
         PreviewKeyDown="OnPreviewKeyDown">
@@ -28,15 +28,13 @@
     <Window.Resources>
         <FontFamily x:Key="UiFont">Microsoft YaHei UI</FontFamily>
         <FontFamily x:Key="DataFont">Cascadia Mono, Consolas</FontFamily>
-        <SolidColorBrush x:Key="AccentBrush" Color="#FF76DFEE" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#FF80939E" />
 
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
         <Style x:Key="WindowButton" TargetType="Button">
             <Setter Property="Width" Value="42" />
             <Setter Property="Height" Value="42" />
-            <Setter Property="Foreground" Value="#FFA7B5BD" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontSize" Value="17" />
@@ -49,11 +47,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF1B2A34" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF253A46" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,9 +64,9 @@
             <Setter Property="MinWidth" Value="68" />
             <Setter Property="Margin" Value="8,0,0,0" />
             <Setter Property="Padding" Value="13,0" />
-            <Setter Property="Foreground" Value="#FFEAF1F4" />
-            <Setter Property="Background" Value="#FF1B2A34" />
-            <Setter Property="BorderBrush" Value="#FF344957" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
@@ -86,11 +84,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF263B47" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9976DFEE" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF10232D" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -99,13 +97,14 @@
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Foreground" Value="#FF071117" />
-            <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-            <Setter Property="BorderBrush" Value="#FF9BEDF6" />
+            <Setter Property="Template" Value="{DynamicResource ThemePrimaryButtonTemplate}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeOnAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
         </Style>
     </Window.Resources>
 
-    <Border Background="#FF0B1118" BorderBrush="#FF314652" BorderThickness="1">
+    <Border Background="{DynamicResource ThemeWindowBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="52" />
@@ -114,7 +113,7 @@
                 <RowDefinition Height="54" />
             </Grid.RowDefinitions>
 
-            <Border Background="#FF0D171F" BorderBrush="#223D5362" BorderThickness="0,0,0,1"
+            <Border Background="{DynamicResource ThemePopupBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -122,18 +121,18 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <StackPanel Margin="18,0,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border Width="28" Height="28" Background="#FF102832" CornerRadius="7">
+                        <Border Width="28" Height="28" Background="{DynamicResource ThemeHoverBrush}" CornerRadius="7">
                             <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
                                        FontFamily="{StaticResource DataFont}" FontSize="12" FontWeight="Bold"
-                                       Foreground="{StaticResource AccentBrush}" Text="QR" />
+                                       Foreground="{DynamicResource ThemeAccentBrush}" Text="QR" />
                         </Border>
                         <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
                             <TextBlock FontFamily="{StaticResource UiFont}" FontSize="13" FontWeight="SemiBold"
-                                       Foreground="#FFF3F7F9" Text="检测到二维码" />
+                                       Foreground="{DynamicResource ThemeTextBrush}" Text="检测到二维码" />
                             <TextBlock x:Name="TitleStatusText" Margin="0,2,0,0"
                                        MaxWidth="390" TextTrimming="CharacterEllipsis"
                                        FontFamily="{StaticResource DataFont}" FontSize="9.5"
-                                       Foreground="{StaticResource MutedBrush}" />
+                                       Foreground="{DynamicResource ThemeMutedTextBrush}" />
                         </StackPanel>
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource WindowButton}" Content="×" Click="OnCloseClick" />
@@ -141,9 +140,9 @@
             </Border>
 
             <Border Grid.Row="1" Margin="18,15,18,0" Padding="12,9"
-                    Background="#FF10202A" BorderBrush="#4476DFEE" BorderThickness="1" CornerRadius="6">
+                    Background="{DynamicResource ThemeSelectedBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" CornerRadius="6">
                 <TextBlock FontFamily="{StaticResource UiFont}" FontSize="11"
-                           Foreground="#FF9DB1BC" Text="全部内容均在本机离线识别；网址不会自动打开。" />
+                           Foreground="{DynamicResource ThemeMutedTextBrush}" Text="全部内容均在本机离线识别；网址不会自动打开。" />
             </Border>
 
             <ScrollViewer Grid.Row="2" Margin="18,12,18,10"
@@ -152,7 +151,7 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Margin="0,0,0,9" Padding="14"
-                                    Background="#FF101A22" BorderBrush="#FF293A45"
+                                    Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeHoverBrush}"
                                     BorderThickness="1" CornerRadius="8">
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -166,15 +165,15 @@
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock FontFamily="{StaticResource DataFont}" FontSize="10" FontWeight="Bold"
-                                                   Foreground="{StaticResource AccentBrush}" Text="{Binding Format}" />
-                                        <Border Grid.Column="1" Padding="7,2" Background="#FF182832" CornerRadius="4">
+                                                   Foreground="{DynamicResource ThemeAccentBrush}" Text="{Binding Format}" />
+                                        <Border Grid.Column="1" Padding="7,2" Background="{DynamicResource ThemeButtonBrush}" CornerRadius="4">
                                             <TextBlock FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                       Foreground="#FFA9BAC3" Text="{Binding TypeText}" />
+                                                       Foreground="{DynamicResource ThemeMutedTextBrush}" Text="{Binding TypeText}" />
                                         </Border>
                                     </Grid>
                                     <TextBlock Grid.Row="1" Margin="0,10,0,0" MaxHeight="150"
                                                FontFamily="{StaticResource UiFont}" FontSize="13" LineHeight="21"
-                                               Foreground="#FFF0F5F7" Text="{Binding DisplayText}"
+                                               Foreground="{DynamicResource ThemeTextBrush}" Text="{Binding DisplayText}"
                                                TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Row="2" Margin="0,12,0,0" Orientation="Horizontal" HorizontalAlignment="Right">
                                         <Button Style="{StaticResource ActionButton}" Content="复制" Tag="{Binding}" Click="OnCopyClick" />
@@ -189,11 +188,11 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <Border Grid.Row="3" Background="#FF0D171F" BorderBrush="#223D5362" BorderThickness="0,1,0,0">
+            <Border Grid.Row="3" Background="{DynamicResource ThemePopupBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,1,0,0">
                 <Grid Margin="18,0">
                     <TextBlock x:Name="FooterStatusText" VerticalAlignment="Center"
                                FontFamily="{StaticResource UiFont}" FontSize="10.5"
-                               Foreground="{StaticResource MutedBrush}" Text="识别完成" />
+                               Foreground="{DynamicResource ThemeMutedTextBrush}" Text="识别完成" />
                     <Button HorizontalAlignment="Right" VerticalAlignment="Center"
                             Style="{StaticResource ActionButton}" Margin="0"
                             Content="关闭" Click="OnCloseClick" />

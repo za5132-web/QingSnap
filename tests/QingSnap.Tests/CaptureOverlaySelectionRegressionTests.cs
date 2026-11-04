@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using QingSnap.App.Models;
+using QingSnap.App.Services;
 using QingSnap.App.Views;
 using Xunit;
 
@@ -54,7 +55,55 @@ public sealed class CaptureOverlaySelectionRegressionTests
         Assert.Equal(initial.Height, actual.Height);
     });
 
-    private static void Run(Action<CaptureOverlayWindow> assertion)
+    [Fact]
+    public void SmartPreviewClickKeepsExactPhysicalPixelsAtFractionalScaleAndStopsRefinement() => Run(window =>
+    {
+        var surface = (FrameworkElement)window.FindName("Surface");
+        surface.Measure(new Size(640, 480));
+        surface.Arrange(new Rect(0, 0, 640, 480));
+        IReadOnlyList<SmartSelectionCandidate> candidates =
+        [new(new System.Drawing.Rectangle(-800, 0, 333, 177), SmartSelectionKind.Element)];
+        Set(window, "_smartCandidates", candidates);
+        Set(window, "_smartCandidateIndex", 0);
+        Call(window, "PresentSmartCandidate");
+        var version = Get<long>(window, "_smartRequestVersion");
+        Call(window, "TryAdoptSmartPreview", new Point(10, 10));
+        Assert.Equal(new System.Drawing.Rectangle(0, 0, 333, 177),
+            Get<System.Drawing.Rectangle?>(window, "_selectionPixelRegion"));
+        Assert.True(Get<long>(window, "_smartRequestVersion") > version);
+        Assert.Empty(Get<IReadOnlyList<SmartSelectionCandidate>>(window, "_smartCandidates"));
+        Assert.False(Get<System.Windows.Threading.DispatcherTimer>(window, "_smartRefinementTimer").IsEnabled);
+    });
+
+    [Fact]
+    public void SmartCandidateWheelChangesPreviewButCannotAffectEstablishedSelection() => Run(window =>
+    {
+        IReadOnlyList<SmartSelectionCandidate> candidates =
+        [
+            new(new System.Drawing.Rectangle(-700, 100, 200, 100), SmartSelectionKind.Element),
+            new(new System.Drawing.Rectangle(-800, 0, 800, 600), SmartSelectionKind.Window)
+        ];
+        Set(window, "_smartCandidates", candidates);
+        Call(window, "PresentSmartCandidate");
+        Call(window, "TryCycleSmartCandidate", 120);
+        Assert.Equal(1, Get<int>(window, "_smartCandidateIndex"));
+        Assert.True(Get<bool>(window, "_smartManualCandidate"));
+        Call(window, "TryAdoptSmartPreview", new Point(10, 10));
+        var pixels = Get<System.Drawing.Rectangle?>(window, "_selectionPixelRegion");
+        Call(window, "TryCycleSmartCandidate", -120);
+        Assert.Equal(pixels, Get<System.Drawing.Rectangle?>(window, "_selectionPixelRegion"));
+    });
+
+    [Fact]
+    public void OldDisabledSmartSettingsCannotSuppressAutomaticRecognition()
+    {
+        var oldSettings = System.Text.Json.JsonSerializer.Deserialize<AppSettings>(
+            "{\"SmartWindowSelection\":false,\"SmartElementSelection\":false}")!;
+        Run(window => Assert.True((bool)typeof(CaptureOverlayWindow)
+            .GetProperty("CanRefineSmartPreview", InstanceFlags)!.GetValue(window)!), oldSettings);
+    }
+
+    private static void Run(Action<CaptureOverlayWindow> assertion, AppSettings? settings = null)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -73,7 +122,7 @@ public sealed class CaptureOverlaySelectionRegressionTests
                 var image = BitmapSource.Create(800, 600, 96, 96, PixelFormats.Bgra32,
                     null, new byte[800 * 600 * 4], 800 * 4);
                 window = new CaptureOverlayWindow(new ScreenSnapshot(
-                    new System.Drawing.Rectangle(-800, 0, 800, 600), image))
+                    new System.Drawing.Rectangle(-800, 0, 800, 600), image), settings: settings)
                 {
                     Width = 800,
                     Height = 600

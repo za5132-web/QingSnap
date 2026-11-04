@@ -3,6 +3,28 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.4] - 2026-11-04
+
+### 智能选区 / Smart selection
+
+- Win32 即时识别窗口与原生子窗口，停稳后后台 UI Automation 细化面板；自动工作，无识别模式开关，预选时可用 `Alt+滚轮` 切换候选层级。  Immediate Win32 selection now combines with automatic background UI Automation refinement; use `Alt+wheel` to cycle candidate levels without changing modes.
+- 过滤隐藏、完全透明与本进程窗口；丢弃过期结果，单击采用可见选框，异常或不支持的 Provider 保留原生窗口候选。  Filters hidden, fully transparent, and own-process windows, rejects stale results, commits the visible preview, and falls back to native candidates when refinement is unavailable.
+
+### 贴图运动 / Pin motion
+
+- 滚轮目标合并、短时帧同步运动和统一收纳入口，连续输入可重定向，运动结束或窗口关闭后解除刷新。  Coalesced zoom targets and short frame-synchronized transitions unify pin zoom and docking, retarget continuous input, and stop refreshing when idle or closed.
+- 修正部分 DPI 环境首次滚轮缩放突然跳大的倍率失配，继续保留等比缩放、中心锚点、长图阅读与原位恢复。  Corrects an initial zoom-scale mismatch in some DPI configurations while preserving aspect ratio, center anchoring, long-image reading, and in-place restoration.
+
+### 界面主题 / Interface themes
+
+- 新增深色、浅色与跟随系统，设置保存后应用，旧配置默认深色；统一窗口、工具条、菜单、弹窗、滚条和通知，不改变图片或标注颜色。  Added Dark, Light, and System themes with safe dark defaults for older settings; windows, toolbars, menus, popups, scrollbars, and notifications share palettes without changing image or annotation colors.
+- 系统主题 / 高对比度事件驱动，无主题轮询；仅主题变化不重注册快捷键或重启 OCR。  System-theme and high-contrast updates are event-driven; theme-only changes do not re-register hotkeys or restart OCR.
+
+### 验证边界 / Validation scope
+
+- Release 完整编译 0 Warning / 0 Error，235 项自动化测试通过；排除 1 项会修改真实 Windows Startup 的旧迁移测试。  Full Release build has zero warnings/errors and 235 passing tests; one legacy test that changes real Windows Startup entries was excluded.
+- 真实混合 DPI、多屏、120/144Hz 和全部第三方应用未完整实测；不作通用识别率或固定帧率保证。本次附合成功能示意图。  Real mixed-DPI, multi-monitor, high-refresh-rate hardware and all third-party apps were not exhaustively tested; no universal accuracy or fixed frame rate is guaranteed. Includes a synthetic feature illustration.
+
 ## [1.1.3] - 2026-11-04
 
 ### 贴图编辑与长图阅读 / Pin annotation and long-image reading
@@ -301,6 +323,9 @@ This index covers every local preview build between public releases. `Internal i
 | v1 | 2026-08-19 | 区域截图、重复范围、自动复制、历史保存、托盘与单实例 / region capture, repeat region, automatic copy, history storage, tray, and single instance |
 
 [Preview v48]: https://github.com/za5132-web/QingSnap/compare/preview-v47...preview-v48
+[1.1.4]: https://github.com/za5132-web/QingSnap/compare/v1.1.3...v1.1.4
+[1.1.3]: https://github.com/za5132-web/QingSnap/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/za5132-web/QingSnap/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/za5132-web/QingSnap/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/za5132-web/QingSnap/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/za5132-web/QingSnap/compare/v1.0.1...v1.0.2

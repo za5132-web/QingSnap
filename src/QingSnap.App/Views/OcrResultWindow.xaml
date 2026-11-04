@@ -10,13 +10,10 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
-        Background="#FF0B1118"
-        Foreground="#FFF3F7F9"
+        Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}"
         PreviewKeyDown="OnPreviewKeyDown">
     <Window.Resources>
-        <SolidColorBrush x:Key="PanelBrush" Color="#FF111A22" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#FF76DFEE" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#FF8D9AA5" />
 
         <Style x:Key="ActionButton" TargetType="Button">
             <Setter Property="Height" Value="34" />
@@ -25,9 +22,9 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFF3F7F9" />
-            <Setter Property="Background" Value="#FF22313D" />
-            <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -43,8 +40,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF2B3E4C" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#9976DFEE" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.72" />
@@ -59,15 +56,16 @@
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Foreground" Value="#FF071116" />
-            <Setter Property="Background" Value="#FF76DFEE" />
-            <Setter Property="BorderBrush" Value="#FF9EEAF4" />
+            <Setter Property="Template" Value="{DynamicResource ThemePrimaryButtonTemplate}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeOnAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentHoverBrush}" />
         </Style>
 
         <Style x:Key="WindowButton" TargetType="Button">
             <Setter Property="Width" Value="44" />
             <Setter Property="Height" Value="36" />
-            <Setter Property="Foreground" Value="#FFB8C3CA" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
@@ -81,8 +79,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF25313B" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -91,7 +89,7 @@
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#334A5C69" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="58" />
@@ -100,8 +98,8 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
-                    Background="#FF0E171F"
-                    BorderBrush="#223D5362"
+                    Background="{DynamicResource ThemeChromeBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderBrush}"
                     BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
                 <Grid Margin="20,0,0,0">
@@ -110,14 +108,14 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="5" Height="24" Background="{StaticResource AccentBrush}" CornerRadius="2" />
+                    <Border Width="5" Height="24" Background="{DynamicResource ThemeAccentBrush}" CornerRadius="2" />
                     <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock FontFamily="{StaticResource UiFont}" FontSize="16" FontWeight="SemiBold" Text="OCR 文字识别" />
                         <TextBlock x:Name="TitleStatusText"
                                    Margin="0,2,0,0"
                                    FontFamily="{StaticResource DataFont}"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource MutedBrush}"
+                                   Foreground="{DynamicResource ThemeMutedTextBrush}"
                                    Text="本地识别 · 正在准备" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
@@ -135,36 +133,36 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="{StaticResource PanelBrush}" BorderBrush="#FF24333E" BorderThickness="1" CornerRadius="9">
+                <Border Grid.Column="0" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="9">
                     <Grid Margin="14">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <Border Background="#FF080D12" BorderBrush="#FF2A3945" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                        <Border Background="{DynamicResource ThemeImageBackdropBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="6" ClipToBounds="True">
                             <Image x:Name="SourceImage" Margin="8" Stretch="Uniform" />
                         </Border>
                         <StackPanel Grid.Row="1" Margin="2,13,2,0">
                             <TextBlock x:Name="SourceNameText"
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10.5"
-                                       Foreground="#FFD5DEE3"
+                                       Foreground="{DynamicResource ThemeTextBrush}"
                                        TextTrimming="CharacterEllipsis" />
                             <TextBlock x:Name="SourceSizeText"
                                        Margin="0,6,0,0"
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10.5"
-                                       Foreground="{StaticResource MutedBrush}" />
+                                       Foreground="{DynamicResource ThemeMutedTextBrush}" />
                             <TextBlock Margin="0,9,0,0"
                                        FontFamily="{StaticResource UiFont}"
                                        FontSize="11"
-                                       Foreground="#FF6FC0CC"
+                                       Foreground="{DynamicResource ThemeAccentBrush}"
                                        Text="图片仅在本机处理，不会上传。" />
                         </StackPanel>
                     </Grid>
                 </Border>
 
-                <Border Grid.Column="2" Background="{StaticResource PanelBrush}" BorderBrush="#FF24333E" BorderThickness="1" CornerRadius="9">
+                <Border Grid.Column="2" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="9">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="42" />
@@ -180,7 +178,7 @@
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10"
                                        FontWeight="Bold"
-                                       Foreground="{StaticResource AccentBrush}"
+                                       Foreground="{DynamicResource ThemeAccentBrush}"
                                        Text="TEXT" />
                             <TextBlock x:Name="EditorStatsText"
                                        Grid.Column="1"
@@ -188,10 +186,10 @@
                                        VerticalAlignment="Center"
                                        FontFamily="{StaticResource DataFont}"
                                        FontSize="10"
-                                       Foreground="{StaticResource MutedBrush}"
+                                       Foreground="{DynamicResource ThemeMutedTextBrush}"
                                        Text="等待识别" />
                         </Grid>
-                        <Border Grid.Row="1" Margin="12,0" Background="#FF0B1218" BorderBrush="#FF2A3945" BorderThickness="1" CornerRadius="5">
+                        <Border Grid.Row="1" Margin="12,0" Background="{DynamicResource ThemeFieldBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="5">
                             <TextBox x:Name="OcrTextBox"
                                      Margin="1"
                                      Padding="14,12"
@@ -204,10 +202,10 @@
                                      FontFamily="Microsoft YaHei UI"
                                      FontSize="14"
                                      TextBlock.LineHeight="23"
-                                     Foreground="#FFF2F6F8"
+                                     Foreground="{DynamicResource ThemeTextBrush}"
                                      Background="Transparent"
                                      BorderThickness="0"
-                                     CaretBrush="{StaticResource AccentBrush}"
+                                     CaretBrush="{DynamicResource ThemeAccentBrush}"
                                      TextChanged="OnOcrTextChanged" />
                         </Border>
                         <TextBlock Grid.Row="2"
@@ -215,16 +213,16 @@
                                    VerticalAlignment="Center"
                                    FontFamily="{StaticResource UiFont}"
                                    FontSize="10.5"
-                                   Foreground="#FF687783"
+                                   Foreground="{DynamicResource ThemeSubtleTextBrush}"
                                    Text="识别结果可直接修改；Ctrl+A 全选，Ctrl+C 复制选中内容。" />
 
-                        <Border x:Name="LoadingPanel" Grid.RowSpan="3" Background="#D90E171F" CornerRadius="8">
+                        <Border x:Name="LoadingPanel" Grid.RowSpan="3" Background="{DynamicResource ThemeLoadingScrimBrush}" CornerRadius="8">
                             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <ProgressBar Width="180" Height="3" IsIndeterminate="True" Foreground="{StaticResource AccentBrush}" />
+                                <ProgressBar Width="180" Height="3" IsIndeterminate="True" Foreground="{DynamicResource ThemeAccentBrush}" />
                                 <TextBlock Margin="0,14,0,0"
                                            FontFamily="{StaticResource UiFont}"
                                            FontSize="12"
-                                           Foreground="#FFD4DEE3"
+                                           Foreground="{DynamicResource ThemeTextBrush}"
                                            Text="正在识别文字…" />
                             </StackPanel>
                         </Border>
@@ -232,7 +230,7 @@
                 </Border>
             </Grid>
 
-            <Border Grid.Row="2" Background="#FF0E171F" BorderBrush="#223D5362" BorderThickness="0,1,0,0">
+            <Border Grid.Row="2" Background="{DynamicResource ThemeChromeBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,1,0,0">
                 <Grid Margin="20,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -242,7 +240,7 @@
                                VerticalAlignment="Center"
                                FontFamily="{StaticResource UiFont}"
                                FontSize="11"
-                               Foreground="{StaticResource MutedBrush}"
+                               Foreground="{DynamicResource ThemeMutedTextBrush}"
                                Text="准备识别" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button Style="{StaticResource ActionButton}" Content="重新识别" Click="OnRetryClick" />

@@ -12,8 +12,8 @@
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
-        Background="#FF0B1118"
-        Foreground="#FFF3F7F9"
+        Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}"
         SnapsToDevicePixels="True"
         UseLayoutRounding="True"
         PreviewKeyDown="OnPreviewKeyDown">
@@ -26,12 +26,6 @@
     </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <SolidColorBrush x:Key="PanelBrush" Color="#FF111A22" />
-        <SolidColorBrush x:Key="RaisedBrush" Color="#FF17222C" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#FF76DFEE" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#FF8D9AA5" />
-        <SolidColorBrush x:Key="FieldBrush" Color="#FF0D151C" />
-        <SolidColorBrush x:Key="FieldHoverBrush" Color="#FF12212A" />
 
         <Style x:Key="HistoryContextMenuStyle" TargetType="ContextMenu">
             <Setter Property="OverridesDefaultStyle" Value="True" />
@@ -41,8 +35,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ContextMenu">
                         <Border Padding="5"
-                                Background="#FF0D171F"
-                                BorderBrush="#FF344957"
+                                Background="{DynamicResource ThemePopupBrush}"
+                                BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                                 BorderThickness="1"
                                 CornerRadius="7">
                             <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
@@ -56,7 +50,7 @@
             <Setter Property="Width" Value="176" />
             <Setter Property="Height" Value="34" />
             <Setter Property="Padding" Value="12,0" />
-            <Setter Property="Foreground" Value="#FFDDE8ED" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
@@ -75,8 +69,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBackground" Property="Background" Value="#FF19303A" />
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ItemBackground" Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4" />
@@ -94,9 +88,9 @@
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FFF3F7F9" />
-            <Setter Property="Background" Value="#FF22313D" />
-            <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
@@ -112,8 +106,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="Background" Value="#FF2B3E4C" />
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#9976DFEE" />
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
@@ -125,27 +119,27 @@
         </Style>
 
         <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Foreground" Value="#FFFFD9D3" />
-            <Setter Property="Background" Value="#FF40272A" />
-            <Setter Property="BorderBrush" Value="#668F4A4E" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeDangerBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeDangerSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
         </Style>
 
         <Style x:Key="PinButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Foreground" Value="#FFBFF7FF" />
-            <Setter Property="Background" Value="#FF17343C" />
-            <Setter Property="BorderBrush" Value="#6676DFEE" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
         </Style>
 
         <Style x:Key="OcrButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
-            <Setter Property="Foreground" Value="#FFFFE6B0" />
-            <Setter Property="Background" Value="#FF3A3020" />
-            <Setter Property="BorderBrush" Value="#668F7442" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeWarningBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
         </Style>
 
         <Style x:Key="WindowButton" TargetType="Button">
             <Setter Property="Width" Value="44" />
             <Setter Property="Height" Value="36" />
-            <Setter Property="Foreground" Value="#FFB8C3CA" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontFamily" Value="{StaticResource DataFont}" />
@@ -159,8 +153,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#FF25313B" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -172,7 +166,7 @@
             <Setter Property="Width" Value="34" />
             <Setter Property="Height" Value="32" />
             <Setter Property="Margin" Value="2,0" />
-            <Setter Property="Foreground" Value="#FF8FA0AA" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="1" />
@@ -189,13 +183,13 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ModeChrome" Property="Background" Value="#FF1B2A34" />
-                                <Setter Property="Foreground" Value="#FFF3F7F9" />
+                                <Setter TargetName="ModeChrome" Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="ModeChrome" Property="Background" Value="#FF19333D" />
-                                <Setter TargetName="ModeChrome" Property="BorderBrush" Value="#8876DFEE" />
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ModeChrome" Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
+                                <Setter TargetName="ModeChrome" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -208,7 +202,7 @@
             <Setter Property="Padding" Value="11,0" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#FFDCE7EC" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="OverridesDefaultStyle" Value="True" />
@@ -224,12 +218,12 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#FF1C303B" />
-                                <Setter Property="Foreground" Value="#FFFFFFFF" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="ItemBorder" Property="Background" Value="#FF17303A" />
-                                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource ThemeSelectedBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -242,9 +236,9 @@
             <Setter Property="Padding" Value="11,0" />
             <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#FFDCE7EC" />
-            <Setter Property="Background" Value="{StaticResource FieldBrush}" />
-            <Setter Property="BorderBrush" Value="#FF2A3945" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextBrush}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeFieldBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="OverridesDefaultStyle" Value="True" />
             <Setter Property="Template">
@@ -298,8 +292,8 @@
                                 <Border MinWidth="{Binding PlacementTarget.ActualWidth, RelativeSource={RelativeSource AncestorType=Popup}}"
                                         Margin="0,4,0,0"
                                         Padding="2"
-                                        Background="#FF0D181F"
-                                        BorderBrush="#B3536A76"
+                                        Background="{DynamicResource ThemePopupBrush}"
+                                        BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6">
                                     <ScrollViewer MaxHeight="220" CanContentScroll="True">
@@ -310,14 +304,14 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ComboBorder" Property="Background" Value="{StaticResource FieldHoverBrush}" />
-                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#B36C8794" />
+                                <Setter TargetName="ComboBorder" Property="Background" Value="{DynamicResource ThemeHoverBrush}" />
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource ThemeBorderStrongBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsDropDownOpen" Value="True">
-                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -326,7 +320,7 @@
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#334A5C69" BorderThickness="1">
+    <Border BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="58" />
@@ -337,8 +331,8 @@
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0"
-                    Background="#FF0E171F"
-                    BorderBrush="#223D5362"
+                    Background="{DynamicResource ThemeChromeBrush}"
+                    BorderBrush="{DynamicResource ThemeBorderBrush}"
                     BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="OnTitleBarMouseLeftButtonDown">
                 <Grid Margin="20,0,0,0">
@@ -347,7 +341,7 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <Border Width="5" Height="24" Background="{StaticResource AccentBrush}" CornerRadius="2" />
+                    <Border Width="5" Height="24" Background="{DynamicResource ThemeAccentBrush}" CornerRadius="2" />
                     <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
                         <TextBlock FontFamily="{StaticResource UiFont}"
                                    FontSize="16"
@@ -357,7 +351,7 @@
                                    Margin="0,2,0,0"
                                    FontFamily="{StaticResource DataFont}"
                                    FontSize="10.5"
-                                   Foreground="{StaticResource MutedBrush}"
+                                   Foreground="{DynamicResource ThemeMutedTextBrush}"
                                    Text="正在读取…" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -369,7 +363,7 @@
                                       ToolTip="图标模式" AutomationProperties.Name="图标模式" Click="OnGridViewClick">
                             <controls:QingSnapIcon Kind="GridView" Width="17" Height="17" />
                         </ToggleButton>
-                        <Border Width="1" Height="22" Margin="8,0,4,0" Background="#334A5C69" />
+                        <Border Width="1" Height="22" Margin="8,0,4,0" Background="{DynamicResource ThemeBorderBrush}" />
                         <Button Style="{StaticResource WindowButton}" Content="—" Click="OnMinimizeClick" />
                         <Button Style="{StaticResource WindowButton}" Content="□" Click="OnMaximizeClick" />
                         <Button Style="{StaticResource WindowButton}" Content="×" Click="OnCloseClick" />
@@ -377,7 +371,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="1" Margin="20,18,20,14" Padding="14" Background="{StaticResource PanelBrush}" CornerRadius="9">
+            <Border Grid.Row="1" Margin="20,18,20,14" Padding="14" Background="{DynamicResource ThemePanelBrush}" CornerRadius="9">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -393,11 +387,11 @@
                                  VerticalContentAlignment="Center"
                                  FontFamily="{StaticResource UiFont}"
                                  FontSize="13"
-                                 Foreground="#FFF3F7F9"
-                                 Background="#FF0D151C"
-                                 BorderBrush="#FF2A3945"
+                                 Foreground="{DynamicResource ThemeTextBrush}"
+                                 Background="{DynamicResource ThemeFieldBrush}"
+                                 BorderBrush="{DynamicResource ThemeBorderBrush}"
                                  BorderThickness="1"
-                                 CaretBrush="{StaticResource AccentBrush}"
+                                 CaretBrush="{DynamicResource ThemeAccentBrush}"
                                  TextChanged="OnSearchTextChanged" />
                         <TextBlock x:Name="SearchPlaceholder"
                                    Margin="13,0,0,0"
@@ -405,7 +399,7 @@
                                    IsHitTestVisible="False"
                                    FontFamily="{StaticResource UiFont}"
                                    FontSize="13"
-                                   Foreground="#FF687783"
+                                   Foreground="{DynamicResource ThemeSubtleTextBrush}"
                                    Text="搜索文件名、文字、来源或标签" />
                     </Grid>
                     <ComboBox x:Name="TagFilter"
@@ -445,7 +439,7 @@
             </Border>
 
             <Border x:Name="BatchActionPanel" Grid.Row="2" Margin="20,0,20,12" Padding="12,9"
-                    Background="#FF10202A" BorderBrush="#6676DFEE" BorderThickness="1"
+                    Background="{DynamicResource ThemeSelectedBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1"
                     CornerRadius="8" Visibility="Collapsed">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -455,7 +449,7 @@
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="BatchSelectionText" VerticalAlignment="Center"
                                FontFamily="{StaticResource DataFont}" FontSize="11" FontWeight="SemiBold"
-                               Foreground="{StaticResource AccentBrush}" Text="已选 0 张" />
+                               Foreground="{DynamicResource ThemeAccentBrush}" Text="已选 0 张" />
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
                         <Button Style="{StaticResource ActionButton}" Content="收藏" Click="OnBatchFavoriteClick" />
                         <Button Style="{StaticResource ActionButton}" Content="取消收藏" Click="OnBatchUnfavoriteClick" />
@@ -506,12 +500,12 @@
                                         MouseLeftButtonDown="OnHistoryItemMouseLeftButtonDown">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-                                            <Setter Property="BorderBrush" Value="#FF24333E" />
+                                            <Setter Property="Background" Value="{DynamicResource ThemePanelBrush}" />
+                                            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
-                                                    <Setter Property="Background" Value="#FF142630" />
-                                                    <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                    <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
@@ -532,25 +526,25 @@
                                             <TextBlock FontFamily="{StaticResource DataFont}"
                                                        FontSize="14"
                                                        FontWeight="SemiBold"
-                                                       Foreground="#FFF3F7F9"
+                                                       Foreground="{DynamicResource ThemeTextBrush}"
                                                        Text="{Binding DateText}" />
                                             <StackPanel Grid.Row="1" Margin="0,15,0,0">
-                                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{StaticResource MutedBrush}">
-                                                    <Run Text="尺寸  " /><Run Text="{Binding DimensionsText, Mode=OneWay}" Foreground="#FFD5DEE3" />
+                                                <TextBlock FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{DynamicResource ThemeMutedTextBrush}">
+                                                    <Run Text="尺寸  " /><Run Text="{Binding DimensionsText, Mode=OneWay}" Foreground="{DynamicResource ThemeTextBrush}" />
                                                 </TextBlock>
-                                                <TextBlock Margin="0,7,0,0" FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{StaticResource MutedBrush}">
-                                                    <Run Text="文件  " /><Run Text="{Binding FileSizeText, Mode=OneWay}" Foreground="#FFD5DEE3" />
+                                                <TextBlock Margin="0,7,0,0" FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{DynamicResource ThemeMutedTextBrush}">
+                                                    <Run Text="文件  " /><Run Text="{Binding FileSizeText, Mode=OneWay}" Foreground="{DynamicResource ThemeTextBrush}" />
                                                 </TextBlock>
                                                 <TextBlock Margin="0,7,0,0"
                                                            FontFamily="{StaticResource DataFont}"
                                                            FontSize="10.5"
-                                                           Foreground="#FF687783"
+                                                           Foreground="{DynamicResource ThemeSubtleTextBrush}"
                                                            Text="{Binding FileName, Mode=OneWay}"
                                                            TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Margin="0,7,0,0"
                                                            FontFamily="{StaticResource UiFont}"
                                                            FontSize="10.5"
-                                                           Foreground="#FF718591"
+                                                           Foreground="{DynamicResource ThemeSubtleTextBrush}"
                                                            Text="{Binding SourceDisplay, Mode=OneWay}"
                                                            ToolTip="{Binding SourceWindowTitle, Mode=OneWay}"
                                                            TextTrimming="CharacterEllipsis">
@@ -568,7 +562,7 @@
                                                 <TextBlock Margin="0,7,0,0"
                                                            FontFamily="{StaticResource UiFont}"
                                                            FontSize="10.5"
-                                                           Foreground="{StaticResource AccentBrush}"
+                                                           Foreground="{DynamicResource ThemeAccentBrush}"
                                                            Text="{Binding TagsDisplay, Mode=OneWay}"
                                                            ToolTip="{Binding TagsDisplay, Mode=OneWay}"
                                                            TextTrimming="CharacterEllipsis">
@@ -595,8 +589,8 @@
                                         </Grid>
 
                                         <Border Grid.Column="1"
-                                                Background="#FF080D12"
-                                                BorderBrush="#FF2A3945"
+                                                Background="{DynamicResource ThemeImageBackdropBrush}"
+                                                BorderBrush="{DynamicResource ThemeBorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 ClipToBounds="True">
@@ -610,11 +604,11 @@
                                                         VerticalAlignment="Bottom"
                                                         Margin="0,0,8,8"
                                                         Padding="7,3"
-                                                        Background="#DD0C141B"
+                                                        Background="{DynamicResource ThemeOverlayPanelBrush}"
                                                         CornerRadius="4">
                                                     <TextBlock FontFamily="{StaticResource DataFont}"
                                                                FontSize="10"
-                                                               Foreground="{StaticResource AccentBrush}"
+                                                               Foreground="{DynamicResource ThemeAccentBrush}"
                                                                Text="{Binding DimensionsText, Mode=OneWay}" />
                                                 </Border>
                                             </Grid>
@@ -675,12 +669,12 @@
                                                 MouseLeftButtonDown="OnHistoryItemMouseLeftButtonDown">
                                             <Border.Style>
                                                 <Style TargetType="Border">
-                                                    <Setter Property="Background" Value="{StaticResource PanelBrush}" />
-                                                    <Setter Property="BorderBrush" Value="#FF24333E" />
+                                                    <Setter Property="Background" Value="{DynamicResource ThemePanelBrush}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorderBrush}" />
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                            <Setter Property="Background" Value="#FF142630" />
-                                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                                            <Setter Property="Background" Value="{DynamicResource ThemeButtonBrush}" />
+                                                            <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccentBrush}" />
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -691,7 +685,7 @@
                                                     <RowDefinition Height="Auto" />
                                                     <RowDefinition Height="Auto" />
                                                 </Grid.RowDefinitions>
-                                                <Border Background="#FF080D12" BorderBrush="#FF2A3945"
+                                                <Border Background="{DynamicResource ThemeImageBackdropBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}"
                                                         BorderThickness="1" CornerRadius="5" ClipToBounds="True">
                                                     <Grid>
                                                         <Image x:Name="HistoryPreviewImage"
@@ -701,16 +695,16 @@
                                                                DataContextChanged="OnThumbnailDataContextChanged" />
                                                         <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                                                 Margin="0,0,5,5" Padding="5,2"
-                                                                Background="#E60C141B" CornerRadius="3">
+                                                                Background="{DynamicResource ThemeOverlayPanelBrush}" CornerRadius="3">
                                                             <TextBlock FontFamily="{StaticResource DataFont}" FontSize="9"
-                                                                       Foreground="{StaticResource AccentBrush}"
+                                                                       Foreground="{DynamicResource ThemeAccentBrush}"
                                                                        Text="{Binding Item.DimensionsText, Mode=OneWay}" />
                                                         </Border>
                                                     </Grid>
                                                 </Border>
                                                 <TextBlock Grid.Row="1" Margin="2,8,2,0"
                                                            FontFamily="{StaticResource DataFont}" FontSize="11" FontWeight="SemiBold"
-                                                           Foreground="#FFF3F7F9" Text="{Binding Item.DateText, Mode=OneWay}"
+                                                           Foreground="{DynamicResource ThemeTextBrush}" Text="{Binding Item.DateText, Mode=OneWay}"
                                                            TextTrimming="CharacterEllipsis" />
                                                 <Grid Grid.Row="2" Margin="2,5,2,0">
                                                     <Grid.ColumnDefinitions>
@@ -718,11 +712,11 @@
                                                         <ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock FontFamily="{StaticResource UiFont}" FontSize="10"
-                                                               Foreground="#FF718591" Text="{Binding Item.FileName, Mode=OneWay}"
+                                                               Foreground="{DynamicResource ThemeSubtleTextBrush}" Text="{Binding Item.FileName, Mode=OneWay}"
                                                                TextTrimming="CharacterEllipsis" />
                                                     <TextBlock Grid.Column="1" Margin="7,0,0,0"
                                                                FontFamily="{StaticResource UiFont}" FontSize="9.5"
-                                                               Foreground="{StaticResource AccentBrush}"
+                                                               Foreground="{DynamicResource ThemeAccentBrush}"
                                                                Text="{Binding Item.TagsDisplay, Mode=OneWay}"
                                                                MaxWidth="70" TextTrimming="CharacterEllipsis" />
                                                 </Grid>
@@ -736,28 +730,28 @@
                 </ListBox>
 
                 <StackPanel x:Name="EmptyState" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-                    <Border Width="48" Height="48" Background="#FF17232C" BorderBrush="#5576DFEE" BorderThickness="1" CornerRadius="24">
-                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="19" Foreground="{StaticResource AccentBrush}" Text="[ ]" />
+                    <Border Width="48" Height="48" Background="{DynamicResource ThemeButtonBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" CornerRadius="24">
+                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="19" Foreground="{DynamicResource ThemeAccentBrush}" Text="[ ]" />
                     </Border>
                     <TextBlock Margin="0,14,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource UiFont}" FontSize="14" FontWeight="SemiBold" Text="没有匹配的截图" />
-                    <TextBlock Margin="0,5,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{StaticResource MutedBrush}" Text="按 F1 创建第一张截图，或调整筛选条件。" />
+                    <TextBlock Margin="0,5,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource UiFont}" FontSize="12" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="按 F1 创建第一张截图，或调整筛选条件。" />
                 </StackPanel>
 
-                <Border x:Name="LoadingPanel" Background="#B30B1118">
+                <Border x:Name="LoadingPanel" Background="{DynamicResource ThemeLoadingScrimBrush}">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <ProgressBar Width="180" Height="3" IsIndeterminate="True" Foreground="{StaticResource AccentBrush}" />
-                        <TextBlock Margin="0,13,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="11" Foreground="{StaticResource MutedBrush}" Text="正在建立缩略图索引…" />
+                        <ProgressBar Width="180" Height="3" IsIndeterminate="True" Foreground="{DynamicResource ThemeAccentBrush}" />
+                        <TextBlock Margin="0,13,0,0" HorizontalAlignment="Center" FontFamily="{StaticResource DataFont}" FontSize="11" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="正在建立缩略图索引…" />
                     </StackPanel>
                 </Border>
             </Grid>
 
-            <Border Grid.Row="4" Background="#FF0E171F" BorderBrush="#223D5362" BorderThickness="0,1,0,0">
+            <Border Grid.Row="4" Background="{DynamicResource ThemeChromeBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,1,0,0">
                 <TextBlock x:Name="StatusText"
                            Margin="20,0"
                            VerticalAlignment="Center"
                            FontFamily="{StaticResource DataFont}"
                            FontSize="10.5"
-                           Foreground="{StaticResource MutedBrush}"
+                           Foreground="{DynamicResource ThemeMutedTextBrush}"
                            Text="就绪" />
             </Border>
         </Grid>
