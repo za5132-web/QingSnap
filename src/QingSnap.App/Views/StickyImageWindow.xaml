@@ -236,9 +236,15 @@
         <Grid>
             <Grid x:Name="ExpandedPinContent"
                   ClipToBounds="True">
+            <!-- Keep all ordinary-image coordinates together. The carrier HWND
+                 stays on integer pixels; this surface can compensate its phase. -->
+            <Grid x:Name="NormalPinSurface" UseLayoutRounding="False" SnapsToDevicePixels="False"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                  SizeChanged="OnNormalPinSurfaceSizeChanged">
+            <Grid.RenderTransform><TranslateTransform x:Name="NormalPinZoomOffset" /></Grid.RenderTransform>
             <Image x:Name="PinnedImage"
                    Stretch="Uniform"
-                   SnapsToDevicePixels="True"
+                   UseLayoutRounding="False" SnapsToDevicePixels="False"
                    MouseLeftButtonDown="OnImageMouseLeftButtonDown" />
 
             <Canvas x:Name="TextSelectionOverlay"
@@ -256,6 +262,7 @@
                                       Panel.ZIndex="30" />
             <Viewbox x:Name="PinAnnotationHost" Stretch="Uniform"
                      IsHitTestVisible="False" Panel.ZIndex="35" />
+            </Grid>
 
             <ScrollViewer x:Name="LongImageScroller"
                           Visibility="Collapsed"

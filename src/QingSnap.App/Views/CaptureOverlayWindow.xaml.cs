@@ -217,7 +217,9 @@ public partial class CaptureOverlayWindow : Window
             bounds.Y,
             bounds.Width,
             bounds.Height,
-            NativeMethods.SwpNoActivate | NativeMethods.SwpShowWindow);
+            // Window.Show owns the first presentation. Showing the HWND here
+            // re-enters WPF loading while SourceInitialized is still executing.
+            NativeMethods.SwpNoActivate);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -241,9 +243,14 @@ public partial class CaptureOverlayWindow : Window
             // Establish the fast native preview on F1 even if the mouse has not
             // moved. The snapshot origin can be negative and its pixels need not
             // equal the overlay's DIPs on a mixed-DPI desktop.
-            UpdateSmartPreview(new Point(
-                (cursor.X - _snapshot.Bounds.Left) * Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width),
-                (cursor.Y - _snapshot.Bounds.Top) * Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height)));
+            Dispatcher.BeginInvoke(() =>
+            {
+                if (_smartWindowClosed || !_selection.IsEmpty || _smartRoot != 0 ||
+                    !NativeMethods.GetCursorPos(out var current) || !_snapshot.Bounds.Contains(current.X, current.Y)) return;
+                UpdateSmartPreview(new Point(
+                    (current.X - _snapshot.Bounds.Left) * Surface.ActualWidth / Math.Max(1, _snapshot.Bounds.Width),
+                    (current.Y - _snapshot.Bounds.Top) * Surface.ActualHeight / Math.Max(1, _snapshot.Bounds.Height)));
+            }, DispatcherPriority.Background);
         }
     }
 
@@ -987,6 +994,8 @@ public partial class CaptureOverlayWindow : Window
 
     private bool TryAdoptSmartPreview(Point point)
     {
+        // A very fast click may precede the deferred first-frame smart probe.
+        if (_selection.IsEmpty && _smartPreview.IsEmpty) UpdateSmartPreview(point);
         if (!_selection.IsEmpty || _smartPreview.IsEmpty || !_smartPreview.Contains(point)) return false;
         _pendingSmartSelection = _smartPreview;
         if (_smartCandidateIndex >= 0 && _smartCandidateIndex < _smartCandidates.Count)
@@ -1744,8 +1753,18 @@ public partial class CaptureOverlayWindow : Window
     private void OnEllipseClick(object sender, RoutedEventArgs e) =>
         ActivateAnnotationTool(CaptureAnnotationTool.Ellipse, sender, supportsColor: true);
 
-    private void OnTextClick(object sender, RoutedEventArgs e) =>
+    private void OnTextClick(object sender, RoutedEventArgs e)
+    {
+        if (_annotationController.IsEditingText ||
+            (_annotationController.ActiveTool == CaptureAnnotationTool.Select && _annotationController.HasSelectedText))
+        {
+            RegionToolPopup.IsOpen = false;
+            ArrowToolPopup.IsOpen = false;
+            ShowAnnotationPalette(TextButton);
+            return;
+        }
         ActivateAnnotationTool(CaptureAnnotationTool.Text, sender, supportsColor: true);
+    }
 
     private void OnNumberClick(object sender, RoutedEventArgs e) =>
         ActivateAnnotationTool(CaptureAnnotationTool.Number, sender, supportsColor: true);
@@ -1771,6 +1790,7 @@ public partial class CaptureOverlayWindow : Window
     private void ShowAnnotationPalette(WpfButton placementTarget)
     {
         UpdatePaletteSelection();
+        UpdateTextStylePalette();
         AnnotationPalettePopup.PlacementTarget = placementTarget;
         AnnotationPalettePopup.IsOpen = true;
     }
@@ -1932,6 +1952,39 @@ public partial class CaptureOverlayWindow : Window
                 selected ? "ThemeAccentBrush" : "ThemeBorderStrongBrush");
             button.BorderThickness = new Thickness(selected ? 2 : 1);
         }
+    }
+
+    private void UpdateTextStylePalette()
+    {
+        var showText = _annotationController.ActiveTool == CaptureAnnotationTool.Text ||
+                       _annotationController.HasSelectedText || _annotationController.IsEditingText;
+        var showColors = _annotationController.ActiveTool != CaptureAnnotationTool.Select;
+        AnnotationPalettePanel.Visibility = showColors ? Visibility.Visible : Visibility.Collapsed;
+        TextStylePalettePanel.Visibility = showText ? Visibility.Visible : Visibility.Collapsed;
+        TextStyleDivider.Visibility = showText && showColors ? Visibility.Visible : Visibility.Collapsed;
+        SetToolSelectionBrush(TextBoldButton, _annotationController.CurrentTextBold);
+        SetToolSelectionBrush(TextShadowButton, _annotationController.CurrentTextShadow);
+        TextBoldButton.ToolTip = _annotationController.CurrentTextBold ? "文字加粗：已开启" : "文字加粗：已关闭";
+        TextShadowButton.ToolTip = _annotationController.CurrentTextShadow ? "文字阴影：已开启" : "文字阴影：已关闭";
+    }
+
+    private void OnTextBoldClick(object sender, RoutedEventArgs e) =>
+        _annotationController.SetTextBold(!_annotationController.CurrentTextBold);
+
+    private void OnTextShadowClick(object sender, RoutedEventArgs e) =>
+        _annotationController.SetTextShadow(!_annotationController.CurrentTextShadow);
+
+    private void OnTextBoldPointerDown(object sender, MouseButtonEventArgs e)
+    {
+        // Handle before Button's focus behavior so an active IME editor stays open.
+        e.Handled = true;
+        OnTextBoldClick(sender, e);
+    }
+
+    private void OnTextShadowPointerDown(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        OnTextShadowClick(sender, e);
     }
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -2708,6 +2761,7 @@ public partial class CaptureOverlayWindow : Window
 
         UndoButton.IsEnabled = _annotationController.CanUndo;
         ClearButton.IsEnabled = _annotationController.HasAnnotations;
+        UpdateTextStylePalette();
     }
 
     private static void SetToolSelectionBrush(WpfButton button, bool selected,

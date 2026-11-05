@@ -49,6 +49,7 @@ public partial class App : System.Windows.Application
         Dispatcher.BeginInvoke(
             () => ResourceDiagnostics.Sample("IdleBaseline"),
             DispatcherPriority.ApplicationIdle);
+        Dispatcher.BeginInvoke(CaptureUiWarmup.Run, DispatcherPriority.ApplicationIdle);
 
         if (e.Args.Any(argument => argument.Equals("--resource-window-stress", StringComparison.OrdinalIgnoreCase)))
         {

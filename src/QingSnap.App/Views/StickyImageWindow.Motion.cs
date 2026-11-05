@@ -23,6 +23,10 @@ public partial class StickyImageWindow
     private double _zoomCenterY;
     private NativeMethods.NativeRectangle? _lastZoomBounds;
     private int _pinMotionVersion;
+    private double _zoomPositionLog;
+    private double _zoomVelocityLog;
+    private long _zoomAdvancedAt;
+    private bool _isPinMotionRendering;
 
     // Only active pins subscribe to this static event. No timer/render subscription remains idle.
     private void StartPinMotion(PinMotionKind kind, double milliseconds,
@@ -46,6 +50,16 @@ public partial class StickyImageWindow
     }
 
     private void OnPinMotionRendering(object? sender, EventArgs e)
+    {
+        // A programmatic HWND resize can synchronously enter MediaContext.Resize
+        // and raise Rendering again. A newer timestamp is not a reentrancy lock.
+        if (_isPinMotionRendering) return;
+        _isPinMotionRendering = true;
+        try { RenderPinMotionFrame(sender, e); }
+        finally { _isPinMotionRendering = false; }
+    }
+
+    private void RenderPinMotionFrame(object? sender, EventArgs e)
     {
         // Rendering can be raised more than once for the same presentation frame.
         if (e is RenderingEventArgs rendering)
@@ -113,6 +127,8 @@ public partial class StickyImageWindow
 
     private void OnPinMotionDpiChanged(object sender, System.Windows.DpiChangedEventArgs e)
     {
+        _rejectedZoomScaleLimit = null;
+        ResetPinZoomAnchor();
         // A HWND can change DPI inside SetWindowPos. Finish after that native message,
         // not re-entrantly; the saved destination remains in physical screen pixels.
         if (_pinMotionKind == PinMotionKind.None) return;
@@ -134,35 +150,96 @@ public partial class StickyImageWindow
 
     private void QueuePinZoom(int wheelDelta)
     {
+        if (_isPinClosed || _isCollapsed || _isDockTransitioning || _isLongReaderMode) return;
+        if (_isZoomHandoff || _completeZoomAfterReplacement) { _zoomDeferredWheel.Enqueue(wheelDelta); return; }
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == nint.Zero || !NativeMethods.GetWindowRect(handle, out var bounds)) return;
+        if (_zoomPresentedBounds is { } presented) bounds = presented;
         var continuing = _pinMotionKind == PinMotionKind.Zoom ||
                          (_lastZoomBounds is { } last && last.Left == bounds.Left &&
                           last.Top == bounds.Top && last.Width == bounds.Width && last.Height == bounds.Height);
         if (!continuing)
         {
-            _zoomCenterX = bounds.Left + bounds.Width / 2D;
-            _zoomCenterY = bounds.Top + bounds.Height / 2D;
+            (_zoomCenterX, _zoomCenterY) = GetPinZoomCenter(bounds);
         }
         var dpi = VisualTreeHelper.GetDpi(this);
         var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
         var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
-        if (_pinMotionKind != PinMotionKind.Zoom)
+        var maximumScale = MaximumSafeZoomScale(dpi.DpiScaleX, dpi.DpiScaleY, borderX, borderY);
+        var wasZooming = _pinMotionKind == PinMotionKind.Zoom;
+        if (!wasZooming)
         {
             _scale = StickyImageScaleCalculator.ResolveDisplayedScale(
                 _imageWidthDip, _imageHeightDip, _scale, bounds.Width, bounds.Height,
-                MinimumScale, MaximumScale, dpi.DpiScaleX, dpi.DpiScaleY, borderX, borderY);
+                MinimumScale, maximumScale, dpi.DpiScaleX, dpi.DpiScaleY, borderX, borderY);
             _zoomTargetScale = _scale;
         }
         var target = StickyImageScaleCalculator.Calculate(_imageWidthDip, _imageHeightDip,
-            PinMotionMath.WheelTarget(_zoomTargetScale, wheelDelta), MinimumScale, MaximumScale,
+            PinMotionMath.WheelTarget(_zoomTargetScale, wheelDelta), MinimumScale, maximumScale,
             dpi.DpiScaleX, dpi.DpiScaleY, borderX, borderY);
+        // Extra input beyond the same ceiling must not restart an animation
+        // that is already approaching that ceiling.
+        if (wasZooming && Math.Abs(target.Scale - _zoomTargetScale) < 0.000001)
+            return;
+        var now = Stopwatch.GetTimestamp();
+        if (wasZooming)
+        {
+            if (_zoomReplacement is null) AdvanceZoomState(now);
+        }
+        else
+        {
+            _zoomPositionLog = Math.Log(_scale);
+            _zoomVelocityLog = 0;
+            _zoomAdvancedAt = now;
+        }
+        _zoomVelocityLog = PinMotionMath.ZoomRetargetVelocity(
+            _zoomPositionLog, _zoomVelocityLog, Math.Log(target.Scale));
         _zoomTargetScale = target.Scale;
-        var from = _scale;
-        var to = _zoomTargetScale;
-        StartPinMotion(PinMotionKind.Zoom, 100,
-            progress => ApplyScaleAtAnchor(PinMotionMath.Interpolate(from, to, progress),
-                _zoomCenterX, _zoomCenterY, force: progress >= 1));
+        if (Math.Abs(_scale - _zoomTargetScale) < 0.000001 && Math.Abs(_zoomVelocityLog) < 0.000001)
+        {
+            if (_pinMotionKind != PinMotionKind.None) StopPinMotion();
+            CompleteZoomPresentation();
+            return;
+        }
+        if (wasZooming)
+        {
+            // Extend only the settling deadline. Do not reset the render
+            // subscription, de-duplication timestamp or current velocity.
+            _pinMotionStarted = now;
+            EnsureZoomPreviewCapacity();
+            return;
+        }
+        TryBeginZoomPresentation();
+        StartPinMotion(PinMotionKind.Zoom, 300, ApplyZoomFrame, CompleteZoomPresentation);
+    }
+
+    private void AdvanceZoomState(long now)
+    {
+        (_zoomPositionLog, _zoomVelocityLog) = PinMotionMath.AdvanceZoom(
+            _zoomPositionLog, _zoomVelocityLog, Math.Log(_zoomTargetScale),
+            Stopwatch.GetElapsedTime(_zoomAdvancedAt, now).TotalSeconds);
+        _zoomAdvancedAt = now;
+    }
+
+    private void ApplyZoomFrame(double progress)
+    {
+        if (_zoomReplacement is not null)
+        {
+            if (progress >= 1) _completeZoomAfterReplacement = true;
+            return;
+        }
+        if (_zoomPreview is { IsReady: false })
+        {
+            if (progress < 1) return;
+            DisposeZoomPresentation();
+        }
+        if (progress >= 1)
+        {
+            _zoomPositionLog = Math.Log(_zoomTargetScale);
+            _zoomVelocityLog = 0;
+        }
+        else AdvanceZoomState(Stopwatch.GetTimestamp());
+        ApplyScaleAtAnchor(Math.Exp(_zoomPositionLog), _zoomCenterX, _zoomCenterY, force: progress >= 1);
     }
 
     private bool IsCursorInCollapsedDockZone()

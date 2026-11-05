@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
 using QingSnap.App.Views;
@@ -325,11 +326,13 @@ public sealed class CaptureCoordinator
 
         try
         {
+            var latency = Stopwatch.StartNew();
             _isCapturing = true;
             var initialSourceWindow = NativeMethods.GetForegroundWindow();
             var snapshot = initialRegion is null
                 ? _captureService.CaptureScreenContainingCursor()
                 : _captureService.CaptureScreenContainingRegion(initialRegion.ToRectangle());
+            var captureMilliseconds = latency.Elapsed.TotalMilliseconds;
             DrawingRectangle? initialLocalRegion = initialRegion is null
                 ? null
                 : new DrawingRectangle(
@@ -339,6 +342,7 @@ public sealed class CaptureCoordinator
                     initialRegion.Height);
             var recentRegions = _stateStore.LoadRecentRegions();
             var recallLocalRegions = ToLocalRegions(recentRegions, snapshot.Bounds);
+            var constructionStart = latency.Elapsed.TotalMilliseconds;
             var overlay = new CaptureOverlayWindow(
                 snapshot,
                 initialLocalRegion,
@@ -349,6 +353,17 @@ public sealed class CaptureCoordinator
                 qrCodeService: _qrCodeService,
                 clipboardService: _clipboardService,
                 loadTagsAsync: _historyService.LoadAllTagsAsync);
+            var constructionMilliseconds = latency.Elapsed.TotalMilliseconds - constructionStart;
+            EventHandler? onFirstFrame = null;
+            onFirstFrame = (_, _) =>
+            {
+                overlay.ContentRendered -= onFirstFrame;
+                // Timing only, after first presentation: never log desktop content,
+                // source titles or paths, or add disk I/O before the first frame.
+                DiagnosticLog.Info("CaptureLatency",
+                    $"screen={captureMilliseconds:F1}ms; ui={constructionMilliseconds:F1}ms; firstFrame={latency.Elapsed.TotalMilliseconds:F1}ms.");
+            };
+            overlay.ContentRendered += onFirstFrame;
             var longCaptureStarted = false;
 
             overlay.ActionRequested += async (_, request) =>
@@ -460,6 +475,7 @@ public sealed class CaptureCoordinator
             };
             overlay.Closed += (_, _) =>
             {
+                overlay.ContentRendered -= onFirstFrame;
                 if (!longCaptureStarted)
                 {
                     _isCapturing = false;
@@ -470,6 +486,7 @@ public sealed class CaptureCoordinator
         catch (Exception exception)
         {
             _isCapturing = false;
+            DiagnosticLog.Error("Capture", exception, "Failed to open screenshot overlay.");
             CaptureFailed?.Invoke(this, exception.Message);
         }
     }

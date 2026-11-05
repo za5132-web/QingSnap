@@ -14,8 +14,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.4 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
-- [v1.1.4 릴리스 노트](docs/RELEASE_NOTES_v1.1.4.md)
+- [QingSnap v1.1.5 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
+- [v1.1.5 릴리스 노트](docs/RELEASE_NOTES_v1.1.5.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -41,6 +41,15 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.5 업데이트
+
+- 유휴 시간 UI 준비와 이미지 변환 감소로 F1 응답을 개선했습니다. 매번 최신 바탕 화면을 캡처합니다.
+- 핀 확대/축소의 떨림, 이전 프레임 잔상과 검은 띠를 수정했습니다. 리소스 한도를 유지하면서 화면 밖까지 확대할 수 있습니다.
+- 캡처 및 핀의 텍스트 주석에 굵게/그림자 옵션을 각각 추가했습니다. 실행 취소, 다시 실행 및 스타일 복사를 지원합니다.
+- 회귀 테스트 279개 통과, Release 빌드 0 Warning / 0 Error. GPU, 혼합 DPI, 높은 주사율은 실제 환경에서 추가 확인을 권장합니다.
+
+![v1.1.5 캡처 응답, 핀 확대/축소 및 텍스트 스타일](docs/images/qingsnap-v1.1.5-guide.png)
 
 ## v1.1.4 업데이트
 

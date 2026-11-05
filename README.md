@@ -15,8 +15,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
-- [查看 v1.1.4 发布说明](docs/RELEASE_NOTES_v1.1.4.md)
+- [下载 QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
+- [查看 v1.1.5 发布说明](docs/RELEASE_NOTES_v1.1.5.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -87,6 +87,15 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 支持列表/图标模式、多选、批量收藏、标签、复制路径和删除到回收站。
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
+
+## v1.1.5 更新内容
+
+- F1 截图响应优化：空闲预热界面、减少桌面图像中转，让首次和连续截图更跟手；每次仍抓取最新桌面。
+- 修复贴图滚轮缩放时的抖动、旧画面残留和黑条；允许放大超过屏幕范围，同时保留独立的资源安全限制。
+- 文字工具新增可独立切换的加粗与阴影，截图和贴图二次标注均支持；可撤销、重做与复制样式。
+- 279 项自动化回归通过，Release 0 Warning / 0 Error；跨显卡、多屏和高刷新率仍建议实际体验验证。
+
+![v1.1.5 截图响应、贴图缩放与文字样式示意](docs/images/qingsnap-v1.1.5-guide.png)
 
 ## v1.1.4 更新内容
 

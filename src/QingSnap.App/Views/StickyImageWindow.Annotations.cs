@@ -30,6 +30,9 @@ public partial class StickyImageWindow
     private Popup? _pinAnnotationToolbar;
     private Wpf.Button? _pinUndoButton;
     private Wpf.Button? _pinRedoButton;
+    private Wpf.StackPanel? _pinTextStyleRow;
+    private Wpf.Button? _pinTextBoldButton;
+    private Wpf.Button? _pinTextShadowButton;
     private bool _isEditingPin;
     private bool _isPinDrawing;
     private bool _isPinClosed;
@@ -143,6 +146,13 @@ public partial class StickyImageWindow
 
     private void SetPinAnnotationTool(CaptureAnnotationTool tool)
     {
+        if (tool == CaptureAnnotationTool.Text &&
+            (_pinAnnotations!.IsEditingText ||
+             (_pinAnnotations.ActiveTool == CaptureAnnotationTool.Select && _pinAnnotations.HasSelectedText)))
+        {
+            RefreshPinAnnotationButtons();
+            return;
+        }
         EndPinAnnotationGesture();
         _pinAnnotations!.CommitText();
         _pinAnnotations.ActiveTool = tool;
@@ -179,6 +189,7 @@ public partial class StickyImageWindow
             }
         }
         e.Handled = true;
+        RefreshPinAnnotationButtons();
     }
 
     private void OnPinAnnotationMove(object sender, MouseEventArgs e)
@@ -387,6 +398,14 @@ public partial class StickyImageWindow
         var content = new Wpf.StackPanel();
         content.Children.Add(tools);
         content.Children.Add(actions);
+        _pinTextStyleRow = new Wpf.StackPanel { Orientation = Wpf.Orientation.Horizontal, Margin = new Thickness(3, 2, 0, 0) };
+        _pinTextBoldButton = PinTextStyleButton("B", "文字加粗", () =>
+            _pinAnnotations!.SetTextBold(!_pinAnnotations.CurrentTextBold));
+        _pinTextShadowButton = PinTextStyleButton("阴影", "文字阴影", () =>
+            _pinAnnotations!.SetTextShadow(!_pinAnnotations.CurrentTextShadow));
+        _pinTextStyleRow.Children.Add(_pinTextBoldButton);
+        _pinTextStyleRow.Children.Add(_pinTextShadowButton);
+        content.Children.Add(_pinTextStyleRow);
         var hint = new Wpf.TextBlock { Text = "F2 选择/编辑 · 滚轮调整标注 · Ctrl+滚轮缩放 · Esc 完成",
             FontSize = 10, Margin = new Thickness(5) };
         hint.SetResourceReference(Wpf.TextBlock.ForegroundProperty, "ThemeMutedTextBrush");
@@ -430,6 +449,26 @@ public partial class StickyImageWindow
         return button;
     }
 
+    private Wpf.Button PinTextStyleButton(string label, string hint, Action action)
+    {
+        var button = PinToolButton(QingSnapIconKind.Text, hint, action);
+        button.Width = label == "B" ? 54 : 72;
+        button.Margin = new Thickness(0, 0, 5, 0);
+        button.Content = new Wpf.TextBlock { Text = label, FontSize = 12, FontWeight = FontWeights.SemiBold };
+        button.IsTabStop = false;
+        button.PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            e.Handled = true;
+            try { action(); }
+            catch (Exception exception)
+            {
+                DiagnosticLog.Error("PinAnnotation", exception, "贴图文字样式调整失败。");
+                ShowFeedback("文字样式调整失败，请重试");
+            }
+        };
+        return button;
+    }
+
     private void RefreshPinAnnotationButtons()
     {
         foreach (var pair in _pinToolButtons)
@@ -440,6 +479,20 @@ public partial class StickyImageWindow
         }
         if (_pinUndoButton is not null) _pinUndoButton.IsEnabled = _pinAnnotations!.CanUndo;
         if (_pinRedoButton is not null) _pinRedoButton.IsEnabled = _pinAnnotations!.CanRedo;
+        if (_pinTextStyleRow is not null)
+        {
+            _pinTextStyleRow.Visibility = _pinAnnotations!.ActiveTool == CaptureAnnotationTool.Text ||
+                _pinAnnotations.HasSelectedText || _pinAnnotations.IsEditingText ? Visibility.Visible : Visibility.Collapsed;
+            SetPinTextStyleButtonState(_pinTextBoldButton!, _pinAnnotations.CurrentTextBold);
+            SetPinTextStyleButtonState(_pinTextShadowButton!, _pinAnnotations.CurrentTextShadow);
+            RepositionPinAnnotationToolbar();
+        }
+    }
+
+    private static void SetPinTextStyleButtonState(Wpf.Button button, bool enabled)
+    {
+        if (enabled) button.SetResourceReference(Wpf.Button.BackgroundProperty, "ThemeSelectedBrush");
+        else button.ClearValue(Wpf.Button.BackgroundProperty);
     }
 
     private void RepositionPinAnnotationToolbar()

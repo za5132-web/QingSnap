@@ -160,6 +160,8 @@ public partial class StickyImageWindow : Window
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
             StopPinMotion();
+            DisposeZoomPresentation();
+            ReleasePinNativeSizing();
             DpiChanged -= OnPinMotionDpiChanged;
             _ocrCancellation?.Cancel();
             _ocrCancellation?.Dispose();
@@ -173,6 +175,7 @@ public partial class StickyImageWindow : Window
     {
         SourceInitialized -= OnSourceInitialized;
         var handle = new WindowInteropHelper(this).Handle;
+        InitializePinNativeSizing(handle);
         NativeMethods.ImmAssociateContextEx(handle, nint.Zero, 0);
         _isInitiallyCloaked = handle != nint.Zero && NativeMethods.SetWindowCloaked(handle, true);
         if (!_isInitiallyCloaked)
@@ -661,7 +664,28 @@ public partial class StickyImageWindow : Window
 
     private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
-        if (IsPinTextEditing) return;
+        if (IsPinTextEditing)
+        {
+            // Preserve WM_CHAR/IME input; do not consume a typed character while
+            // the retained preview hands the live editor back to its owner.
+            CompletePinMotion();
+            CompleteZoomPresentation();
+            return;
+        }
+        if (_zoomPreview is not null && !Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            if (ResolveShortcutKey(e) == Key.Escape && !_isEditingPin)
+            {
+                Close();
+                e.Handled = true;
+                return;
+            }
+            if (DeferZoomInteraction(() => OnPreviewKeyDown(sender, e)))
+            {
+                e.Handled = true;
+                return;
+            }
+        }
         if (HandlePinAnnotationKey(e)) return;
         var key = ResolveShortcutKey(e);
         if (key == Key.M && Keyboard.Modifiers == ModifierKeys.None)
@@ -1156,6 +1180,7 @@ public partial class StickyImageWindow : Window
 
     private void PrepareCollapsedVisualState()
     {
+        ResetPinZoomAnchor();
         _isCollapsed = true;
         _collapsedDockHideTimer.Stop();
         _feedbackTimer.Stop();
@@ -1422,6 +1447,7 @@ public partial class StickyImageWindow : Window
         var oldCenterX = Left + ActualWidth / 2;
         var oldCenterY = Top + ActualHeight / 2;
         _isLongReaderMode = true;
+        ResetPinZoomAnchor();
         PinnedImage.Visibility = Visibility.Collapsed;
         LongImageScroller.Visibility = Visibility.Visible;
         ScrollRail.Visibility = Visibility.Visible;
@@ -1649,9 +1675,10 @@ public partial class StickyImageWindow : Window
             return;
         }
 
-        ApplyScaleAtAnchor(scale, current.Left + current.Width / 2D,
-            current.Top + current.Height / 2D, force);
+        var center = GetPinZoomCenter(current);
+        ApplyScaleAtAnchor(scale, center.X, center.Y, force);
         _lastZoomBounds = null;
+        CompleteZoomPresentation();
     }
 
     private void ApplyScaleAtAnchor(double scale, double centerX, double centerY, bool force = false)
@@ -1661,12 +1688,13 @@ public partial class StickyImageWindow : Window
         var dpi = VisualTreeHelper.GetDpi(this);
         var borderX = Math.Max(1, (int)Math.Round(dpi.DpiScaleX));
         var borderY = Math.Max(1, (int)Math.Round(dpi.DpiScaleY));
+        var maximumScale = MaximumSafeZoomScale(dpi.DpiScaleX, dpi.DpiScaleY, borderX, borderY);
         var size = StickyImageScaleCalculator.Calculate(
             _imageWidthDip,
             _imageHeightDip,
             scale,
             MinimumScale,
-            MaximumScale,
+            maximumScale,
             dpi.DpiScaleX,
             dpi.DpiScaleY,
             borderX,
@@ -1677,15 +1705,18 @@ public partial class StickyImageWindow : Window
         }
 
         _scale = size.Scale;
+        if (PresentZoomSurface(size, centerX, centerY, dpi.DpiScaleX, dpi.DpiScaleY)) return;
+        SetPinZoomContentSize(_scale);
         var left = PinMotionMath.AnchoredOrigin(centerX, size.Width);
         var top = PinMotionMath.AnchoredOrigin(centerY, size.Height);
         if (current.Left == left && current.Top == top && current.Width == size.Width &&
             current.Height == size.Height)
         {
             _lastZoomBounds = current;
+            ApplyPinZoomAnchor(current, centerX, centerY);
             return;
         }
-        NativeMethods.SetWindowPos(
+        var resized = NativeMethods.SetWindowPos(
             handle,
             nint.Zero,
             left,
@@ -1696,12 +1727,30 @@ public partial class StickyImageWindow : Window
             NativeMethods.SwpNoZOrder |
             NativeMethods.SwpNoOwnerZOrder);
 
-        // Some Windows configurations independently cap very large window axes.
-        // If that happened, reduce the single scale and resize both axes together
-        // instead of allowing Stretch=Fill-style aspect distortion.
         if (NativeMethods.GetWindowRect(handle, out var realized) &&
-            (Math.Abs(realized.Width - size.Width) > 1 || Math.Abs(realized.Height - size.Height) > 1))
+            (!resized || Math.Abs(realized.Width - size.Width) > 1 || Math.Abs(realized.Height - size.Height) > 1))
         {
+            var realizedDpi = VisualTreeHelper.GetDpi(this);
+            if (Math.Abs(realizedDpi.DpiScaleX - dpi.DpiScaleX) > 0.0001 ||
+                Math.Abs(realizedDpi.DpiScaleY - dpi.DpiScaleY) > 0.0001)
+            {
+                // DPI can change synchronously inside SetWindowPos. This is not a
+                // device rejection and must not be cached as an unreachable limit.
+                StopPinMotion();
+                _scale = StickyImageScaleCalculator.ResolveDisplayedScale(_imageWidthDip, _imageHeightDip,
+                    _scale, realized.Width, realized.Height, MinimumScale,
+                    MaximumSafeZoomScale(realizedDpi.DpiScaleX, realizedDpi.DpiScaleY,
+                        Math.Max(1, Math.Round(realizedDpi.DpiScaleX)), Math.Max(1, Math.Round(realizedDpi.DpiScaleY))),
+                    realizedDpi.DpiScaleX, realizedDpi.DpiScaleY,
+                    Math.Max(1, Math.Round(realizedDpi.DpiScaleX)), Math.Max(1, Math.Round(realizedDpi.DpiScaleY)));
+                _zoomTargetScale = _scale;
+                _lastZoomBounds = realized;
+                ResetPinZoomAnchor();
+                return;
+            }
+            // Unexpected native/driver rejection converges once, not once per frame.
+            // Remember the actually reachable ceiling for this pin/DPI and cancel
+            // the old animation closure so the next tick cannot request it again.
             var fittedScale = StickyImageScaleCalculator.ScaleThatFits(
                 _imageWidthDip,
                 _imageHeightDip,
@@ -1716,12 +1765,19 @@ public partial class StickyImageWindow : Window
                 _imageHeightDip,
                 Math.Min(_scale, fittedScale),
                 MinimumScale,
-                MaximumScale,
+                maximumScale,
                 dpi.DpiScaleX,
                 dpi.DpiScaleY,
                 borderX,
                 borderY);
             _scale = corrected.Scale;
+            SetPinZoomContentSize(_scale);
+            _rejectedZoomScaleLimit = corrected.Scale;
+            _rejectedZoomDpiX = dpi.DpiScaleX;
+            _rejectedZoomDpiY = dpi.DpiScaleY;
+            _zoomTargetScale = corrected.Scale;
+            StopPinMotion();
+            DiagnosticLog.Warning("PinZoom", "原生窗口拒绝目标尺寸，已收敛到本贴图的安全显示上限。");
             NativeMethods.SetWindowPos(
                 handle,
                 nint.Zero,
@@ -1733,7 +1789,11 @@ public partial class StickyImageWindow : Window
                 NativeMethods.SwpNoZOrder |
                 NativeMethods.SwpNoOwnerZOrder);
         }
-        if (NativeMethods.GetWindowRect(handle, out var applied)) _lastZoomBounds = applied;
+        if (NativeMethods.GetWindowRect(handle, out var applied))
+        {
+            _lastZoomBounds = applied;
+            ApplyPinZoomAnchor(applied, centerX, centerY);
+        }
     }
 
     private void ShowFeedback(string message)

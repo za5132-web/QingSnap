@@ -14,8 +14,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.4 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
-- [v1.1.4 リリースノート](docs/RELEASE_NOTES_v1.1.4.md)
+- [QingSnap v1.1.5 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
+- [v1.1.5 リリースノート](docs/RELEASE_NOTES_v1.1.5.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -41,6 +41,15 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.5
+
+- アイドル時の UI 事前読み込みと画像変換の削減により F1 の応答を改善。毎回最新のデスクトップを取得します。
+- ピン拡大縮小時の揺れ、古いフレームの残像、黒い帯を修正。リソース上限を保ちながら画面外まで拡大できます。
+- スクリーンショットとピンの文字注釈に、個別の太字・影オプションを追加。元に戻す・やり直し・スタイルのコピーに対応します。
+- 回帰テスト 279 件合格、Release ビルド 0 Warning / 0 Error。異なる GPU、混在 DPI、高リフレッシュレートでの実機確認は引き続き推奨します。
+
+![v1.1.5 キャプチャ応答、ピン拡大縮小、文字スタイル](docs/images/qingsnap-v1.1.5-guide.png)
 
 ## v1.1.4
 

@@ -456,6 +456,7 @@
                             <icons:QingSnapIcon Kind="Ellipse" />
                         </Button>
                         <Button x:Name="TextButton"
+                                Focusable="False"
                                 Style="{StaticResource CaptureAnnotationButton}"
                                 Width="32"
                                 ToolTip="添加文字"
@@ -707,6 +708,7 @@
         </Popup>
 
         <Popup x:Name="AnnotationPalettePopup"
+               Focusable="False"
                Placement="Bottom"
                VerticalOffset="5"
                AllowsTransparency="True"
@@ -724,13 +726,28 @@
                         BorderBrush="{DynamicResource ThemeBorderStrongBrush}"
                         BorderThickness="1"
                         CornerRadius="6">
-                    <StackPanel x:Name="AnnotationPalettePanel" Orientation="Horizontal">
+                    <StackPanel>
+                      <StackPanel x:Name="AnnotationPalettePanel" Orientation="Horizontal">
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFF4E5B" Tag="#FFFF4E5B" ToolTip="红色" Click="OnPaletteColorClick" />
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FF76DFEE" Tag="#FF76DFEE" ToolTip="青色" Click="OnPaletteColorClick" />
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FFFFD054" Tag="#FFFFD054" ToolTip="黄色" Click="OnPaletteColorClick" />
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FF73E88B" Tag="#FF73E88B" ToolTip="绿色" Click="OnPaletteColorClick" />
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FFF5FAFC" Tag="#FFF5FAFC" ToolTip="白色" Click="OnPaletteColorClick" />
                         <Button Style="{StaticResource ColorSwatchButton}" Background="#FF31373B" Tag="#FF31373B" ToolTip="深灰" Click="OnPaletteColorClick" />
+                      </StackPanel>
+                      <Border x:Name="TextStyleDivider" Height="1" Margin="5,4,5,3"
+                              Background="{DynamicResource ThemeBorderBrush}" Visibility="Collapsed" />
+                      <StackPanel x:Name="TextStylePalettePanel" Orientation="Horizontal" Visibility="Collapsed">
+                          <Button x:Name="TextBoldButton" Width="54" Height="28" Margin="3" Content="B"
+                                  FontSize="14" FontWeight="Bold" Focusable="False" IsTabStop="False"
+                                  Style="{StaticResource CaptureFeatureButton}" ToolTip="文字加粗"
+                                  AutomationProperties.Name="文字加粗"
+                                  PreviewMouseLeftButtonDown="OnTextBoldPointerDown" Click="OnTextBoldClick" />
+                          <Button x:Name="TextShadowButton" Width="72" Height="28" Margin="3" Content="阴影"
+                                  Focusable="False" IsTabStop="False" Style="{StaticResource CaptureFeatureButton}"
+                                  ToolTip="文字阴影" AutomationProperties.Name="文字阴影"
+                                  PreviewMouseLeftButtonDown="OnTextShadowPointerDown" Click="OnTextShadowClick" />
+                      </StackPanel>
                     </StackPanel>
                 </Border>
             </StackPanel>

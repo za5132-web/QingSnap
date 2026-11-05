@@ -3,6 +3,23 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.5] - 2026-11-05
+
+### 截图响应 / Capture response
+
+- 使用合成小图空闲预热截图界面，减少桌面图像中转复制，并将初始智能探测移出首帧关键路径；仍然每次抓取最新桌面。  Added synthetic idle UI warmup, reduced image conversion copies, and deferred initial smart probing until after rendering priorities without caching desktop frames.
+
+### 贴图与文字 / Pins and text
+
+- 修复滚轮缩放的速度不连续、像素取整回摆、旧帧残留与黑条；动画使用临时固定画布，结束后清理。不改变已稳定的边缘收纳交互。  Fixed discontinuous wheel velocity, rounding oscillation, stale frames, and black strips using a temporary fixed-size visual carrier with explicit cleanup; existing docking behavior is preserved.
+- 普通贴图允许放大超出屏幕，保留独立资源预算和原图质量；到达可达上限不反复重启缩放。  Ordinary pins can enlarge beyond the screen with independent resource limits and unchanged original/export quality; repeated input at the reachable limit does not restart zoom.
+- 截图和贴图二次标注的文字新增可独立切换的加粗、阴影，默认外观保持不变；支持编辑事务、Undo/Redo、复制粘贴与导出。  Added independent bold/shadow text options for capture and pin annotations with compatible defaults, editing transactions, Undo/Redo, copy/paste, and export.
+
+### 验证 / Validation
+
+- 完整 Release 编译 0 Warning / 0 Error，279 项回归通过；排除 1 项会修改真实 Windows Startup 的旧迁移测试。本次附合成功能示意图。  Full Release build: zero warnings/errors, 279 passing regression tests; one legacy test that changes real Windows Startup entries excluded. Includes a synthetic feature illustration.
+- 本机实际 F1 路径首帧样本约首次 244ms、后续 139–152ms，不代表所有硬件或显示器的光学延迟；多显卡、混合 DPI 和高刷新率仍需真实体验验证。  Local F1 first-frame samples were about 244ms initially and 139–152ms subsequently; these are not universal hardware or optical display latency guarantees.
+
 ## [1.1.4] - 2026-11-04
 
 ### 智能选区 / Smart selection

@@ -1,9 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Media.Imaging;
-using QingSnap.App.Infrastructure;
 using QingSnap.App.Models;
 using DrawingRectangle = System.Drawing.Rectangle;
 using FormsCursor = System.Windows.Forms.Cursor;
@@ -70,20 +67,23 @@ public sealed class ScreenCaptureService
                 CopyPixelOperation.SourceCopy);
         }
 
-        var handle = bitmap.GetHbitmap();
+        return new ScreenSnapshot(bounds, CreateScreenImage(bitmap));
+    }
+
+    internal static BitmapSource CreateScreenImage(Bitmap bitmap)
+    {
+        var data = bitmap.LockBits(new DrawingRectangle(0, 0, bitmap.Width, bitmap.Height),
+            ImageLockMode.ReadOnly, PixelFormat.Format32bppPArgb);
         try
         {
-            var source = Imaging.CreateBitmapSourceFromHBitmap(
-                handle,
-                nint.Zero,
-                Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions());
+            // CopyFromScreen's fourth byte is not meaningful alpha. Bgr32 keeps
+            // the desktop opaque, just like the previous HBITMAP conversion.
+            var source = BitmapSource.Create(bitmap.Width, bitmap.Height, 96, 96,
+                System.Windows.Media.PixelFormats.Bgr32, null, data.Scan0,
+                checked(data.Stride * bitmap.Height), data.Stride);
             source.Freeze();
-            return new ScreenSnapshot(bounds, source);
+            return source;
         }
-        finally
-        {
-            NativeMethods.DeleteObject(handle);
-        }
+        finally { bitmap.UnlockBits(data); }
     }
 }

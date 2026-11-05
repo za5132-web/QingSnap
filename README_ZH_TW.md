@@ -14,8 +14,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
-- [v1.1.4 發布說明](docs/RELEASE_NOTES_v1.1.4.md)
+- [下載 QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
+- [v1.1.5 發布說明](docs/RELEASE_NOTES_v1.1.5.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -41,6 +41,15 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.5 更新
+
+- 透過閒置時預熱介面及減少影像轉換改善 F1 回應；每次仍擷取最新桌面，而非快取畫面。
+- 修正貼圖縮放抖動、舊畫面殘留與黑條；可放大超出螢幕範圍，仍保留資源安全限制。
+- 截圖與貼圖文字標註可獨立切換粗體及陰影，支援復原、重做與樣式複製。
+- 279 項自動化回歸通過，Release 0 Warning / 0 Error；不同顯示卡、多螢幕及高更新率仍建議實際驗證。
+
+![v1.1.5 截圖回應、貼圖縮放與文字樣式](docs/images/qingsnap-v1.1.5-guide.png)
 
 ## v1.1.4 更新
 

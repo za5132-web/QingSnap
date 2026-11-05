@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.4](https://github.com/za5132-web/QingSnap/releases/download/v1.1.4/QingSnap-v1.1.4.zip)
-- [v1.1.4 release notes](docs/RELEASE_NOTES_v1.1.4.md)
+- [Download QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
+- [v1.1.5 release notes](docs/RELEASE_NOTES_v1.1.5.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -87,6 +87,15 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.5
+
+- Faster F1 capture with idle UI warmup and fewer image conversions. Each capture still reads the current desktop, not a cached frame.
+- Fixed pin-zoom jitter, stale frames, and black strips. Pins can zoom beyond the screen while retaining independent resource limits.
+- Added independent bold and shadow options to text annotations in captures and pins, including Undo/Redo and style-preserving copy/paste.
+- 279 regression tests passed; Release build: 0 warnings and 0 errors. Different GPUs, mixed-DPI monitors, and high-refresh-rate displays still need hands-on validation.
+
+![v1.1.5 capture response, pin zoom, and text styles](docs/images/qingsnap-v1.1.5-guide.png)
 
 ## What is new in v1.1.4
 

@@ -43,7 +43,25 @@ public sealed class PinWindowMotionTests
                 Assert.True(NativeMethods.GetWindowRect(handle, out var before));
                 var scale = Get<double>(window, "_scale");
                 Call(window, "QueuePinZoom", 120);
+                var zoomVersion = Get<int>(window, "_pinMotionVersion");
+                var zoomFrame = Get<object?>(window, "_pinMotionFrame");
                 Call(window, "QueuePinZoom", 120);
+                if (zoomFrame is not null)
+                {
+                    Assert.Equal(zoomVersion, Get<int>(window, "_pinMotionVersion"));
+                    Assert.Same(zoomFrame, Get<object?>(window, "_pinMotionFrame"));
+                    var entered = 0;
+                    Set(window, "_pinMotionFrame", new Action<double>(_ =>
+                    {
+                        if (++entered == 1) Call(window, "OnPinMotionRendering", window,
+                            FrameAt(2));
+                    }));
+                    Call(window, "OnPinMotionRendering", window,
+                        FrameAt(1));
+                    Assert.Equal(1, entered);
+                    Assert.False(Get<bool>(window, "_isPinMotionRendering"));
+                    Set(window, "_pinMotionFrame", zoomFrame);
+                }
                 Assert.Equal(scale * 1.21, Get<double>(window, "_zoomTargetScale"), 6);
                 Call(window, "CompletePinMotion", true);
                 Assert.True(NativeMethods.GetWindowRect(handle, out var after));
@@ -139,6 +157,10 @@ public sealed class PinWindowMotionTests
 
     private static void Set(object target, string name, object value) =>
         target.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(target, value);
+
+    private static RenderingEventArgs FrameAt(double milliseconds) => (RenderingEventArgs)Activator.CreateInstance(
+        typeof(RenderingEventArgs), BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+        null, [TimeSpan.FromMilliseconds(milliseconds)], null)!;
 
     private static void Call(object target, string name, params object[] arguments) =>
         target.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)

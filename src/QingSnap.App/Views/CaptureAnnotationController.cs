@@ -42,6 +42,8 @@ internal sealed class CaptureAnnotationController
     private readonly Brush _accentBrush = CreateBrush(Color.FromRgb(118, 223, 238));
     private double _strokeThickness;
     private double _fontSize;
+    private bool _textBold = true;
+    private bool _textShadow = true;
     private int _numberSequence = 1;
     private FrameworkElement? _selectedElement;
     private readonly List<FrameworkElement> _selectedElements = [];
@@ -110,6 +112,62 @@ internal sealed class CaptureAnnotationController
     public double CurrentThickness => _strokeThickness;
 
     public double CurrentFontSize => _fontSize;
+
+    public bool IsEditingText => _textEditor is not null;
+
+    public bool HasSelectedText => _selectedElements.Any(element => element is TextBlock);
+
+    public bool CurrentTextBold => _textEditor is { } editor
+        ? editor.FontWeight.ToOpenTypeWeight() >= FontWeights.SemiBold.ToOpenTypeWeight()
+        : HasSelectedText
+            ? _selectedElements.OfType<TextBlock>().All(text => text.FontWeight.ToOpenTypeWeight() >= 600)
+            : _textBold;
+
+    public bool CurrentTextShadow => _textEditor is { } editor
+        ? editor.Effect is DropShadowEffect
+        : HasSelectedText
+            ? _selectedElements.OfType<TextBlock>().All(text => text.Effect is DropShadowEffect)
+            : _textShadow;
+
+    public void SetTextBold(bool enabled) => SetTextStyle(enabled, null);
+
+    public void SetTextShadow(bool enabled) => SetTextStyle(null, enabled);
+
+    private void SetTextStyle(bool? bold, bool? shadow)
+    {
+        // Text edits already own a pre-edit snapshot. Keep style and IME text in
+        // that same transaction instead of recording the temporarily hidden label.
+        var before = _textEditor is null ? CaptureSnapshot() : null;
+        if (bold is { } weight) _textBold = weight;
+        if (shadow is { } effect) _textShadow = effect;
+        if (_textEditor is { } editor)
+        {
+            if (bold is { } editorBold) editor.FontWeight = editorBold ? FontWeights.SemiBold : FontWeights.Normal;
+            if (shadow is { } editorShadow) editor.Effect = editorShadow ? CreateTextShadow() : null;
+        }
+        else
+        {
+            foreach (var text in _selectedElements.OfType<TextBlock>())
+            {
+                if (bold is { } textBold) text.FontWeight = textBold ? FontWeights.SemiBold : FontWeights.Normal;
+                if (shadow is { } textShadow) text.Effect = textShadow ? CreateTextShadow() : null;
+            }
+            // Font weight can change glyph width. Refresh once per style action,
+            // not per animation frame, before deriving the selection geometry.
+            _layer.UpdateLayout();
+            UpdateSelectionAdorners();
+            CommitOperation(before);
+        }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static DropShadowEffect CreateTextShadow() => new()
+    {
+        Color = Colors.Black,
+        BlurRadius = 2,
+        ShadowDepth = 1,
+        Opacity = 0.9
+    };
 
     public void SetColor(Color color)
     {
@@ -583,12 +641,16 @@ internal sealed class CaptureAnnotationController
             {
                 mutated = !string.Equals(existing.Text, text, StringComparison.Ordinal) ||
                           Math.Abs(existing.FontSize - editor.FontSize) > 0.001 ||
+                          existing.FontWeight != editor.FontWeight ||
+                          !TextEffectsEquivalent(existing.Effect, editor.Effect) ||
                           !Equals(existing.Foreground, editor.Foreground) ||
                           Math.Abs(existing.MaxWidth - editor.MaxWidth) > 0.001 ||
                           Math.Abs(SafeCanvasPosition(Canvas.GetLeft(existing)) - left) > 0.001 ||
                           Math.Abs(SafeCanvasPosition(Canvas.GetTop(existing)) - top) > 0.001;
                 existing.Text = text;
                 existing.FontSize = editor.FontSize;
+                existing.FontWeight = editor.FontWeight;
+                existing.Effect = editor.Effect?.CloneCurrentValue();
                 existing.Foreground = editor.Foreground;
                 existing.MaxWidth = editor.MaxWidth;
                 Canvas.SetLeft(existing, left);
@@ -598,6 +660,7 @@ internal sealed class CaptureAnnotationController
             }
 
             _editingTextBlock = null;
+            _layer.UpdateLayout();
             UpdateSelectionAdorners();
         }
         else if (!string.IsNullOrEmpty(text))
@@ -607,17 +670,11 @@ internal sealed class CaptureAnnotationController
                 Text = text,
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = _fontSize,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = editor.FontWeight,
                 Foreground = _annotationBrush,
                 TextWrapping = TextWrapping.Wrap,
                 MaxWidth = Math.Max(80, _layer.Width - left),
-                Effect = new DropShadowEffect
-                {
-                    Color = Colors.Black,
-                    BlurRadius = 2,
-                    ShadowDepth = 1,
-                    Opacity = 0.9
-                },
+                Effect = editor.Effect?.CloneCurrentValue(),
                 IsHitTestVisible = false
             };
             Canvas.SetLeft(label, left);
@@ -629,7 +686,9 @@ internal sealed class CaptureAnnotationController
         }
 
         _isCommittingText = false;
-        if (mutated)
+        var styleDefaultsChanged = _pendingTextSnapshot is { } pending &&
+            (pending.TextBold != _textBold || pending.TextShadow != _textShadow);
+        if (mutated || styleDefaultsChanged)
         {
             CommitOperation(_pendingTextSnapshot);
             Changed?.Invoke(this, EventArgs.Empty);
@@ -652,7 +711,8 @@ internal sealed class CaptureAnnotationController
             MaxWidth = Math.Max(140, editorMaxWidth),
             FontFamily = new FontFamily("Segoe UI"),
             FontSize = editorFontSize,
-            FontWeight = FontWeights.SemiBold,
+            FontWeight = existing?.FontWeight ?? (_textBold ? FontWeights.SemiBold : FontWeights.Normal),
+            Effect = existing is not null ? existing.Effect?.CloneCurrentValue() : _textShadow ? CreateTextShadow() : null,
             Foreground = editorBrush,
             CaretBrush = Brushes.White,
             Background = new SolidColorBrush(Color.FromArgb(225, 13, 23, 30)),
@@ -662,7 +722,10 @@ internal sealed class CaptureAnnotationController
             AcceptsReturn = false
         };
         editor.PreviewKeyDown += OnTextEditorKeyDown;
-        editor.LostKeyboardFocus += (_, _) => CommitText();
+        editor.LostKeyboardFocus += (_, _) =>
+        {
+            if (ReferenceEquals(_textEditor, editor)) CommitText();
+        };
         InputMethod.SetIsInputMethodEnabled(editor, true);
         Canvas.SetLeft(editor, point.X);
         Canvas.SetTop(editor, point.Y);
@@ -700,15 +763,34 @@ internal sealed class CaptureAnnotationController
             return;
         }
 
-        _layer.Children.Remove(_textEditor);
+        var editor = _textEditor;
         _textEditor = null;
+        _layer.Children.Remove(editor);
         if (_editingTextBlock is not null)
         {
             _editingTextBlock.Visibility = Visibility.Visible;
             _editingTextBlock = null;
             UpdateSelectionAdorners();
         }
+        var styleChanged = _pendingTextSnapshot is { } pending &&
+            (pending.TextBold != _textBold || pending.TextShadow != _textShadow);
+        if (_pendingTextSnapshot is { } before)
+        {
+            _textBold = before.TextBold;
+            _textShadow = before.TextShadow;
+        }
         _pendingTextSnapshot = null;
+        if (styleChanged) Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    private static bool TextEffectsEquivalent(Effect? first, Effect? second)
+    {
+        if (first is null || second is null) return first is null && second is null;
+        if (first is DropShadowEffect a && second is DropShadowEffect b)
+            return a.Color == b.Color && Math.Abs(a.BlurRadius - b.BlurRadius) < 0.001 &&
+                   Math.Abs(a.ShadowDepth - b.ShadowDepth) < 0.001 && Math.Abs(a.Opacity - b.Opacity) < 0.001 &&
+                   Math.Abs(a.Direction - b.Direction) < 0.001;
+        return ReferenceEquals(first, second);
     }
 
     private void CancelWorkingElement()
@@ -1834,7 +1916,9 @@ internal sealed class CaptureAnnotationController
                 _numberSequence,
                 CurrentColor,
                 _strokeThickness,
-                _fontSize);
+                _fontSize,
+                _textBold,
+                _textShadow);
         }
         catch (Exception exception)
         {
@@ -1900,6 +1984,8 @@ internal sealed class CaptureAnnotationController
             _annotationBrush = CreateBrush(snapshot.Color);
             _strokeThickness = snapshot.StrokeThickness;
             _fontSize = snapshot.FontSize;
+            _textBold = snapshot.TextBold;
+            _textShadow = snapshot.TextShadow;
             foreach (var index in snapshot.SelectedIndices)
             {
                 if (index >= 0 && index < _annotations.Count)
@@ -1937,7 +2023,9 @@ internal sealed class CaptureAnnotationController
         int NumberSequence,
         Color Color,
         double StrokeThickness,
-        double FontSize)
+        double FontSize,
+        bool TextBold,
+        bool TextShadow)
     {
         public bool IsEquivalentTo(AnnotationDocumentSnapshot other) =>
             SelectedIndices.SequenceEqual(other.SelectedIndices) &&
@@ -1945,6 +2033,8 @@ internal sealed class CaptureAnnotationController
             Color == other.Color &&
             Math.Abs(StrokeThickness - other.StrokeThickness) < 0.001 &&
             Math.Abs(FontSize - other.FontSize) < 0.001 &&
+            TextBold == other.TextBold &&
+            TextShadow == other.TextShadow &&
             Elements.SequenceEqual(other.Elements);
     }
 
