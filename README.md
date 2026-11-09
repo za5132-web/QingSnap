@@ -15,8 +15,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
-- [查看 v1.1.5 发布说明](docs/RELEASE_NOTES_v1.1.5.md)
+- [下载 QingSnap v1.1.6](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
+- [查看 v1.1.6 发布说明](docs/RELEASE_NOTES_v1.1.6.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -87,6 +87,16 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 支持列表/图标模式、多选、批量收藏、标签、复制路径和删除到回收站。
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
+
+## v1.1.6 更新内容
+
+- 长截图改为真实页面分段滚动：滚动、停稳、原图匹配、继续，并按实际内容位移自动调整步长。
+- 控制浮条常驻选区外且不抢焦点，不再每段反复显隐；悬停暂停、移回继续，`Enter` 停止后仍可补截，`Esc` 取消。
+- 失败回位需要画面确认，切换应用或输入位置被遮挡时停止；不响应细分滚轮的旧式控件可自动尝试间隔整刻度输入。
+- 开机自启移到顶部独立“常规”分组；最小化、最大化/还原、关闭图标统一尺寸和水平对齐。
+- 保留现有设置、OCR 和历史数据。不同软件的滚动平滑程度仍有差异，复杂页面建议检查接缝并按需手动补截。
+
+![v1.1.6 真实滚动长截图与设置整理示意](docs/images/qingsnap-v1.1.6-guide.png)
 
 ## v1.1.5 更新内容
 
@@ -189,6 +199,7 @@ dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 ## 文档
 
 - [完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
+- [v1.1.6 发布说明](docs/RELEASE_NOTES_v1.1.6.md)
 - [v1.1.4 发布说明](docs/RELEASE_NOTES_v1.1.4.md)
 - [更新日志](CHANGELOG.md)
 - [OCR 模块说明](docs/OCR_MODULE.md)

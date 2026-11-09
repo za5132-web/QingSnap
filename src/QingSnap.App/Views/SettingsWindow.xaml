@@ -441,10 +441,10 @@
                             <icons:QingSnapIcon Kind="Minimize" Width="16" Height="16" />
                         </Button>
                         <Button Style="{StaticResource WindowButton}" ToolTip="最大化" AutomationProperties.Name="最大化" Click="OnMaximizeClick">
-                            <icons:QingSnapIcon x:Name="MaximizeIcon" Kind="Maximize" Width="15" Height="15" />
+                            <icons:QingSnapIcon x:Name="MaximizeIcon" Kind="Maximize" Width="16" Height="16" />
                         </Button>
                         <Button Style="{StaticResource CloseWindowButton}" ToolTip="关闭" AutomationProperties.Name="关闭" Click="OnCloseWindowClick">
-                            <icons:QingSnapIcon Kind="Close" Width="15" Height="15" />
+                            <icons:QingSnapIcon Kind="Close" Width="16" Height="16" />
                         </Button>
                     </StackPanel>
                 </Grid>
@@ -470,6 +470,13 @@
                           VerticalScrollBarVisibility="Auto"
                           PanningMode="VerticalOnly">
                 <StackPanel Margin="28,20,20,24">
+                    <Border x:Name="GeneralSettingsSection" Padding="18" Margin="0,0,0,14" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="GENERAL  /  常规" />
+                            <CheckBox x:Name="StartupCheck" Content="登录 Windows 后自动启动 QingSnap" />
+                        </StackPanel>
+                    </Border>
+
                     <Border Padding="18" Margin="0,0,0,14" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="8">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -712,7 +719,6 @@
                                 <StackPanel Grid.Column="2"><TextBlock Style="{StaticResource FieldLabel}" Text="失败重试次数（1–6）"/><TextBox x:Name="LongRetryBox"/></StackPanel>
                                 <StackPanel Grid.Column="4"><TextBlock Style="{StaticResource FieldLabel}" Text="最小重叠（12%–50%）"/><TextBox x:Name="LongOverlapBox"/></StackPanel>
                             </Grid>
-                            <CheckBox x:Name="StartupCheck" Margin="0,16,0,0" Content="登录 Windows 后自动启动 QingSnap" />
                         </StackPanel>
                     </Border>
 

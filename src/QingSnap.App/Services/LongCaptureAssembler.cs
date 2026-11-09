@@ -28,6 +28,10 @@ public sealed class LongCaptureAssembler
 
     public bool CanUndo => _checkpoints.Count > 0;
 
+    public int ScrollableHeight => _scrollRegion?.Height ?? _lastFrame?.Height ?? 0;
+
+    internal PixelRegion? ScrollRegion => _scrollRegion;
+
     public long EstimatedRetainedBytes =>
         _segments.Sum(segment => (long)segment.Pixels.Length) +
         (_fixedBottom?.Pixels.LongLength ?? 0) +

@@ -166,6 +166,159 @@ public sealed class LongCaptureAssemblerTests
     }
 
     [Theory]
+    [InlineData(116)] // 55% of the 210px scrolling band, not the 260px viewport.
+    [InlineData(126)] // 60%.
+    [InlineData(136)] // 65%.
+    public void LargeScrollingStepsKeepFixedChromeOnceAndPreserveEveryPixel(int displacement)
+    {
+        const int width = 220;
+        const int viewportHeight = 260;
+        var assembler = new LongCaptureAssembler(20);
+        for (var frame = 0; frame < 4; frame++)
+        {
+            var result = assembler.AddFrame(CreateScrollingFrame(width, viewportHeight, frame * displacement));
+
+            Assert.True(result.Accepted, result.Message);
+            if (frame > 0)
+            {
+                Assert.Equal(displacement, result.AppendedHeight);
+            }
+        }
+
+        var totalDisplacement = 3 * displacement;
+        var output = assembler.BuildImage();
+        Assert.Equal(4, assembler.FrameCount);
+        Assert.Equal(viewportHeight + totalDisplacement, output.PixelHeight);
+        Assert.Equal(
+            ReadPixels(CreateExpectedScrollingImage(width, viewportHeight, totalDisplacement)),
+            ReadPixels(output));
+
+        Assert.True(assembler.UndoLastFrame());
+        Assert.Equal(
+            ReadPixels(CreateExpectedScrollingImage(width, viewportHeight, 2 * displacement)),
+            ReadPixels(assembler.BuildImage()));
+    }
+
+    [Fact]
+    public void RejectedLargeScrollKeepsCommittedPixelsAndAllowsTheNextReliableFrame()
+    {
+        var assembler = new LongCaptureAssembler(20);
+        Assert.True(assembler.AddFrame(CreateScrollingFrame(220, 260, 0)).Accepted);
+        Assert.True(assembler.AddFrame(CreateScrollingFrame(220, 260, 126)).Accepted);
+        var acceptedPixels = ReadPixels(assembler.BuildImage());
+        var acceptedHeight = assembler.OutputHeight;
+        var retainedBytes = assembler.EstimatedRetainedBytes;
+
+        var rejected = assembler.AddFrame(CreatePattern(220, 260, 87));
+
+        Assert.False(rejected.Accepted);
+        Assert.False(rejected.IsDuplicate);
+        Assert.Equal(LongCaptureFrameFailure.Unmatchable, rejected.Failure);
+        Assert.Equal(2, assembler.FrameCount);
+        Assert.Equal(acceptedHeight, assembler.OutputHeight);
+        Assert.Equal(retainedBytes, assembler.EstimatedRetainedBytes);
+        Assert.Equal(acceptedPixels, ReadPixels(assembler.BuildImage()));
+
+        var recovered = assembler.AddFrame(CreateScrollingFrame(220, 260, 252));
+        Assert.True(recovered.Accepted, recovered.Message);
+        Assert.Equal(126, recovered.AppendedHeight);
+        Assert.True(assembler.UndoLastFrame());
+        Assert.Equal(acceptedPixels, ReadPixels(assembler.BuildImage()));
+    }
+
+    [Fact]
+    public void LargeScrollFollowedByShortBottomStepAndDuplicateKeepsExactOutput()
+    {
+        var assembler = new LongCaptureAssembler(20);
+        foreach (var offset in new[] { 0, 126, 252, 269 })
+        {
+            var result = assembler.AddFrame(CreateScrollingFrame(220, 260, offset));
+            Assert.True(result.Accepted, result.Message);
+        }
+
+        var duplicate = assembler.AddFrame(CreateScrollingFrame(220, 260, 269));
+
+        Assert.False(duplicate.Accepted);
+        Assert.True(duplicate.IsDuplicate);
+        Assert.Equal(4, assembler.FrameCount);
+        Assert.Equal(529, assembler.OutputHeight);
+        Assert.Equal(
+            ReadPixels(CreateExpectedScrollingImage(220, 260, 269)),
+            ReadPixels(assembler.BuildImage()));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(240)]
+    public void FlatFramesDoNotInventASeamWhenThereIsNoVisualEvidence(byte luminance)
+    {
+        const int width = 160;
+        const int height = 180;
+        var pixels = Enumerable.Repeat(luminance, width * height * 4).ToArray();
+        for (var alpha = 3; alpha < pixels.Length; alpha += 4)
+        {
+            pixels[alpha] = 255;
+        }
+
+        var flat = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, pixels, width * 4);
+        flat.Freeze();
+        var assembler = new LongCaptureAssembler();
+        Assert.True(assembler.AddFrame(flat).Accepted);
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var result = assembler.AddFrame(flat);
+            Assert.False(result.Accepted);
+            Assert.True(result.IsDuplicate);
+        }
+
+        Assert.Equal(1, assembler.FrameCount);
+        Assert.Equal(height, assembler.OutputHeight);
+        Assert.Equal(pixels, ReadPixels(assembler.BuildImage()));
+    }
+
+    [Theory]
+    [InlineData(20, 120)]
+    [InlineData(32, 128)]
+    public void RepeatingRowsDoNotInventProgressWhenTheViewportLooksUnchanged(int period, int displacement)
+    {
+        const int width = 220;
+        const int height = 260;
+        var first = CreateRepeatingRowsFrame(width, height, 0, period);
+        var repeated = CreateRepeatingRowsFrame(width, height, displacement, period);
+        var assembler = new LongCaptureAssembler();
+        Assert.True(assembler.AddFrame(first).Accepted);
+
+        var result = assembler.AddFrame(repeated);
+
+        Assert.False(result.Accepted);
+        Assert.True(result.IsDuplicate);
+        Assert.Equal(1, assembler.FrameCount);
+        Assert.Equal(height, assembler.OutputHeight);
+        Assert.Equal(ReadPixels(first), ReadPixels(assembler.BuildImage()));
+    }
+
+    [Fact]
+    public void LargeStepCaptureStillStopsAtTheExistingEightyFrameLimit()
+    {
+        var assembler = new LongCaptureAssembler();
+        for (var frame = 0; frame < 80; frame++)
+        {
+            var result = assembler.AddFrame(CreateScrollingFrame(96, 170, frame * 66));
+            Assert.True(result.Accepted, $"Frame {frame + 1}: {result.Message}");
+        }
+
+        var retainedBytes = assembler.EstimatedRetainedBytes;
+        var rejected = assembler.AddFrame(CreateScrollingFrame(96, 170, 80 * 66));
+
+        Assert.False(rejected.Accepted);
+        Assert.Equal(LongCaptureFrameFailure.SafetyLimit, rejected.Failure);
+        Assert.Equal(80, assembler.FrameCount);
+        Assert.Equal(170 + 79 * 66, assembler.OutputHeight);
+        Assert.Equal(retainedBytes, assembler.EstimatedRetainedBytes);
+    }
+
+    [Theory]
     [InlineData("Balanced", "Balanced")]
     [InlineData("Instant", "Instant")]
     [InlineData("unexpected", "Instant")]
@@ -548,5 +701,56 @@ public sealed class LongCaptureAssemblerTests
             stride);
         source.Freeze();
         return source;
+    }
+
+    private static BitmapSource CreateExpectedScrollingImage(int width, int viewportHeight, int totalScrollOffset)
+    {
+        const int footerHeight = 24;
+        var stride = width * 4;
+        // The scrolling content's world coordinates equal output coordinates.
+        // Only the fixed footer must retain its original viewport-local rows.
+        var outputHeight = viewportHeight + totalScrollOffset;
+        var pixels = ReadPixels(CreateScrollingFrame(width, outputHeight, 0));
+        var firstFrame = ReadPixels(CreateScrollingFrame(width, viewportHeight, 0));
+        Buffer.BlockCopy(
+            firstFrame,
+            (viewportHeight - footerHeight) * stride,
+            pixels,
+            (outputHeight - footerHeight) * stride,
+            footerHeight * stride);
+        var image = BitmapSource.Create(width, outputHeight, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
+        image.Freeze();
+        return image;
+    }
+
+    private static byte[] ReadPixels(BitmapSource image)
+    {
+        var stride = image.PixelWidth * 4;
+        var pixels = new byte[stride * image.PixelHeight];
+        image.CopyPixels(pixels, stride, 0);
+        return pixels;
+    }
+
+    private static BitmapSource CreateRepeatingRowsFrame(int width, int height, int scrollOffset, int period)
+    {
+        var stride = width * 4;
+        var pixels = new byte[stride * height];
+        for (var y = 0; y < height; y++)
+        {
+            var fixedBand = y < 26 || y >= height - 24;
+            var row = fixedBand ? y : (y + scrollOffset) % period;
+            for (var x = 0; x < width; x++)
+            {
+                var offset = y * stride + x * 4;
+                pixels[offset] = (byte)((row * 13 + x * 3) % 251);
+                pixels[offset + 1] = (byte)((row * 7 + x * 5) % 253);
+                pixels[offset + 2] = (byte)((row * 17 + x * 11) % 255);
+                pixels[offset + 3] = 255;
+            }
+        }
+
+        var image = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgra32, null, pixels, stride);
+        image.Freeze();
+        return image;
     }
 }

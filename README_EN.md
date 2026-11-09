@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
-- [v1.1.5 release notes](docs/RELEASE_NOTES_v1.1.5.md)
+- [Download QingSnap v1.1.6](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
+- [v1.1.6 release notes](docs/RELEASE_NOTES_v1.1.6.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -87,6 +87,16 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.6
+
+- Long capture now scrolls the actual page in adaptive segments: scroll, settle, stitch at original resolution, then continue.
+- A non-activating HUD stays outside the capture instead of repeatedly appearing and disappearing. Hover to pause and return to resume; `Enter` stops with manual completion available, and `Esc` cancels.
+- Rollback is verified against the last accepted view. Capture stops on target/focus changes or an obstructed input position; legacy controls can fall back to spaced whole wheel detents.
+- Windows startup now has its own General section. Minimize, maximize/restore, and close icons share consistent size and alignment.
+- Existing settings, OCR, and history remain compatible. Smoothness depends on the target application; inspect seams and use manual frame capture when needed on complex pages.
+
+![v1.1.6 real scrolling capture and settings cleanup](docs/images/qingsnap-v1.1.6-guide.png)
 
 ## What is new in v1.1.5
 

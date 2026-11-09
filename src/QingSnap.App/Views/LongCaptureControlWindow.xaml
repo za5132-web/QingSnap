@@ -67,7 +67,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Border Background="{DynamicResource ThemeAccentBrush}" />
-            <Grid Grid.Column="1" Margin="16,12,14,13">
+            <Grid x:Name="ControlBody" Grid.Column="1" Margin="16,12,14,13">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -104,6 +104,7 @@
                            FontFamily="{StaticResource UiFont}"
                            FontSize="13"
                            FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource ThemeTextBrush}"
                            Text="正在记录首屏…" />
 
@@ -123,11 +124,12 @@
                            Foreground="{DynamicResource ThemeSubtleTextBrush}"
                            Text="程序会自动滚动并检测页面底部；Enter 停止，Esc 取消。" />
 
-                <StackPanel Grid.Row="4" Margin="0,11,0,0" Orientation="Horizontal">
+                <StackPanel x:Name="ActionButtons" Grid.Row="4" Margin="0,11,0,0" Orientation="Horizontal">
                     <Button x:Name="NextButton"
                             Style="{StaticResource PrimaryButton}"
                             Content="截取下一屏"
                             IsEnabled="False"
+                            ToolTip="自动滚动时按 Enter 停止；手动模式截取下一屏"
                             Click="OnNextClick" />
                     <Button x:Name="BackButton"
                             Style="{StaticResource ControlButton}"
@@ -143,6 +145,7 @@
                             Style="{StaticResource ControlButton}"
                             Margin="0"
                             Content="取消"
+                            ToolTip="Esc 取消长截图"
                             Click="OnCancelClick" />
                 </StackPanel>
             </Grid>

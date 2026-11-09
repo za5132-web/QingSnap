@@ -14,8 +14,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.5](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
-- [v1.1.5 發布說明](docs/RELEASE_NOTES_v1.1.5.md)
+- [下載 QingSnap v1.1.6](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
+- [v1.1.6 發布說明](docs/RELEASE_NOTES_v1.1.6.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -41,6 +41,16 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.6 更新
+
+- 長截圖改為真實頁面分段捲動：捲動、停穩、原圖匹配、繼續，並依實際內容位移自動調整步長。
+- 控制浮條常駐選區外且不搶焦點，不再每段反覆顯隱；懸停暫停、移回繼續，`Enter` 停止後仍可補截，`Esc` 取消。
+- 失敗回位需要畫面確認，切換應用程式或輸入位置被遮擋時停止；不回應細分滾輪的舊式控制項可自動嘗試間隔整刻度輸入。
+- 開機自啟移到頂部獨立「一般」分組；最小化、最大化／還原、關閉圖示統一尺寸與水平對齊。
+- 保留既有設定、OCR 與歷史資料。捲動平滑程度仍依目標軟體而異，複雜頁面建議檢查接縫並按需手動補截。
+
+![v1.1.6 真實捲動長截圖與設定整理示意](docs/images/qingsnap-v1.1.6-guide.png)
 
 ## v1.1.5 更新
 

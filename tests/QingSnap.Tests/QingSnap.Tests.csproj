@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\QingSnap.App\QingSnap.App.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

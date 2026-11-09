@@ -219,7 +219,7 @@ public sealed class QingSnapIcon : Control
                 Line(dc, pen, 12, 14, 12, 17);
                 break;
             case QingSnapIconKind.Minimize:
-                Line(dc, pen, 6, 17, 18, 17);
+                Line(dc, pen, 6, 12, 18, 12);
                 break;
             case QingSnapIconKind.Maximize:
                 dc.DrawRectangle(null, pen, new Rect(6, 6, 12, 12));

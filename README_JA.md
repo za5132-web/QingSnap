@@ -14,8 +14,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.5 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
-- [v1.1.5 リリースノート](docs/RELEASE_NOTES_v1.1.5.md)
+- [QingSnap v1.1.6 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
+- [v1.1.6 リリースノート](docs/RELEASE_NOTES_v1.1.6.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -41,6 +41,16 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.6
+
+- 長いページを実際に分割スクロールし、停止を確認して原画質で照合・結合してから続行します。実際の移動量に合わせてスクロール幅を自動調整します。
+- 操作バーは選択範囲の外に常時表示され、フォーカスを奪ったり毎回点滅したりしません。ホバーで一時停止し、範囲に戻ると再開。`Enter` で停止して手動補完、`Esc` でキャンセルできます。
+- 失敗時は最後に成功した画面への復帰を確認し、対象やフォーカスの変更・入力位置の遮蔽で停止します。細かいホイール入力に反応しない旧式コントロールには、間隔を空けた通常刻みの入力を試します。
+- Windows 起動時の自動実行を独立した「一般」グループへ移動。最小化・最大化／元に戻す・閉じるアイコンのサイズと位置を統一しました。
+- 既存の設定、OCR、履歴データは維持されます。滑らかさは対象アプリに依存します。複雑なページでは継ぎ目を確認し、必要に応じて手動で補完してください。
+
+![v1.1.6 実際のスクロールキャプチャと設定整理](docs/images/qingsnap-v1.1.6-guide.png)
 
 ## v1.1.5
 

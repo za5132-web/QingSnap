@@ -88,9 +88,9 @@ public partial class LongCaptureOverlayWindow : Window
         SetRectangle(LeftShade, 0, top, left, bottom - top);
         SetRectangle(RightShade, right, top, Surface.ActualWidth - right, bottom - top);
 
-        SetRectangle(TopRail, left, Math.Max(0, top - RailThickness), right - left, RailThickness);
+        SetRectangle(TopRail, left, top - RailThickness, right - left, RailThickness);
         SetRectangle(BottomRail, left, bottom, right - left, RailThickness);
-        SetRectangle(LeftRail, Math.Max(0, left - RailThickness), top, RailThickness, bottom - top);
+        SetRectangle(LeftRail, left - RailThickness, top, RailThickness, bottom - top);
         SetRectangle(RightRail, right, top, RailThickness, bottom - top);
         PositionBadge(left, top, right, bottom);
     }

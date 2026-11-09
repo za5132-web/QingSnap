@@ -3,6 +3,24 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.6] - 2026-11-09
+
+### 长截图 / Scrolling capture
+
+- 自动长截图改为分时发送真实滚轮输入，按“滚动 → 停稳 → 匹配 → 继续”的节奏工作；根据实际内容位移调整步长，不使用截图切换伪装滚动。  Automatic long capture now spaces real wheel inputs, settles and stitches each segment, and adapts movement to measured content displacement instead of animating cached screenshots.
+- 控制浮条常驻选区外且不抢焦点，移除每段反复显隐的固定等待；悬停暂停、移回继续，Enter 停止、Esc 取消。  A non-activating HUD remains outside the capture, with hover-to-pause and return-to-resume; Enter stops and Esc cancels without per-segment show/hide delays.
+- 限量亮度采样降低重复像素转换，保留原图接缝校验；失败回位需要画面确认，切换或遮挡目标时停止，旧式控件可自动改用间隔整刻度输入。  Bounded luminance sampling retains full-resolution seam matching; rollback is verified, target changes stop capture, and legacy controls can fall back to spaced whole detents.
+
+### 设置界面 / Settings
+
+- 开机自启移到顶部独立“常规”分组，保留原开关及保存逻辑；修正标题栏最小化、最大化、关闭的尺寸和水平对齐。  Moved Windows startup into its own General section without changing its state or persistence, and aligned the caption icons at a uniform size.
+
+### 验证 / Validation
+
+- Release 0 Warning / 0 Error；362 项回归通过，另排除 1 项会修改真实 Windows Startup 的既有迁移测试。本地冷启动诊断与试验性输入/周期预热不纳入本次公开版本。  Release: zero warnings/errors and 362 passing tests, with one existing test that writes real Windows Startup excluded; local cold-start experiments are not part of this public release.
+- 测试集改为串行调度，保留单项内部并发与原有断言/超时；发布回归在 SSD 上完成。  The suite uses serial scheduling while preserving explicit in-test concurrency, assertions and timeouts; release regression ran from SSD.
+- 保留旧配置、OCR、历史目录与数据库；附合成操作示意图。不作所有软件均平滑滚动、固定倍数提速或隔夜 F1 延迟已经解决的保证。  Settings, OCR, history and database remain compatible. Includes a synthetic illustration; no universal smoothness, speedup factor or overnight F1 latency guarantee is made.
+
 ## [1.1.5] - 2026-11-05
 
 ### 截图响应 / Capture response

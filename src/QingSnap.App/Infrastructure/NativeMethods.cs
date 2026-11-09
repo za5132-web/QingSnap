@@ -153,6 +153,9 @@ internal static class NativeMethods
     internal static extern bool GetCursorPos(out NativePoint point);
 
     [DllImport("user32.dll")]
+    internal static extern short GetAsyncKeyState(int virtualKey);
+
+    [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool GetWindowRect(nint hWnd, out NativeRectangle rectangle);
 
@@ -186,6 +189,30 @@ internal static class NativeMethods
         }
 
         return SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<Input>()) == inputs.Length;
+    }
+
+    // Unlike SendMouseWheel, preserve fractional-detent deltas exactly. The
+    // smooth long-capture driver spaces these real inputs over its motion phase.
+    internal static bool SendMouseWheelDelta(int delta)
+    {
+        if (delta == 0)
+        {
+            return true;
+        }
+
+        var input = new Input
+        {
+            Type = InputMouse,
+            Data = new InputUnion
+            {
+                Mouse = new MouseInput
+                {
+                    MouseData = unchecked((uint)delta),
+                    Flags = MouseEventWheel
+                }
+            }
+        };
+        return SendInput(1, [input], Marshal.SizeOf<Input>()) == 1;
     }
 
     internal static bool ActivateWindow(nint window)
@@ -222,6 +249,39 @@ internal static class NativeMethods
                 AttachThreadInput(currentThread, foregroundThread, false);
             }
         }
+    }
+
+    // Wheel routing follows the window under the pointer on Windows 10/11.
+    // A foreground check alone cannot see an unrelated always-on-top window
+    // behind our transparent overlay. Stop at the first eligible z-order root.
+    internal static nint FindScrollRootAtPoint(NativePoint screenPoint, nint targetWindow)
+    {
+        nint result = nint.Zero;
+        EnumWindows((window, _) =>
+        {
+            if (!IsWindowVisible(window) || !GetWindowRect(window, out var bounds) ||
+                screenPoint.X < bounds.Left || screenPoint.X >= bounds.Right ||
+                screenPoint.Y < bounds.Top || screenPoint.Y >= bounds.Bottom)
+            {
+                return true;
+            }
+
+            GetWindowThreadProcessId(window, out var processId);
+            if (processId == Environment.ProcessId && window != targetWindow)
+            {
+                return true;
+            }
+
+            if ((GetWindowLongPtr(window, GwlExStyle).ToInt64() & WsExTransparent) != 0 ||
+                DwmGetWindowAttribute(window, DwmWindowAttributeCloaked, out int cloaked, sizeof(int)) >= 0 && cloaked != 0)
+            {
+                return true;
+            }
+
+            result = window;
+            return false;
+        }, nint.Zero);
+        return result;
     }
 
     internal static nint FindWindowAtPointExcludingProcess(NativePoint screenPoint, uint excludedProcessId)

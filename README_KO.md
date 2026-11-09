@@ -14,8 +14,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.5 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.5/QingSnap-v1.1.5.zip)
-- [v1.1.5 릴리스 노트](docs/RELEASE_NOTES_v1.1.5.md)
+- [QingSnap v1.1.6 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
+- [v1.1.6 릴리스 노트](docs/RELEASE_NOTES_v1.1.6.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -41,6 +41,16 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.6 업데이트
+
+- 실제 페이지를 구간별로 스크롤하고, 화면이 멈추면 원본 해상도로 맞춰 붙인 뒤 계속합니다. 실제 콘텐츠 이동량에 따라 스크롤 폭을 자동 조정합니다.
+- 제어 막대는 캡처 영역 밖에 유지되며 포커스를 빼앗거나 구간마다 깜박이지 않습니다. 마우스를 올리면 일시 정지하고 영역으로 돌아가면 재개합니다. `Enter`로 멈춘 뒤 수동으로 보충하거나 `Esc`로 취소할 수 있습니다.
+- 실패 시 마지막으로 성공한 화면까지 돌아왔는지 확인합니다. 대상·포커스가 바뀌거나 입력 위치가 가려지면 중지하며, 세밀한 휠 입력에 반응하지 않는 구형 컨트롤에는 간격을 둔 일반 눈금 입력을 시도합니다.
+- Windows 자동 시작 옵션을 독립된 “일반” 그룹으로 옮기고 최소화·최대화/복원·닫기 아이콘의 크기와 정렬을 통일했습니다.
+- 기존 설정, OCR 및 기록 데이터는 유지됩니다. 스크롤의 부드러움은 대상 앱에 따라 다르므로 복잡한 페이지는 연결 부분을 확인하고 필요하면 수동으로 보충하세요.
+
+![v1.1.6 실제 스크롤 캡처와 설정 정리](docs/images/qingsnap-v1.1.6-guide.png)
 
 ## v1.1.5 업데이트
 
