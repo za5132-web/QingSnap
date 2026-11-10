@@ -160,6 +160,7 @@ public partial class StickyImageWindow : Window
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
             StopPinMotion();
+            EndContentPan();
             DisposeZoomPresentation();
             ReleasePinNativeSizing();
             DpiChanged -= OnPinMotionDpiChanged;
@@ -276,6 +277,12 @@ public partial class StickyImageWindow : Window
 
         if (e.ClickCount >= 2)
         {
+            if (_isLongReaderMode && !_isLongImage)
+            {
+                ToggleContentDetail();
+                e.Handled = true;
+                return;
+            }
             if (_isLongImage)
             {
                 if (_isLongReaderMode)
@@ -373,9 +380,8 @@ public partial class StickyImageWindow : Window
     private void ApplyOcrResult(OcrRecognitionResult result)
     {
         _ocrResult = result;
-        _ocrWords = result.Lines
-            .SelectMany(line => line.Words)
-            .OrderBy(word => word.Index)
+        _ocrWords = OcrTextLayoutService.Get(result).Lines
+            .SelectMany(line => line.Source.Words.OrderBy(word => word.Index))
             .ToArray();
         Dispatcher.BeginInvoke(RenderTextOverlay, DispatcherPriority.Render);
     }
@@ -454,7 +460,7 @@ public partial class StickyImageWindow : Window
     private void OnTextOverlayMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // Long-image double-click switches views even when OCR text is under the cursor.
-        if (_isLongImage && e.ClickCount == 2)
+        if ((_isLongImage || _isLongReaderMode) && e.ClickCount == 2)
         {
             OnImageMouseLeftButtonDown(sender, e);
             return;
@@ -574,10 +580,18 @@ public partial class StickyImageWindow : Window
 
     private void SelectWordRange(int firstIndex, int secondIndex)
     {
-        var minimum = Math.Min(firstIndex, secondIndex);
-        var maximum = Math.Max(firstIndex, secondIndex);
+        var first = -1;
+        var second = -1;
+        for (var i = 0; i < _ocrWords.Count; i++)
+        {
+            if (_ocrWords[i].Index == firstIndex) first = i;
+            if (_ocrWords[i].Index == secondIndex) second = i;
+        }
+        if (first < 0 || second < 0) return;
+        var minimum = Math.Min(first, second);
+        var maximum = Math.Max(first, second);
         _selectedWordIndices.Clear();
-        foreach (var word in _ocrWords.Where(word => word.Index >= minimum && word.Index <= maximum))
+        foreach (var word in _ocrWords.Skip(minimum).Take(maximum - minimum + 1))
         {
             _selectedWordIndices.Add(word.Index);
         }
@@ -596,9 +610,9 @@ public partial class StickyImageWindow : Window
         RenderTextOverlay();
     }
 
-    private async void CopySelectedText()
+    private async void CopySelectedText(bool preserveOriginalLineBreaks = false)
     {
-        var selectedText = BuildSelectedText();
+        var selectedText = BuildSelectedText(preserveOriginalLineBreaks);
         if (string.IsNullOrWhiteSpace(selectedText))
         {
             ShowFeedback("请先选择文字");
@@ -612,24 +626,41 @@ public partial class StickyImageWindow : Window
         }
         catch (Exception exception)
         {
+            DiagnosticLog.Error("OCR", exception, "复制贴图所选文字失败。");
             ShowFeedback(exception is InvalidOperationException
                 ? "剪贴板仍被占用 · 选区已保留 · 再按 Ctrl+C"
                 : exception.Message);
         }
     }
 
-    private string BuildSelectedText()
+    private string BuildSelectedText(bool preserveOriginalLineBreaks = false)
     {
         if (_ocrResult is null || _selectedWordIndices.Count == 0)
         {
             return string.Empty;
         }
 
-        return OcrTextSelectionBuilder.Build(_ocrResult, _selectedWordIndices);
+        return OcrTextSelectionBuilder.Build(_ocrResult, _selectedWordIndices, preserveOriginalLineBreaks);
     }
+
+    private void OnPinOcrMenuOpened(object sender, RoutedEventArgs e)
+    {
+        var visibility = _ocrResult is not null && _selectedWordIndices.Count > 0 && !_isEditingPin
+            ? Visibility.Visible : Visibility.Collapsed;
+        CopySelectedOcrMenuItem.Visibility = visibility;
+        CopyRawSelectedOcrMenuItem.Visibility = visibility;
+    }
+
+    private void OnCopySelectedOcrClick(object sender, RoutedEventArgs e) => CopySelectedText();
+    private void OnCopyRawSelectedOcrClick(object sender, RoutedEventArgs e) => CopySelectedText(true);
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (_isSelectingText || _isPinDrawing || IsPinTextEditing || _isContentPanning)
+        {
+            e.Handled = true;
+            return;
+        }
         if (HandlePinAnnotationWheel(e)) return;
         if (_isCollapsed || _isDockTransitioning)
         {
@@ -637,19 +668,38 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        if (!_isLongReaderMode && Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            if (DeferZoomInteraction(() =>
+                {
+                    EnterFixedViewport();
+                    var target = _pinMotionKind == PinMotionKind.ContentZoom ? _contentTargetScale : _readerScale;
+                    SetReaderScale(PinMotionMath.WheelTarget(target, e.Delta), true);
+                }))
+            {
+                e.Handled = true;
+                return;
+            }
+            CompletePinMotion();
+            CompleteZoomPresentation();
+            EnterFixedViewport();
+        }
         if (_isLongReaderMode)
         {
             if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
             {
-                SetReaderScale(_readerScale * (e.Delta > 0 ? ZoomStep : 1 / ZoomStep), true);
+                var target = _pinMotionKind == PinMotionKind.ContentZoom ? _contentTargetScale : _readerScale;
+                SetReaderScale(PinMotionMath.WheelTarget(target, e.Delta), true);
             }
             else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
             {
+                CompletePinMotion();
                 LongImageScroller.ScrollToHorizontalOffset(
                     LongImageScroller.HorizontalOffset - e.Delta * 0.82);
             }
             else
             {
+                CompletePinMotion();
                 LongImageScroller.ScrollToVerticalOffset(
                     LongImageScroller.VerticalOffset - e.Delta * 0.82);
             }
@@ -688,6 +738,12 @@ public partial class StickyImageWindow : Window
         }
         if (HandlePinAnnotationKey(e)) return;
         var key = ResolveShortcutKey(e);
+        // Space is a held pan modifier in reading mode, not a page-down command.
+        if (_isLongReaderMode && key == Key.Space)
+        {
+            e.Handled = true;
+            return;
+        }
         if (key == Key.M && Keyboard.Modifiers == ModifierKeys.None)
         {
             ToggleCollapsed();
@@ -847,6 +903,7 @@ public partial class StickyImageWindow : Window
 
     private void OnFitClick(object sender, RoutedEventArgs e)
     {
+        if (_isLongReaderMode && !_isLongImage) { ExitFixedViewport(); }
         if (_isLongImage)
         {
             if (!_isLongReaderMode)
@@ -863,6 +920,7 @@ public partial class StickyImageWindow : Window
 
     private void OnActualSizeClick(object sender, RoutedEventArgs e)
     {
+        if (_isLongReaderMode && !_isLongImage) { ExitFixedViewport(); }
         if (_isLongImage)
         {
             if (!_isLongReaderMode)
@@ -889,7 +947,7 @@ public partial class StickyImageWindow : Window
 
     private void OnOverviewClick(object sender, RoutedEventArgs e) => EnterOverviewMode();
 
-    private void OnReaderModeClick(object sender, RoutedEventArgs e) => EnterReaderMode(false);
+    private void OnReaderModeClick(object sender, RoutedEventArgs e) => EnterFixedViewport();
 
     private void OnCollapseClick(object sender, RoutedEventArgs e) => ToggleCollapsed();
 
@@ -1180,6 +1238,7 @@ public partial class StickyImageWindow : Window
 
     private void PrepareCollapsedVisualState()
     {
+        EndContentPan();
         ResetPinZoomAnchor();
         _isCollapsed = true;
         _collapsedDockHideTimer.Stop();
@@ -1338,6 +1397,7 @@ public partial class StickyImageWindow : Window
         }
 
         var readerOffsetRatio = _readerOffsetRatio;
+        var readerHorizontalRatio = _readerHorizontalRatio;
         _isCollapsed = false;
         _isCollapsedDockRevealed = false;
         _collapsedDockHideTimer.Stop();
@@ -1354,6 +1414,7 @@ public partial class StickyImageWindow : Window
             {
                 UpdateLayout();
                 LongImageScroller.ScrollToVerticalOffset(readerOffsetRatio * LongImageScroller.ScrollableHeight);
+                LongImageScroller.ScrollToHorizontalOffset(readerHorizontalRatio * LongImageScroller.ScrollableWidth);
                 UpdateScrollProgress();
             }
             Activate();
@@ -1438,12 +1499,14 @@ public partial class StickyImageWindow : Window
     {
         if (!_isLongImage)
         {
+            EnterFixedViewport();
             return;
         }
 
         CompletePinMotion();
 
         var offsetRatio = _readerOffsetRatio;
+        var horizontalRatio = _readerHorizontalRatio;
         var oldCenterX = Left + ActualWidth / 2;
         var oldCenterY = Top + ActualHeight / 2;
         _isLongReaderMode = true;
@@ -1454,6 +1517,7 @@ public partial class StickyImageWindow : Window
         TopMenuItem.Visibility = Visibility.Visible;
         OverviewMenuItem.Visibility = Visibility.Visible;
         ReaderModeMenuItem.Visibility = Visibility.Collapsed;
+        UpdateContentMenus();
 
         Width = _readerViewportWidth + 2;
         Height = _readerViewportHeight + 2;
@@ -1489,6 +1553,7 @@ public partial class StickyImageWindow : Window
         {
             LongImageScroller.ScrollToVerticalOffset(
                 offsetRatio * LongImageScroller.ScrollableHeight);
+            LongImageScroller.ScrollToHorizontalOffset(horizontalRatio * LongImageScroller.ScrollableWidth);
             UpdateScrollProgress();
         }, DispatcherPriority.Loaded);
 
@@ -1505,6 +1570,7 @@ public partial class StickyImageWindow : Window
             return;
         }
 
+        EndContentPan();
         CompletePinMotion();
 
         var handle = new WindowInteropHelper(this).Handle;
@@ -1521,6 +1587,7 @@ public partial class StickyImageWindow : Window
             ? 0
             : LongImageScroller.VerticalOffset / LongImageScroller.ScrollableHeight;
         _isLongReaderMode = false;
+        UpdateContentMenus();
         LongImageScroller.Visibility = Visibility.Collapsed;
         ScrollRail.Visibility = Visibility.Collapsed;
         PinnedImage.Visibility = Visibility.Visible;
@@ -1551,34 +1618,14 @@ public partial class StickyImageWindow : Window
 
     private void SetReaderScale(double scale, bool anchorAtCursor)
     {
-        if (!_isLongReaderMode)
-        {
-            return;
-        }
-
-        var minimumReaderScale = _readerBaseScale;
-        var nextScale = Math.Clamp(scale, minimumReaderScale, MaximumScale);
-        var oldExtentHeight = Math.Max(1, LongPinnedImage.ActualHeight);
-        var anchorInViewport = anchorAtCursor
-            ? Math.Clamp(Mouse.GetPosition(LongImageScroller).Y, 0, LongImageScroller.ViewportHeight)
-            : LongImageScroller.ViewportHeight / 2;
-        var anchorRatio = (LongImageScroller.VerticalOffset + anchorInViewport) / oldExtentHeight;
-
-        _readerScale = nextScale;
-        ApplyReaderImageSize();
-        Dispatcher.BeginInvoke(() =>
-        {
-            var nextOffset = anchorRatio * LongPinnedImage.ActualHeight - anchorInViewport;
-            LongImageScroller.ScrollToVerticalOffset(nextOffset);
-            UpdateScrollProgress();
-        }, DispatcherPriority.Render);
-        ShowFeedback($"阅读缩放 {Math.Round(_readerScale * 100)}%");
+        QueueContentZoom(scale, anchorAtCursor);
     }
 
     private void ApplyReaderImageSize()
     {
-        var width = Math.Max(24, _imageWidthDip * _readerScale);
-        var height = Math.Max(24, _imageHeightDip * _readerScale);
+        // A single scale preserves the aspect ratio even for very thin images.
+        var width = Math.Max(0.001, _imageWidthDip * _readerScale);
+        var height = Math.Max(0.001, _imageHeightDip * _readerScale);
         LongImageSurface.Width = width;
         LongImageSurface.Height = height;
         LongPinnedImage.Width = width;
@@ -1607,9 +1654,10 @@ public partial class StickyImageWindow : Window
 
     private void OnLongImageScrollChanged(object sender, System.Windows.Controls.ScrollChangedEventArgs e)
     {
-        if (_isLongReaderMode && !_isCollapsed && !_isDockTransitioning && LongImageScroller.ScrollableHeight > 0)
+        if (_isLongReaderMode && !_isCollapsed && !_isDockTransitioning)
         {
-            _readerOffsetRatio = LongImageScroller.VerticalOffset / LongImageScroller.ScrollableHeight;
+            _readerOffsetRatio = LongImageScroller.ScrollableHeight <= 0 ? 0 : LongImageScroller.VerticalOffset / LongImageScroller.ScrollableHeight;
+            _readerHorizontalRatio = LongImageScroller.ScrollableWidth <= 0 ? 0 : LongImageScroller.HorizontalOffset / LongImageScroller.ScrollableWidth;
         }
 
         UpdateScrollProgress();

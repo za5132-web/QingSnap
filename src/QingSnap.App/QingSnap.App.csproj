@@ -12,10 +12,10 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>QingSnap</AssemblyName>
     <RootNamespace>QingSnap.App</RootNamespace>
-    <Version>1.1.6</Version>
-    <AssemblyVersion>1.1.6.0</AssemblyVersion>
-    <FileVersion>1.1.6.0</FileVersion>
-    <InformationalVersion>v1.1.6</InformationalVersion>
+    <Version>1.1.7</Version>
+    <AssemblyVersion>1.1.7.0</AssemblyVersion>
+    <FileVersion>1.1.7.0</FileVersion>
+    <InformationalVersion>v1.1.7</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Deterministic>true</Deterministic>
     <PublishSingleFile>true</PublishSingleFile>
@@ -39,6 +39,12 @@
 
   <ItemGroup>
     <Resource Include="Assets\QingSnap.ico" />
+    <None Include="..\..\docs\images\qingsnap-v1.1.7-guide.png"
+          Link="docs\images\qingsnap-v1.1.7-guide.png" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\RELEASE_NOTES_v1.1.7.md"
+          Link="RELEASE_NOTES_v1.1.7.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\PIN_READING_AND_OCR_LAYOUT.md"
+          Link="PIN_READING_AND_OCR_LAYOUT.md" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\images\qingsnap-v1.1.6-guide.png"
           Link="docs\images\qingsnap-v1.1.6-guide.png"
           CopyToPublishDirectory="PreserveNewest" />

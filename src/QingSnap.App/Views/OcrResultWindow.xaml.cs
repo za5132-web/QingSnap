@@ -17,6 +17,7 @@ public partial class OcrResultWindow : Window
     private Task<OcrRecognitionResult>? _prefetchedRecognition;
     private CancellationTokenSource? _recognitionCancellation;
     private string _recognitionStats = "等待识别";
+    private OcrRecognitionResult? _rawResult;
 
     public OcrResultWindow(
         string imagePath,
@@ -56,6 +57,8 @@ public partial class OcrResultWindow : Window
         var cancellationToken = _recognitionCancellation.Token;
 
         LoadingPanel.Visibility = Visibility.Visible;
+        _rawResult = null;
+        CopyRawMenuItem.IsEnabled = false;
         CopyAllButton.IsEnabled = false;
         TitleStatusText.Text = "本地识别 · 正在分析图片";
         FooterStatusText.Text = "正在准备本地 OCR…";
@@ -96,18 +99,20 @@ public partial class OcrResultWindow : Window
 
     private void ApplyResult(OcrRecognitionResult result)
     {
+        _rawResult = result;
         if (!string.IsNullOrWhiteSpace(result.Text))
         {
             _recognizedTextAvailable?.Invoke(result.Text);
         }
 
-        OcrTextBox.Text = result.Text;
+        OcrTextBox.Text = OcrTextLayoutService.Get(result).Text;
+        CopyRawMenuItem.IsEnabled = !string.IsNullOrEmpty(result.Text);
         _recognitionStats = $"{result.LanguageName} · {result.LineCount:N0} 行 · {result.ElapsedMilliseconds / 1000:0.00} 秒";
         TitleStatusText.Text = $"本地识别 · {result.LanguageTag}";
         FooterStatusText.Text = result.Text.Length == 0
             ? "没有识别到文字，可以换一张更清晰的截图后重试。"
             : result.SourceWidth == result.RecognitionWidth && result.SourceHeight == result.RecognitionHeight
-                ? "识别完成，结果可以直接校对和编辑。"
+                ? "已整理阅读顺序和段落，结果可以直接校对和编辑。"
                 : $"识别完成；原图已等比缩放至 {result.RecognitionWidth} × {result.RecognitionHeight} px。";
         CopyAllButton.IsEnabled = result.Text.Length > 0;
         UpdateEditorStats();
@@ -141,6 +146,7 @@ public partial class OcrResultWindow : Window
         }
         catch (Exception exception)
         {
+            DiagnosticLog.Error("OCR", exception, "复制 OCR 全文失败。");
             FooterStatusText.Text = exception.Message;
         }
     }
@@ -161,10 +167,41 @@ public partial class OcrResultWindow : Window
 
     private void OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control && OcrTextBox.IsKeyboardFocusWithin)
+        {
+            if (OcrTextBox.SelectionLength > 0) CopyEditorSelection();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.Escape)
         {
             Close();
             e.Handled = true;
+        }
+    }
+
+    private async void CopyEditorSelection()
+    {
+        try { await _clipboardService.CopyTextAsync(OcrTextBox.SelectedText); }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("OCR", exception, "复制 OCR 编辑区选中文字失败。");
+            FooterStatusText.Text = "复制未完成，选区已保留，请重试。";
+        }
+    }
+
+    private async void OnCopyRawClick(object sender, RoutedEventArgs e)
+    {
+        if (_rawResult is null || _rawResult.Text.Length == 0) return;
+        try
+        {
+            await _clipboardService.CopyTextAsync(_rawResult.Text);
+            FooterStatusText.Text = "已按原始识别顺序和换行复制全文。";
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Error("OCR", exception, "复制原始 OCR 全文失败。");
+            FooterStatusText.Text = "复制未完成，请重试。";
         }
     }
 

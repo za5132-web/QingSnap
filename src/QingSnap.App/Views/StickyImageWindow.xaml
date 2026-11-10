@@ -13,6 +13,10 @@
         Background="{DynamicResource ThemeImageBackdropBrush}"
         Foreground="{DynamicResource ThemeTextBrush}"
         PreviewKeyDown="OnPreviewKeyDown"
+        PreviewMouseDown="OnContentPreviewMouseDown"
+        PreviewMouseMove="OnContentPreviewMouseMove"
+        PreviewMouseUp="OnContentPreviewMouseUp"
+        LostMouseCapture="OnContentLostMouseCapture"
         PreviewMouseWheel="OnPreviewMouseWheel">
     <Window.Resources>
         <Style x:Key="PinAnnotationButton" TargetType="Button">
@@ -115,6 +119,10 @@
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="ItemChrome" Property="Opacity" Value="0.42" />
                             </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Accent" Property="Opacity" Value="1" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccentBrush}" />
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -178,9 +186,15 @@
             BorderBrush="{DynamicResource ThemeAccentBrush}"
             BorderThickness="1">
         <Border.ContextMenu>
-            <ContextMenu Style="{StaticResource PinContextMenu}">
+            <ContextMenu Style="{StaticResource PinContextMenu}" Opened="OnPinOcrMenuOpened">
+                <MenuItem x:Name="CopySelectedOcrMenuItem" Header="复制所选文字"
+                          InputGestureText="Ctrl+C" Visibility="Collapsed"
+                          Style="{StaticResource PinMenuItem}" Click="OnCopySelectedOcrClick" />
+                <MenuItem x:Name="CopyRawSelectedOcrMenuItem" Header="按原始换行复制"
+                          ToolTip="保留原始识别顺序、空格和换行，仅复制所选文字"
+                          Visibility="Collapsed" Style="{StaticResource PinMenuItem}"
+                          Click="OnCopyRawSelectedOcrClick" />
                 <MenuItem Header="复制图片"
-                          InputGestureText="Ctrl+C"
                           Style="{StaticResource PinMenuItem}"
                           Click="OnCopyClick" />
                 <MenuItem x:Name="AnnotateMenuItem" Header="标注图片"
@@ -192,6 +206,18 @@
                           Style="{StaticResource PinMenuItem}"
                           Click="OnRecognizeQrCodeClick" />
                 <Separator Style="{StaticResource PinMenuSeparator}" />
+                <MenuItem x:Name="FixedViewportMenuItem" Header="固定窗口阅读"
+                          InputGestureText="Ctrl+滚轮" IsCheckable="True"
+                          Style="{StaticResource PinMenuItem}" Click="OnFixedViewportClick" />
+                <MenuItem x:Name="ContentFitMenuItem" Header="内容适应窗口"
+                          Visibility="Collapsed" Style="{StaticResource PinMenuItem}"
+                          Click="OnContentFitClick" />
+                <MenuItem x:Name="ContentActualMenuItem" Header="内容原始大小  1:1"
+                          Visibility="Collapsed" Style="{StaticResource PinMenuItem}"
+                          Click="OnContentActualClick" />
+                <MenuItem x:Name="RestoreDefaultPinMenuItem" Header="恢复默认贴图"
+                          Visibility="Collapsed" Style="{StaticResource PinMenuItem}"
+                          Click="OnRestoreDefaultPinClick" />
                 <MenuItem x:Name="TopMenuItem"
                           Header="回到顶部"
                           InputGestureText="Home"
@@ -266,6 +292,7 @@
 
             <ScrollViewer x:Name="LongImageScroller"
                           Visibility="Collapsed"
+                          Background="Transparent"
                           HorizontalScrollBarVisibility="Hidden"
                           VerticalScrollBarVisibility="Hidden"
                           CanContentScroll="False"
@@ -273,7 +300,7 @@
                           ScrollChanged="OnLongImageScrollChanged">
                 <Grid x:Name="LongImageSurface"
                       HorizontalAlignment="Center"
-                      VerticalAlignment="Top">
+                      VerticalAlignment="Center">
                     <Image x:Name="LongPinnedImage"
                            Stretch="Fill"
                            SnapsToDevicePixels="True"
@@ -337,6 +364,7 @@
             </Grid>
 
             <Border x:Name="FeedbackBadge"
+                    IsHitTestVisible="False"
                     Margin="0,0,0,12"
                     Padding="10,5"
                     HorizontalAlignment="Center"

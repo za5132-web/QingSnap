@@ -223,6 +223,9 @@ public sealed class OcrService : IDisposable
             ScheduleEngineRecycleIfNeeded();
             stopwatch.Stop();
             result = result with { ElapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds };
+            // Prepare only derived text/reading order. Raw OCR and image coordinates
+            // remain unchanged, and no layout work is added to F1's startup path.
+            await OcrTextLayoutService.PrepareAsync(result, cancellationToken).ConfigureAwait(false);
             if (includeWordBoxes)
             {
                 cacheEntry.Detailed = result;

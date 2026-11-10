@@ -7,7 +7,8 @@ internal static class OcrTextSelectionBuilder
 {
     public static string Build(
         OcrRecognitionResult result,
-        IReadOnlySet<int> selectedWordIndices)
+        IReadOnlySet<int> selectedWordIndices,
+        bool preserveOriginalLineBreaks = false)
     {
         if (selectedWordIndices.Count == 0)
         {
@@ -15,20 +16,31 @@ internal static class OcrTextSelectionBuilder
         }
 
         var selectedLines = new List<string>();
-        foreach (var line in result.Lines.OrderBy(item => item.Index))
+        var fragments = new List<OcrTextFragment>();
+        var ordered = preserveOriginalLineBreaks
+            ? result.Lines.OrderBy(line => line.Index).Select((line, i) => new OcrLayoutLine(line, i, i))
+            : OcrTextLayoutService.Get(result).Lines;
+        foreach (var item in ordered)
         {
+            var line = item.Source;
             var words = line.Words.OrderBy(word => word.Index).ToArray();
             if (!words.Any(word => selectedWordIndices.Contains(word.Index)))
             {
                 continue;
             }
 
-            selectedLines.Add(TryBuildFromLineText(line.Text, words, selectedWordIndices, out var text)
+            var selectedText = TryBuildFromLineText(line.Text, words, selectedWordIndices, out var text)
                 ? text
-                : BuildFromGeometry(words, selectedWordIndices));
+                : BuildFromGeometry(words, selectedWordIndices);
+            selectedLines.Add(selectedText);
+            fragments.Add(new(item, OcrTextLayoutService.NormalizeSpacing(selectedText,
+                words.Where(word => selectedWordIndices.Contains(word.Index)).ToArray()),
+                words.All(word => selectedWordIndices.Contains(word.Index))));
         }
 
-        return string.Join(Environment.NewLine, selectedLines.Where(text => text.Length > 0));
+        return preserveOriginalLineBreaks
+            ? string.Join(Environment.NewLine, selectedLines.Where(text => text.Length > 0))
+            : OcrTextLayoutService.Compose(fragments);
     }
 
     private static bool TryBuildFromLineText(
@@ -81,6 +93,10 @@ internal static class OcrTextSelectionBuilder
             var runEnd = index - 1;
             var start = spans[runStart].Start;
             var end = spans[runEnd].End;
+            // Keep indentation/trailing whitespace when a selection reaches a
+            // line edge, but never append unselected non-whitespace characters.
+            if (runStart == 0 && string.IsNullOrWhiteSpace(lineText[..start])) start = 0;
+            if (runEnd == words.Count - 1 && string.IsNullOrWhiteSpace(lineText[end..])) end = lineText.Length;
             runs.Add(lineText[start..end]);
             runStart = -1;
         }

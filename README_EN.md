@@ -15,8 +15,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.6](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
-- [v1.1.6 release notes](docs/RELEASE_NOTES_v1.1.6.md)
+- [Download QingSnap v1.1.7](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
+- [v1.1.7 release notes](docs/RELEASE_NOTES_v1.1.7.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -87,6 +87,17 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.7
+
+- Two-layer pin zoom: the regular wheel still resizes the pin, while `Ctrl+wheel` zooms image content inside a fixed window.
+- In reading mode, use the wheel vertically, `Shift+wheel` horizontally, and Space+left-drag or middle-drag to pan. Ordinary reading pins toggle between full view and the last detail; long-image double-click behavior is preserved.
+- Text selection, QR hotspots, and annotations share image coordinates. Docking retains the reading position; copying/saving still exports the whole image.
+- Conservative OCR layout improves clear columns, wrapped prose, and spacing supported by character boxes. Drag selection follows reading order without including unselected text.
+- Raw-copy fallbacks preserve original line breaks. Editor changes and existing history OCR indexes remain intact. No translation engine or model dependency is added.
+- 423 passing regression tests; Release: zero warnings/errors. Complex layouts and real mixed-DPI hardware still need hands-on checks.
+
+![v1.1.7 fixed-window reading and OCR layout illustration](docs/images/qingsnap-v1.1.7-guide.png)
 
 ## What is new in v1.1.6
 

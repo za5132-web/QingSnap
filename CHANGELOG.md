@@ -3,6 +3,23 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.7] - 2026-11-10
+
+### 贴图阅读 / Pin reading
+
+- 新增固定窗口阅读：普通滚轮仍缩放窗口，Ctrl+滚轮缩放内部内容；支持横纵浏览、空格或中键平移、全图与细节切换及收纳阅读位置恢复。 Added fixed-window content zoom, two-axis browsing, Space/middle-drag panning, detail restoration and retained docking position without replacing ordinary wheel zoom.
+- 内容缩放期间只变换图片及选字/QR/标注共享层，结束后提交布局；窗口不连续缩放、不重新解码位图，原图复制/保存保持完整。 Content zoom transforms a shared visual layer and commits layout on completion, without per-frame window resizing or bitmap decoding; export remains full quality and uncropped.
+
+### OCR 排版 / OCR layout
+
+- 基于现有识别结果保守整理明确分栏、自然折行和有字框证据的异常空格；跨行选择按阅读顺序处理，保留原始识别文字、编号、坐标和历史索引。 Added conservative reading order, prose-wrap and spacing cleanup while retaining raw OCR, IDs, geometry and history indexes.
+- 增加原始换行复制兜底；OCR 编辑区仍可修改并复制当前内容，排版在后台预计算并弱缓存，不新增模型或翻译依赖。 Added raw-copy fallbacks and background weak-cached layout while preserving editor changes, without new models or translation dependencies.
+
+### 验证 / Validation
+
+- 完整 Release 0 Warning / 0 Error；423 项串行回归通过，另排除 1 项会改真实 Windows Startup 的旧迁移测试，不计作通过。 Full Release: zero warnings/errors; 423 passing serial tests; one existing test that writes real Windows Startup excluded and not counted as passing.
+- 包含合成示意图。复杂表格、竖排、旋转、错误字框及真实多 DPI 的恢复效果仍需核对；本地未确认冷启动试验不在发布范围。 Includes a synthetic illustration. Complex layouts and real mixed-DPI hardware still require review; unconfirmed local cold-start experiments remain excluded.
+
 ## [1.1.6] - 2026-11-09
 
 ### 长截图 / Scrolling capture

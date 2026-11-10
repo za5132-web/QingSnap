@@ -282,6 +282,15 @@ public partial class StickyImageWindow
     private void OnZoomPreviewWheel(int delta, int modifiers, DrawingPoint point)
     {
         if (_isPinClosed) return;
+        if (((ModifierKeys)modifiers).HasFlag(ModifierKeys.Control))
+        {
+            DeferZoomInteraction(() =>
+            {
+                EnterFixedViewport();
+                SetReaderScale(PinMotionMath.WheelTarget(_readerScale, delta), true);
+            });
+            return;
+        }
         if (_isEditingPin && !((ModifierKeys)modifiers).HasFlag(ModifierKeys.Control))
         {
             DeferZoomInteraction(() => ForwardZoomWheel(delta, modifiers, point));

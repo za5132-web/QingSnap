@@ -10,7 +10,7 @@ namespace QingSnap.App.Views;
 
 public partial class StickyImageWindow
 {
-    private enum PinMotionKind { None, Zoom, Dock, Reveal }
+    private enum PinMotionKind { None, Zoom, Dock, Reveal, ContentZoom }
 
     private Action<double>? _pinMotionFrame;
     private Action? _pinMotionCompleted;

@@ -14,8 +14,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.6 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
-- [v1.1.6 リリースノート](docs/RELEASE_NOTES_v1.1.6.md)
+- [QingSnap v1.1.7 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
+- [v1.1.7 リリースノート](docs/RELEASE_NOTES_v1.1.7.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -41,6 +41,16 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.7
+
+- ピンに二層ズームを追加。通常のホイール操作はウィンドウを拡大縮小し、`Ctrl+ホイール` はウィンドウを固定して画像内部を拡大します。
+- 閲覧中は縦横スクロール、Space+左ドラッグまたは中ボタンドラッグで移動できます。通常の閲覧ピンはダブルクリックで全体と前の詳細に切り替え、長い画像の既存操作は維持します。
+- 文字選択、QR ホットスポット、注釈は画像座標に追従。収納後も閲覧位置を復元し、コピー・保存では画像全体を出力します。
+- OCR の明確な段組み、本文の折り返し、文字枠で裏付けられた空白を保守的に整理。元の改行でコピーでき、手動編集と履歴索引を変更しません。
+- 回帰テスト 423 件合格、Release は警告・エラーともにゼロ。複雑なレイアウトは確認が必要で、翻訳や新しいモデル依存は追加していません。
+
+![v1.1.7 固定ウィンドウ閲覧と OCR レイアウト](docs/images/qingsnap-v1.1.7-guide.png)
 
 ## v1.1.6
 

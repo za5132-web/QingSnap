@@ -138,7 +138,11 @@ public sealed class PinZoomPreviewTests
             try
             {
                 if (Application.Current is null)
-                    _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                {
+                    var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+                    app.Resources["UiFont"] = new FontFamily("Segoe UI");
+                    app.Resources["DataFont"] = new FontFamily("Consolas");
+                }
                 action();
             }
             catch (Exception exception) { failure = exception; }

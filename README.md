@@ -15,8 +15,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.6](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
-- [查看 v1.1.6 发布说明](docs/RELEASE_NOTES_v1.1.6.md)
+- [下载 QingSnap v1.1.7](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
+- [查看 v1.1.7 发布说明](docs/RELEASE_NOTES_v1.1.7.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -87,6 +87,19 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 支持列表/图标模式、多选、批量收藏、标签、复制路径和删除到回收站。
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
+
+## v1.1.7 更新内容
+
+- 贴图新增双层缩放：普通滚轮仍缩放窗口，`Ctrl+滚轮` 进入固定窗口阅读，只放大内部图片。
+- 阅读时滚轮上下、`Shift+滚轮` 左右查看，空格加左键或中键拖动平移；普通阅读窗双击切换全图与上次细节，长图保持原有切换。
+- 选字、二维码和标注跟随原图坐标；收纳恢复保留阅读位置，复制/保存仍输出完整图片。
+- OCR 新增保守排版：改善明确分栏的顺序、正文自然折行和有字框证据的异常空格；贴图跨行选择遵循阅读顺序。
+- 选字后右键可按原始换行复制；OCR 结果窗右键“复制全文”按钮可取原始全文，手动编辑与历史索引不被改写。
+- 423 项回归通过，Release 零警告、零错误；复杂版式仍需核对，不新增翻译或模型依赖。
+
+![v1.1.7 固定窗口阅读与 OCR 排版示意](docs/images/qingsnap-v1.1.7-guide.png)
+
+[操作说明与边界](docs/PIN_READING_AND_OCR_LAYOUT.md)
 
 ## v1.1.6 更新内容
 
@@ -199,7 +212,7 @@ dotnet run --project src\QingSnap.App\QingSnap.App.csproj
 ## 文档
 
 - [完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
-- [v1.1.6 发布说明](docs/RELEASE_NOTES_v1.1.6.md)
+- [v1.1.7 发布说明](docs/RELEASE_NOTES_v1.1.7.md)
 - [v1.1.4 发布说明](docs/RELEASE_NOTES_v1.1.4.md)
 - [更新日志](CHANGELOG.md)
 - [OCR 模块说明](docs/OCR_MODULE.md)

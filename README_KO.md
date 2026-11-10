@@ -14,8 +14,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.6 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.6/QingSnap-v1.1.6.zip)
-- [v1.1.6 릴리스 노트](docs/RELEASE_NOTES_v1.1.6.md)
+- [QingSnap v1.1.7 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
+- [v1.1.7 릴리스 노트](docs/RELEASE_NOTES_v1.1.7.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -41,6 +41,16 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.7 업데이트
+
+- 핀에 이중 확대/축소를 추가했습니다. 일반 휠은 창 크기를 바꾸고, `Ctrl+휠`은 창을 고정한 채 내부 이미지만 확대합니다.
+- 읽기 모드에서 세로/가로 스크롤과 Space+왼쪽 드래그 또는 가운데 버튼 드래그를 지원합니다. 일반 읽기 핀은 더블 클릭으로 전체와 이전 세부 보기를 전환하고 긴 이미지의 기존 동작은 유지합니다.
+- 텍스트 선택, QR 영역, 주석은 이미지 좌표를 따릅니다. 보관 후 읽던 위치를 복원하며 복사/저장은 전체 이미지를 출력합니다.
+- 명확한 다단 배치, 본문 줄바꿈 및 글자 좌표로 확인되는 공백을 보수적으로 정리합니다. 원래 줄바꿈 복사를 제공하고 수동 편집과 기록 색인은 변경하지 않습니다.
+- 회귀 테스트 423개 통과, Release 경고/오류 없음. 복잡한 레이아웃은 확인이 필요하며 번역이나 새 모델 의존성은 추가하지 않았습니다.
+
+![v1.1.7 고정 창 읽기와 OCR 레이아웃](docs/images/qingsnap-v1.1.7-guide.png)
 
 ## v1.1.6 업데이트
 
