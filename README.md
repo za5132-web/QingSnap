@@ -6,6 +6,8 @@
 
 QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截图、精确选区、可编辑标注、自动长截图、桌面贴图、离线识别和全量历史串成一条顺手的工作流。
 
+> 如果轻截让你的截图、贴图顺手了一点，欢迎点亮右上角的 **⭐ Star**，给这个小工具一点鼓励。也欢迎把它分享给需要的朋友，谢谢支持！
+
 ![QingSnap v1.1.1 七步首次使用教程](docs/images/qingsnap-first-run-tutorial.png)
 
 [![Release](https://img.shields.io/github/v/release/za5132-web/QingSnap?label=Release&color=67d9ea)](https://github.com/za5132-web/QingSnap/releases/latest)

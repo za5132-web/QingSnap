@@ -6,6 +6,8 @@
 
 QingSnap は Windows 10/11 向けの軽量スクリーンショットツールです。スマート選択、ピクセル単位の調整、編集可能な注釈、スクロールキャプチャ、デスクトップピン、オフライン認識、履歴検索を一つのワークフローにまとめています。
 
+> QingSnap が日々のキャプチャやピン留めに役立ったら、右上の **⭐ Star** で応援していただけるとうれしいです。必要としているお友達にもぜひ紹介してください。いつも応援ありがとうございます！
+
 ![QingSnap v1.1.1 7ステップ初回ガイド](docs/images/qingsnap-first-run-tutorial.png)
 
 [![Release](https://img.shields.io/github/v/release/za5132-web/QingSnap?label=Release&color=67d9ea)](https://github.com/za5132-web/QingSnap/releases/latest)

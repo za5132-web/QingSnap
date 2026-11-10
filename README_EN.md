@@ -6,6 +6,8 @@
 
 QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines smart capture, pixel-precise selection, editable annotations, scrolling screenshots, desktop pins, offline recognition, and full-history search in one workflow.
 
+> If QingSnap makes capturing or pinning images a little easier, consider giving it a **⭐ Star** in the top-right corner. It is a small encouragement to keep improving this tool. Feel free to share it with a friend who might find it useful. Thank you!
+
 ![QingSnap v1.1.1 seven-step first-run guide](docs/images/qingsnap-first-run-tutorial.png)
 
 [![Release](https://img.shields.io/github/v/release/za5132-web/QingSnap?label=Release&color=67d9ea)](https://github.com/za5132-web/QingSnap/releases/latest)
