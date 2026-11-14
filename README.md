@@ -17,8 +17,8 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 
 ## 下载
 
-- [下载 QingSnap v1.1.7](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
-- [查看 v1.1.7 发布说明](docs/RELEASE_NOTES_v1.1.7.md)
+- [下载 QingSnap v1.1.8](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
+- [查看 v1.1.8 发布说明](docs/RELEASE_NOTES_v1.1.8.md)
 - [查看完整功能清单](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 下载 ZIP 后解压，运行 `QingSnap.exe`。这是免安装便携包，需要系统已安装 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。
@@ -89,6 +89,16 @@ QingSnap 是一款面向 Windows 10/11 的轻量截图工具。它把智能截�
 - 支持列表/图标模式、多选、批量收藏、标签、复制路径和删除到回收站。
 - 记录截图来源与物理选区，可贴图对照，也可“再次截取此位置”。
 - 数据库损坏时不会影响图片文件，可扫描历史目录重建基础索引。
+
+## v1.1.8 更新内容
+
+- 修复截图完成时，历史图片编码、磁盘保存和每日清理必须先于剪贴板复制完成的阻塞流程。
+- 优先提交复制，历史文件在后台独立保存；仅在复制真实成功后显示一次提示，不再等待历史保存。
+- 保留重试、图片格式与选区信息；避免同毫秒文件名覆盖，退出时等待已入队的文件保存。
+- 新增分段耗时日志，便于区分历史清理、剪贴板排队、发布和持久化延迟。外部程序持续占用仍可能等待，不承诺零延迟。
+- 436 项回归通过，Release 零警告、零错误；设置、OCR 模块与历史数据保持兼容。
+
+![v1.1.8 优先复制与后台保存流程示意](docs/images/qingsnap-v1.1.8-guide.png)
 
 ## v1.1.7 更新内容
 

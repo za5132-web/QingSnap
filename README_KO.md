@@ -16,8 +16,8 @@ QingSnap은 Windows 10/11용 경량 스크린샷 도구입니다. 스마트 선�
 
 ## 다운로드
 
-- [QingSnap v1.1.7 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
-- [v1.1.7 릴리스 노트](docs/RELEASE_NOTES_v1.1.7.md)
+- [QingSnap v1.1.8 다운로드](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
+- [v1.1.8 릴리스 노트](docs/RELEASE_NOTES_v1.1.8.md)
 - [전체 기능 목록(중국어)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)이 필요합니다. 릴리스는 자체 서명이므로 GitHub Release에서만 내려받고 SHA-256을 확인하세요.
@@ -43,6 +43,16 @@ ZIP 압축을 풀고 `QingSnap.exe`를 실행하세요. [.NET 8 Desktop Runtime]
 - **오프라인 OCR / QR**: OCR Tiny/Small은 필요할 때 한 번에 설치하고, QR은 OCR 없이 완전 오프라인으로 동작합니다.
 - **전체 기록 검색**: SQLite 메타데이터, 태그, 출처, 페이지 로딩, 가상화, 다중 선택, 일괄 작업과 재캡처.
 - **다중 모니터**: Per-Monitor V2, 혼합 DPI, 음수 가상 화면 좌표 지원.
+
+## v1.1.8 업데이트
+
+- 캡처 후 이미지 인코딩·디스크 저장·일일 기록 정리가 끝나야 복사를 시작하던 처리 순서를 수정했습니다.
+- 클립보드 복사를 먼저 요청하고 기록은 백그라운드에서 독립적으로 저장합니다. 실제 복사 성공 후 한 번만 알리고 기록 저장 완료를 기다리지 않습니다.
+- 재시도, 이미지 형식, 캡처 영역 정보를 유지합니다. 같은 밀리초의 파일명 충돌을 방지하고 종료 시 대기 중인 파일 저장을 기다립니다.
+- 단계별 소요 시간 로그를 추가했습니다. 다른 프로그램이 클립보드를 계속 점유하면 지연될 수 있으며 지연이 전혀 없다고 보장하지 않습니다.
+- 회귀 테스트 436개 통과, Release 경고·오류 없음. 기존 설정, OCR 모듈, 기록 데이터와 호환됩니다.
+
+![v1.1.8 복사 우선과 백그라운드 저장 흐름](docs/images/qingsnap-v1.1.8-guide.png)
 
 ## v1.1.7 업데이트
 

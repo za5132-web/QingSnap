@@ -31,6 +31,11 @@ public sealed class CaptureHistoryService : IDisposable
     private DateTime _lastCleanupDate;
     private readonly object _favoritesSync = new();
     private readonly object _searchIndexSync = new();
+    private readonly object _captureSaveSync = new();
+    private readonly object _imageSaveSync = new();
+    private readonly object _cleanupSync = new();
+    private Task _pendingCaptureSave = Task.CompletedTask;
+    private DateTime _lastCaptureSaveTime;
     private bool _disposed;
 
     public CaptureHistoryService(AppSettingsService settingsService)
@@ -52,19 +57,61 @@ public sealed class CaptureHistoryService : IDisposable
 
     private string SearchIndexDirectory => Path.Combine(HistoryDirectory, ".qingsnap-index");
 
-    public string Save(BitmapSource image, CaptureHistoryContext? context = null)
+    public Task<string> SaveAsync(BitmapSource image, CaptureHistoryContext? context = null)
+    {
+        if (!image.IsFrozen)
+        {
+            throw new ArgumentException("后台保存的截图必须已冻结。", nameof(image));
+        }
+
+        lock (_captureSaveSync)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            var settings = _settingsService.Current;
+            // Preserve capture order, even if a previous save failed. None prevents
+            // encoding from running inline on the screenshot/UI thread.
+            var save = _pendingCaptureSave.ContinueWith(
+                _ => SaveCore(image, context, settings),
+                CancellationToken.None,
+                TaskContinuationOptions.None,
+                TaskScheduler.Default);
+            _pendingCaptureSave = save;
+            return save;
+        }
+    }
+
+    public string Save(BitmapSource image, CaptureHistoryContext? context = null) =>
+        SaveCore(image, context, _settingsService.Current);
+
+    private string SaveCore(BitmapSource image, CaptureHistoryContext? context, AppSettings settings)
+    {
+        lock (_imageSaveSync)
+        {
+            return SaveImageFile(image, context, settings);
+        }
+    }
+
+    private string SaveImageFile(BitmapSource image, CaptureHistoryContext? context, AppSettings settings)
     {
         var now = DateTime.Now;
-        var monthDirectory = Path.Combine(HistoryDirectory, now.ToString("yyyy-MM"));
+        now = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerMillisecond, now.Kind);
+        // Small captures can finish within the same millisecond now that saving is
+        // queued. Keep the existing filename format without overwriting a prior file.
+        if (now <= _lastCaptureSaveTime)
+        {
+            now = _lastCaptureSaveTime.AddMilliseconds(1);
+        }
+        _lastCaptureSaveTime = now;
+        var monthDirectory = Path.Combine(settings.HistoryDirectory, now.ToString("yyyy-MM"));
         Directory.CreateDirectory(monthDirectory);
 
         CleanupExpiredItems();
-        var format = _settingsService.Current.OutputFormat;
+        var format = settings.OutputFormat;
         var extension = format == "JPG" ? ".jpg" : format == "BMP" ? ".bmp" : ".png";
         var path = Path.Combine(monthDirectory, $"{now:yyyyMMdd_HHmmss_fff}{extension}");
         BitmapEncoder encoder = format switch
         {
-            "JPG" => new JpegBitmapEncoder { QualityLevel = _settingsService.Current.JpegQuality },
+            "JPG" => new JpegBitmapEncoder { QualityLevel = settings.JpegQuality },
             "BMP" => new BmpBitmapEncoder(),
             _ => new PngBitmapEncoder()
         };
@@ -199,12 +246,23 @@ public sealed class CaptureHistoryService : IDisposable
 
     private void CleanupExpiredItems()
     {
+        // A history query and an asynchronous capture save may now arrive together.
+        // Only one of them may run the daily scan/recycle pass.
+        lock (_cleanupSync)
+        {
+            CleanupExpiredItemsCore();
+        }
+    }
+
+    private void CleanupExpiredItemsCore()
+    {
         var retentionDays = _settingsService.Current.HistoryRetentionDays;
         if (retentionDays <= 0 || _lastCleanupDate == DateTime.Today)
         {
             return;
         }
 
+        using var timing = DiagnosticLog.Measure("HistoryCleanup", "Daily history retention scan/recycle");
         Directory.CreateDirectory(HistoryDirectory);
         var cutoff = DateTime.Now.AddDays(-retentionDays);
         foreach (var file in EnumerateImageFiles())
@@ -857,12 +915,29 @@ public sealed class CaptureHistoryService : IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
+        Task pendingSave;
+        lock (_captureSaveSync)
         {
-            return;
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            pendingSave = _pendingCaptureSave;
         }
 
-        _disposed = true;
+        try
+        {
+            if (!pendingSave.Wait(TimeSpan.FromSeconds(10)))
+            {
+                DiagnosticLog.Warning("History", "退出时等待截图文件保存超过 10 秒；请检查历史目录所在磁盘。");
+            }
+        }
+        catch (AggregateException exception)
+        {
+            DiagnosticLog.Error("History", exception, "退出时发现截图文件保存失败。");
+        }
         _settingsService.SettingsChanged -= OnSettingsChanged;
         _migrationCancellation.Cancel();
         Task migrationTask;

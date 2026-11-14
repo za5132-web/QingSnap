@@ -16,8 +16,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.7 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
-- [v1.1.7 リリースノート](docs/RELEASE_NOTES_v1.1.7.md)
+- [QingSnap v1.1.8 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
+- [v1.1.8 リリースノート](docs/RELEASE_NOTES_v1.1.8.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -43,6 +43,16 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.8
+
+- キャプチャ後、画像のエンコード・保存・毎日の履歴整理が終わるまでコピーを開始できなかった処理順を修正しました。
+- コピーを先にキューへ送り、履歴はバックグラウンドで独立して保存します。実際のコピー成功後に一度だけ通知し、保存完了は待ちません。
+- 再試行、画像形式、選択範囲を維持。同一ミリ秒のファイル名衝突を防ぎ、終了時はキュー内の保存を待機します。
+- 段階別の所要時間を記録します。他のアプリによる占有では待ち時間が発生する場合があり、遅延ゼロは保証しません。
+- 回帰テスト 436 件成功、Release の警告・エラーなし。既存の設定、OCR、履歴データとの互換性を維持しています。
+
+![v1.1.8 コピー優先とバックグラウンド保存](docs/images/qingsnap-v1.1.8-guide.png)
 
 ## v1.1.7
 

@@ -17,8 +17,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.7](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
-- [v1.1.7 release notes](docs/RELEASE_NOTES_v1.1.7.md)
+- [Download QingSnap v1.1.8](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
+- [v1.1.8 release notes](docs/RELEASE_NOTES_v1.1.8.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -89,6 +89,16 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.8
+
+- Removes image encoding, disk writes, and daily history cleanup from the path that must finish before a capture can be copied.
+- Queues the clipboard copy first and saves history independently in the background. Success is shown once, only after a real successful copy, without waiting for history.
+- Preserves retries, image formats, and region data; prevents same-millisecond filename collisions and waits for queued file saves on exit.
+- Adds phase timings to distinguish cleanup, queue, publication, and persistence delays. External clipboard contention can still cause waiting; zero latency is not promised.
+- 436 passing regression tests; Release: zero warnings/errors. Existing settings, OCR modules, and history stay compatible.
+
+![v1.1.8 clipboard-first and background-save flow](docs/images/qingsnap-v1.1.8-guide.png)
 
 ## What is new in v1.1.7
 

@@ -44,6 +44,7 @@ public sealed class CaptureCoordinator
     }
 
     public event EventHandler<CaptureResult>? CaptureCompleted;
+    public event EventHandler? CaptureClipboardReady;
     public event EventHandler<string>? CaptureFailed;
     public event EventHandler<int>? CaptureDelayStarted;
 
@@ -500,27 +501,46 @@ public sealed class CaptureCoordinator
         CaptureHistoryContext? sourceMetadata = null,
         IReadOnlyList<string>? tags = null)
     {
-        var (imagePath, savedRegion) = SaveCaptureToHistory(
-            image,
-            region,
-            prefetchedOcr,
-            isLongCapture,
-            sourceMetadata,
-            tags);
-        var copyRequested = forceCopy || _settingsService.Current.AutoCopy;
-        var copiedToClipboard = false;
-        if (copyRequested)
+        var latency = Stopwatch.StartNew();
+        if (!image.IsFrozen)
         {
-            try
-            {
-                await _clipboardService.CopyCaptureImageAsync(image, savedRegion);
-                copiedToClipboard = true;
-            }
-            catch (Exception exception)
-            {
-                DiagnosticLog.Error("Clipboard", exception, "截图已保存，但复制到剪贴板失败。");
-            }
+            image = image.Clone();
+            image.Freeze();
         }
+        var savedRegion = CaptureRegion.FromRectangle(region);
+        var captureMetadata = sourceMetadata ?? CaptureSourceMetadataService.Create(region, isLongCapture);
+        var copyRequested = forceCopy || _settingsService.Current.AutoCopy;
+        async Task<string> SaveAndRegisterAsync()
+        {
+            var path = await _historyService.SaveAsync(image, captureMetadata);
+            RegisterSavedCapture(image, path, savedRegion, prefetchedOcr, tags);
+            DiagnosticLog.Info("CaptureCompletion", $"historySaved={latency.Elapsed.TotalMilliseconds:F1}ms.");
+            return path;
+        }
+        var outcome = await CaptureCompletionOperation.RunAsync(
+            SaveAndRegisterAsync,
+            copyRequested ? () => _clipboardService.CopyCaptureImageAsync(image, savedRegion) : null,
+            () =>
+            {
+                DiagnosticLog.Info("CaptureCompletion", $"clipboardReady={latency.Elapsed.TotalMilliseconds:F1}ms.");
+                CaptureClipboardReady?.Invoke(this, EventArgs.Empty);
+            });
+        var copiedToClipboard = copyRequested && outcome.CopyError is null;
+        if (outcome.CopyError is { } copyError)
+        {
+            DiagnosticLog.Error("Clipboard", copyError, "截图复制到剪贴板失败；历史文件独立保存。");
+        }
+        if (outcome.SaveError is { } saveError)
+        {
+            DiagnosticLog.Error("Capture", saveError, "截图历史文件保存失败；剪贴板复制独立执行。");
+            CaptureFailed?.Invoke(this, copiedToClipboard
+                ? "图片已复制，但保存截图记录失败，请检查历史目录。"
+                : "保存截图记录失败，请检查历史目录后重试。");
+            return;
+        }
+
+        var imagePath = outcome.ImagePath!;
+        DiagnosticLog.Info("CaptureCompletion", $"completed={latency.Elapsed.TotalMilliseconds:F1}ms; copied={copiedToClipboard}.");
         CaptureCompleted?.Invoke(
             this,
             new CaptureResult(
@@ -604,19 +624,29 @@ public sealed class CaptureCoordinator
     {
         var captureMetadata = sourceMetadata ?? CaptureSourceMetadataService.Create(region, isLongCapture);
         var imagePath = _historyService.Save(image, captureMetadata);
+        var savedRegion = CaptureRegion.FromRectangle(region);
+        RegisterSavedCapture(image, imagePath, savedRegion, prefetchedOcr, tags);
+        return (imagePath, savedRegion);
+    }
+
+    private void RegisterSavedCapture(
+        System.Windows.Media.Imaging.BitmapSource image,
+        string imagePath,
+        CaptureRegion savedRegion,
+        Task<OcrRecognitionResult>? prefetchedOcr,
+        IReadOnlyList<string>? tags)
+    {
         if (tags is { Count: > 0 })
         {
             _ = AttachCaptureTagsAsync(imagePath, tags);
         }
         _historyOcrIndexer.EnqueueCapture(imagePath, prefetchedOcr);
-        var savedRegion = CaptureRegion.FromRectangle(region);
         _stateStore.SaveLastRegion(savedRegion);
         _pinHistory.AddCapture(image, imagePath, savedRegion);
         _historyWindow?.RefreshHistory();
         DiagnosticLog.Info(
             "Capture",
             $"Saved {image.PixelWidth}x{image.PixelHeight} capture to history; format={_settingsService.Current.OutputFormat}.");
-        return (imagePath, savedRegion);
     }
 
     private async Task AttachCaptureTagsAsync(string imagePath, IReadOnlyList<string> tags)

@@ -60,11 +60,15 @@ public sealed class TrayIconService : IDisposable
 
     public event EventHandler? ExitRequested;
 
+    public void ShowCaptureClipboardReady() => _toastNotifications.ShowSuccess("已复制到剪贴板");
+
     public void ShowCaptureCompleted(CaptureResult result)
     {
         if (result.CopiedToClipboard)
         {
-            _toastNotifications.ShowSuccess("已复制到剪贴板");
+            // The ready notification is sent as soon as the clipboard write succeeds,
+            // without waiting for image encoding/history persistence. Do not repeat it.
+            return;
         }
         else if (result.CopyRequested)
         {

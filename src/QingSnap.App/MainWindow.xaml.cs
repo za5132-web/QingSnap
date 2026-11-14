@@ -193,6 +193,7 @@ public partial class MainWindow : Window
         ConfigureTray();
         _captureCoordinator.CaptureCompleted += (_, result) =>
             _tray?.ShowCaptureCompleted(result);
+        _captureCoordinator.CaptureClipboardReady += (_, _) => _tray?.ShowCaptureClipboardReady();
         _captureCoordinator.CaptureFailed += (_, message) => _tray?.ShowError(message);
         _captureCoordinator.CaptureDelayStarted += (_, seconds) => _tray?.ShowDelay(seconds);
         _settingsService.SettingsChanged += OnSettingsChanged;

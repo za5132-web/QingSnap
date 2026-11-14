@@ -26,11 +26,18 @@ public sealed class ClipboardService : IDisposable
     };
     private readonly StaClipboardQueue _queue = new();
 
-    public Task CopyImageAsync(BitmapSource image) =>
-        _queue.InvokeAsync(() => SetImage(FreezeImage(image), null));
+    public Task CopyImageAsync(BitmapSource image) => QueueImageCopy(image, null);
 
     public Task CopyCaptureImageAsync(BitmapSource image, CaptureRegion region) =>
-        _queue.InvokeAsync(() => SetImage(FreezeImage(image), region));
+        QueueImageCopy(image, region);
+
+    private Task QueueImageCopy(BitmapSource image, CaptureRegion? region)
+    {
+        // Clone/freeze on the source dispatcher, not on the clipboard worker.
+        var frozen = FreezeImage(image);
+        var latency = Stopwatch.StartNew();
+        return _queue.InvokeAsync(() => SetImage(frozen, region, latency));
+    }
 
     public Task<ClipboardImageContent?> TryGetImageAsync() =>
         _queue.InvokeAsync(TryGetImageCore);
@@ -185,8 +192,9 @@ public sealed class ClipboardService : IDisposable
         return normalized;
     }
 
-    private static void SetImage(BitmapSource image, CaptureRegion? region)
+    private static void SetImage(BitmapSource image, CaptureRegion? region, Stopwatch latency)
     {
+        var queuedMilliseconds = latency.Elapsed.TotalMilliseconds;
         var data = new System.Windows.DataObject();
         data.SetImage(image);
         if (region is not null)
@@ -199,10 +207,12 @@ public sealed class ClipboardService : IDisposable
         // Publish first without forcing an immediate flush. Clipboard managers frequently hold
         // OpenClipboard for a short period; tying publication and flush together turns a harmless
         // persistence delay into a failed screenshot copy.
+        var publishStart = latency.Elapsed.TotalMilliseconds;
         ExecuteWithClipboardRetry(
             () => System.Windows.Clipboard.SetDataObject(data, false),
             ClipboardWriteTimeout,
             "复制图片");
+        var publishedAt = latency.Elapsed.TotalMilliseconds;
 
         try
         {
@@ -218,6 +228,13 @@ public sealed class ClipboardService : IDisposable
             DiagnosticLog.Warning(
                 "Clipboard",
                 $"图片已经复制，但暂时无法持久化；程序运行期间仍可正常粘贴。{DescribeClipboardOwner()} {exception.Message}");
+        }
+        finally
+        {
+            DiagnosticLog.Info("ClipboardLatency",
+                $"queue={queuedMilliseconds:F1}ms; prepare={publishStart - queuedMilliseconds:F1}ms; " +
+                $"publish={publishedAt - publishStart:F1}ms; flush={latency.Elapsed.TotalMilliseconds - publishedAt:F1}ms; " +
+                $"total={latency.Elapsed.TotalMilliseconds:F1}ms.");
         }
     }
 

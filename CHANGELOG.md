@@ -3,6 +3,19 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.8] - 2026-11-14
+
+### 截图完成与复制 / Capture completion
+
+- 优先提交剪贴板复制，历史图片编码、文件写入和每日过期记录清理独立在后台执行，不再作为复制前置条件。 Queue clipboard copying first and persist history independently in the background, removing encoding, disk writes and daily retention cleanup from the copy prerequisite.
+- 仅在真实复制成功后显示一次提示；保存与复制的失败分别处理，保留原图片格式、坐标数据、重试及持久化。 Show one toast after an actual successful copy; handle save/copy failures independently while retaining formats, region data, retries and persistence.
+- 异步文件保存串行排序，避免同毫秒小截图覆盖；退出等待待写文件。每日清理互斥防止重复执行，补充分段耗时日志，不记录图片或文字内容。 Serialize queued file writes, prevent same-millisecond filename collisions, drain saves on exit, serialize daily cleanup, and log phase timings without image/text content.
+
+### 验证 / Validation
+
+- 完整 Release 0 Warning / 0 Error；436 项回归通过，含新增 13 项。另排除 1 项会修改真实 Windows Startup 的旧迁移测试，未计作通过。 Full Release: zero warnings/errors; 436 passing tests, including 13 new cases. One existing real-Startup-writing migration test excluded and not counted as passing.
+- 附合成示意图；外部剪贴板占用或系统持久化仍可能等待，隔夜场景需要继续真实验证。不纳入未确认冷启动试验，不改数据库 Schema、设置字段或 OCR 依赖。 Includes a synthetic illustration. Clipboard contention and system persistence can still delay copying; overnight behavior still needs real-world checks. No unconfirmed cold-start experiments, schema/config changes or OCR dependencies are included.
+
 ## [1.1.7] - 2026-11-10
 
 ### 贴图阅读 / Pin reading

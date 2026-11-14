@@ -16,8 +16,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.7](https://github.com/za5132-web/QingSnap/releases/download/v1.1.7/QingSnap-v1.1.7.zip)
-- [v1.1.7 發布說明](docs/RELEASE_NOTES_v1.1.7.md)
+- [下載 QingSnap v1.1.8](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
+- [v1.1.8 發布說明](docs/RELEASE_NOTES_v1.1.8.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -43,6 +43,16 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.8 更新
+
+- 修正圖片編碼、磁碟儲存及每日歷史清理必須先於剪貼簿複製完成的阻塞流程。
+- 優先提交複製，歷史檔案在背景獨立儲存；僅在複製真正成功後提示一次，不等候歷史儲存。
+- 保留重試、圖片格式與選區資料；避免同毫秒檔名覆寫，退出時等候已排程的檔案儲存。
+- 新增分段耗時日誌；其他程式持續占用剪貼簿時仍可能等候，不保證零延遲。
+- 436 項回歸通過，Release 零警告、零錯誤；相容既有設定、OCR 與歷史資料。
+
+![v1.1.8 優先複製與背景儲存示意](docs/images/qingsnap-v1.1.8-guide.png)
 
 ## v1.1.7 更新
 
