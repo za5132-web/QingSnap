@@ -1,5 +1,7 @@
 # QingSnap
 
+> **Translation experiment branch — not a stable update.** [Download preview](https://github.com/za5132-web/QingSnap/releases/tag/translation-preview-20261116) · [Trial guide](docs/BAIDU_TRANSLATION_TRIAL.md). Use the trial tray menu by default; translation requires your own Baidu credentials and sends text only on request. Stable downloads remain on main / Latest.
+
 [<kbd>简体中文</kbd>](README.md)　[<kbd>English</kbd>](README_EN.md)　[<kbd>繁體中文</kbd>](README_ZH_TW.md)　[<kbd>日本語</kbd>](README_JA.md)　[<kbd>한국어</kbd>](README_KO.md)
 
 > Capture precisely, stitch beyond the screen, and keep references pinned. Install offline OCR only when you need it.

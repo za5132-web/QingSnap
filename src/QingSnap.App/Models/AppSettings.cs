@@ -18,6 +18,12 @@ public sealed record AppSettings
 
     public bool AutoCheckUpdates { get; init; } = true;
 
+    public bool TranslationEnabled { get; init; }
+
+    public bool TranslationCloudConsent { get; init; }
+
+    public string TranslationTargetLanguage { get; init; } = "zh";
+
     public string HistoryDirectory { get; init; } = string.Empty;
 
     public int HistoryRetentionDays { get; init; }

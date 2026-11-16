@@ -13,7 +13,9 @@ public static class DiagnosticLog
 {
     private const long MaximumLogBytes = 4L * 1024L * 1024L;
     private static readonly object Sync = new();
-    private static readonly string LogDirectory = Path.Combine(
+    private static readonly string LogDirectory = TranslationTrialEnvironment.IsTrial
+        ? Path.Combine(TranslationTrialEnvironment.RootDirectory, "Logs")
+        : Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "QingSnap",
         "Logs");

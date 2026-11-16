@@ -32,7 +32,9 @@ public partial class App : System.Windows.Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         base.OnStartup(e);
 
-        _singleInstanceMutex = new Mutex(true, SingleInstanceMutexName, out var isFirstInstance);
+        _singleInstanceMutex = new Mutex(true,
+            TranslationTrialEnvironment.IsTrial ? TranslationTrialEnvironment.MutexName : SingleInstanceMutexName,
+            out var isFirstInstance);
         _ownsSingleInstanceMutex = isFirstInstance;
         if (!isFirstInstance)
         {
@@ -54,6 +56,10 @@ public partial class App : System.Windows.Application
         if (e.Args.Any(argument => argument.Equals("--resource-window-stress", StringComparison.OrdinalIgnoreCase)))
         {
             Dispatcher.BeginInvoke(() => _ = _hostWindow.RunResourceWindowStressAsync());
+        }
+        else if (e.Args.Any(argument => argument.Equals("--translate", StringComparison.OrdinalIgnoreCase)))
+        {
+            Dispatcher.BeginInvoke(_hostWindow.OpenTranslationWindow);
         }
         else if (e.Args.Any(argument => argument.Equals("--settings", StringComparison.OrdinalIgnoreCase)))
         {

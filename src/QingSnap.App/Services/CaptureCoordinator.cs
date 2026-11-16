@@ -17,6 +17,7 @@ public sealed class CaptureCoordinator
     private readonly OcrService _ocrService;
     private readonly QrCodeService _qrCodeService;
     private readonly AppSettingsService _settingsService;
+    private readonly TranslationCoordinator? _translation;
     private readonly PinHistoryBuffer _pinHistory = new();
     private readonly SemaphoreSlim _pinRequestGate = new(1, 1);
     private HistoryWindow? _historyWindow;
@@ -31,7 +32,8 @@ public sealed class CaptureCoordinator
         HistoryOcrIndexingService historyOcrIndexer,
         OcrService ocrService,
         QrCodeService qrCodeService,
-        AppSettingsService settingsService)
+        AppSettingsService settingsService,
+        TranslationCoordinator? translation = null)
     {
         _captureService = captureService;
         _clipboardService = clipboardService;
@@ -41,6 +43,7 @@ public sealed class CaptureCoordinator
         _ocrService = ocrService;
         _qrCodeService = qrCodeService;
         _settingsService = settingsService;
+        _translation = translation;
     }
 
     public event EventHandler<CaptureResult>? CaptureCompleted;
@@ -839,7 +842,8 @@ public sealed class CaptureCoordinator
             _settingsService.Current,
             item.PreferredRegion?.ToRectangle(),
             initialPosition,
-            qrCodeService: _qrCodeService);
+            qrCodeService: _qrCodeService,
+            translation: _translation);
         stickyWindow.Show();
     }
 
@@ -861,7 +865,8 @@ public sealed class CaptureCoordinator
                 _settingsService.Current,
                 initialRegion,
                 prefetchedOcr: prefetchedOcr,
-                qrCodeService: _qrCodeService);
+                qrCodeService: _qrCodeService,
+                translation: _translation);
             if (firstFrameReady is not null)
             {
                 stickyWindow.FirstFramePresented += (_, _) => firstFrameReady();
@@ -902,7 +907,8 @@ public sealed class CaptureCoordinator
                 {
                     _historyService.SaveOcrText(imagePath, text);
                     _historyWindow?.RefreshHistory();
-                });
+                },
+                _translation);
             ocrWindow.Show();
         }
         catch (Exception exception)

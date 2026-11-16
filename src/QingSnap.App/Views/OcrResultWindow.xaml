@@ -279,6 +279,9 @@
                                Foreground="{DynamicResource ThemeMutedTextBrush}"
                                Text="准备识别" />
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="TranslateButton" Style="{StaticResource ActionButton}" Content="翻译"
+                                ToolTip="主动发送所选文字（未选择时发送编辑区全文）至百度；图片不上传"
+                                Click="OnTranslateClick" />
                         <Button Style="{StaticResource ActionButton}" Content="重新识别" Click="OnRetryClick" />
                         <Button x:Name="CopyAllButton" Style="{StaticResource PrimaryButton}" Margin="0" Content="复制全文"
                                 ToolTip="复制编辑区全文；右键可按原始换行复制" IsEnabled="False" Click="OnCopyAllClick">

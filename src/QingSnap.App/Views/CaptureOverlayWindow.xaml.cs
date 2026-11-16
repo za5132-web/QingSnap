@@ -2017,6 +2017,9 @@ public partial class CaptureOverlayWindow : Window
     private void ShowAdjustmentBadge(Point point, string text)
     {
         AdjustmentText.Text = text;
+        // DesiredSize includes Margin. The previous screen offset is a position,
+        // not content size; leaving it here makes repeated wheel feedback jump.
+        AdjustmentBadge.Margin = default;
         AdjustmentBadge.Visibility = Visibility.Visible;
         AdjustmentBadge.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
         var left = Math.Clamp(

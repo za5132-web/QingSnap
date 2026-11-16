@@ -18,7 +18,8 @@ public sealed class TrayIconService : IDisposable
         CaptureCoordinator captureCoordinator,
         AppSettingsService settingsService,
         Action openSettings,
-        ThemeService themeService)
+        ThemeService themeService,
+        Action? openTranslation = null)
     {
         _captureCoordinator = captureCoordinator;
         _themeService = themeService;
@@ -43,13 +44,18 @@ public sealed class TrayIconService : IDisposable
         menu.Items.Add(CreateItem("打开记录文件夹", (_, _) => _captureCoordinator.OpenHistoryDirectory()));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(CreateItem("设置", (_, _) => openSettings()));
+        if (openTranslation is not null)
+            menu.Items.Add(CreateItem("文字翻译对照（辅助）", (_, _) => openTranslation()));
         menu.Items.Add(CreateItem("导出诊断信息", (_, _) => _captureCoordinator.ExportDiagnostics()));
         menu.Items.Add(CreateItem("退出 QingSnap", (_, _) => ExitRequested?.Invoke(this, EventArgs.Empty)));
 
         _notifyIcon = new NotifyIcon
         {
             Icon = _appIcon,
-            Text = $"QingSnap — {DisplayGesture(settings, HotkeyAction.RegionCapture)} 截图 · {DisplayGesture(settings, HotkeyAction.PinRecentImage)} 贴图",
+            Text = TranslationTrialEnvironment.IsTrial ? TranslationTrialEnvironment.GlobalHotkeysEnabled
+                ? "QingSnap 翻译试验版 — 全局快捷键已允许（正式版请保持退出）"
+                : "QingSnap 翻译试验版 — 从此菜单截图/贴图；未启用全局快捷键"
+                : $"QingSnap — {DisplayGesture(settings, HotkeyAction.RegionCapture)} 截图 · {DisplayGesture(settings, HotkeyAction.PinRecentImage)} 贴图",
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -142,6 +148,7 @@ public sealed class TrayIconService : IDisposable
 
     private static string ShortcutSuffix(AppSettings settings, HotkeyAction action)
     {
+        if (!TranslationTrialEnvironment.GlobalHotkeysEnabled) return string.Empty;
         var binding = HotkeyCatalog.GetBinding(settings, action);
         return binding.IsEnabled && !string.IsNullOrWhiteSpace(binding.Gesture)
             ? $"    {binding.Gesture}"

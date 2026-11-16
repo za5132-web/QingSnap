@@ -7,3 +7,4 @@ obj/
 artifacts/
 work/
 outputs/
+**/TestResults/

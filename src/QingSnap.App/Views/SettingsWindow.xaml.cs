@@ -19,6 +19,7 @@ public partial class SettingsWindow : Window
     private readonly AppSettingsService _settingsService;
     private readonly OcrService _ocrService;
     private readonly UpdateService _updateService;
+    private readonly TranslationCoordinator? _translation;
     private readonly Action _openTutorial;
     private readonly Func<IReadOnlyList<HotkeyRegistrationFailure>> _getHotkeyRegistrationFailures;
     private readonly Action<bool> _setHotkeyCaptureMode;
@@ -34,11 +35,13 @@ public partial class SettingsWindow : Window
         UpdateService updateService,
         Action openTutorial,
         Func<IReadOnlyList<HotkeyRegistrationFailure>> getHotkeyRegistrationFailures,
-        Action<bool> setHotkeyCaptureMode)
+        Action<bool> setHotkeyCaptureMode,
+        TranslationCoordinator? translation = null)
     {
         _settingsService = settingsService;
         _ocrService = ocrService;
         _updateService = updateService;
+        _translation = translation;
         _openTutorial = openTutorial;
         _getHotkeyRegistrationFailures = getHotkeyRegistrationFailures;
         _setHotkeyCaptureMode = setHotkeyCaptureMode;
@@ -57,6 +60,19 @@ public partial class SettingsWindow : Window
         DataContext = this;
         InitializeComponent();
         LoadSettings(settingsService.Current);
+        TranslationSection.Visibility = translation is null ? Visibility.Collapsed : Visibility.Visible;
+        if (TranslationTrialEnvironment.IsTrial)
+        {
+            Title = TranslationTrialEnvironment.DisplayName + " 设置";
+            StartupCheck.IsChecked = false;
+            StartupCheck.IsEnabled = false;
+            AutoUpdateCheck.IsChecked = false;
+            AutoUpdateCheck.IsEnabled = false;
+            UpdateCheckButton.IsEnabled = false;
+            HotkeyList.IsEnabled = TranslationTrialEnvironment.GlobalHotkeysEnabled;
+            HotkeyRegistrationStatusText.Text = TranslationTrialEnvironment.HotkeySessionHint;
+        }
+        TrialHotkeyHintText.Text = TranslationTrialEnvironment.HotkeySessionHint;
         RefreshOcrStatus();
         CurrentVersionText.Text = _updateService.CurrentVersionDisplay;
         if (_updateService.LastRelease is { } release)
@@ -80,6 +96,10 @@ public partial class SettingsWindow : Window
     }
 
     public ObservableCollection<HotkeySettingRow> HotkeyRows { get; }
+
+    private void OnTranslationSettingsClick(object sender, RoutedEventArgs e) => _translation?.OpenSettings(this);
+
+    private void OnOpenTranslationClick(object sender, RoutedEventArgs e) => _translation?.Open();
 
     private void LoadSettings(AppSettings settings)
     {
@@ -301,6 +321,13 @@ public partial class SettingsWindow : Window
 
     private void ShowHotkeyRegistrationFailures(IReadOnlyList<HotkeyRegistrationFailure> failures)
     {
+        if (TranslationTrialEnvironment.IsTrial && failures.Count == 0)
+        {
+            HotkeyRegistrationStatusText.Text = TranslationTrialEnvironment.HotkeySessionHint;
+            HotkeyRegistrationStatusText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ThemeMutedTextBrush");
+            HotkeyRegistrationStatusText.Visibility = Visibility.Visible;
+            return;
+        }
         if (failures.Count == 0)
         {
             HotkeyRegistrationStatusText.Visibility = Visibility.Collapsed;

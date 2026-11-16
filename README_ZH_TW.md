@@ -1,5 +1,7 @@
 # QingSnap（輕截）
 
+> **目前為翻譯實驗分支，並非正式更新。** [下載實驗版](https://github.com/za5132-web/QingSnap/releases/tag/translation-preview-20261116) · [試用說明](docs/BAIDU_TRANSLATION_TRIAL.md)。預設從實驗版系統匣操作；翻譯需自備百度帳號，僅主動操作時傳送文字。正式版仍在 main / Latest。
+
 [<kbd>简体中文</kbd>](README.md)　[<kbd>English</kbd>](README_EN.md)　[<kbd>繁體中文</kbd>](README_ZH_TW.md)　[<kbd>日本語</kbd>](README_JA.md)　[<kbd>한국어</kbd>](README_KO.md)
 
 > 截得準，拼得長，貼得住；需要文字時，再按需安裝離線 OCR。

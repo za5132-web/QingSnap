@@ -116,6 +116,7 @@ public partial class StickyImageWindow
 
     private void InvalidatePinRecognition()
     {
+        InvalidatePinTranslation();
         _ocrCancellation?.Cancel();
         _ocrCancellation?.Dispose();
         _ocrCancellation = null;
@@ -289,10 +290,12 @@ public partial class StickyImageWindow
         return true;
     }
 
-    internal BitmapSource CreatePinOutput(bool thumbnail = false)
+    internal BitmapSource CreatePinOutput(bool thumbnail = false, bool includeTranslation = false)
     {
         _pinAnnotations?.CommitText();
-        if (_pinAnnotations?.HasAnnotations != true && !thumbnail) return _image;
+        if (_pinAnnotations?.HasAnnotations != true && !thumbnail && (!includeTranslation || _pinTranslationDocument is null)) return _image;
+        if (includeTranslation && !thumbnail && (long)_image.PixelWidth * _image.PixelHeight * 4 > 256L * 1024 * 1024)
+            throw new TranslationException("memory", "译图过大，暂不合成完整图片；可以继续在贴图内查看和复制译文。");
         _pinAnnotations?.SetSelectionAdornersVisible(false);
         try
         {
@@ -304,6 +307,8 @@ public partial class StickyImageWindow
             {
                 var target = new Rect(0, 0, width, height);
                 context.DrawImage(_image, target);
+                if (includeTranslation && _pinTranslationDocument is not null)
+                    context.DrawImage(_pinTranslationDocument.Overlay, target);
                 if (_pinAnnotations?.HasAnnotations == true)
                 {
                     _pinAnnotationLayer.Measure(new Size(_image.PixelWidth, _image.PixelHeight));

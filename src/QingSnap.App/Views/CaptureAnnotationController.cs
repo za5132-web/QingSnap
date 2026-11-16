@@ -34,6 +34,9 @@ internal sealed class CaptureAnnotationController
     private WpfRect _selection;
     private double _surfaceWidth;
     private double _surfaceHeight;
+    // Accumulated local-origin rebases caused only by crop resizing. Snapshots
+    // retain their own offset so Undo/Redo never restores obsolete crop coordinates.
+    private Vector _coordinateOffset;
     private WpfPoint _start;
     private FrameworkElement? _workingElement;
     private TextBox? _textEditor;
@@ -210,6 +213,24 @@ internal sealed class CaptureAnnotationController
 
     public void SetBounds(WpfRect selection, double surfaceWidth, double surfaceHeight)
     {
+        var resized = !_selection.IsEmpty && _selection.Width > 0 && _selection.Height > 0 &&
+                      !selection.IsEmpty &&
+                      (Math.Abs(_selection.Width - selection.Width) > 0.0001 ||
+                       Math.Abs(_selection.Height - selection.Height) > 0.0001);
+        if (resized)
+        {
+            CommitText();
+            ResetWheelMerge();
+            ResetKeyboardMoveMerge();
+            var offset = new Vector(_selection.Left - selection.Left, _selection.Top - selection.Top);
+            _coordinateOffset += offset;
+            // Include current selection adorners; keep image-backed mosaic/blur
+            // pixels and all annotation geometry unchanged, even outside the crop.
+            foreach (var child in _layer.Children.OfType<FrameworkElement>())
+            {
+                OffsetElement(child, offset);
+            }
+        }
         _selection = selection;
         _surfaceWidth = surfaceWidth;
         _surfaceHeight = surfaceHeight;
@@ -248,8 +269,8 @@ internal sealed class CaptureAnnotationController
             return false;
         }
 
-        deltaX = Math.Clamp(deltaX, -bounds.Left, _layer.Width - bounds.Right);
-        deltaY = Math.Clamp(deltaY, -bounds.Top, _layer.Height - bounds.Bottom);
+        deltaX = ClampMoveDelta(deltaX, bounds.Left, bounds.Right, _layer.Width);
+        deltaY = ClampMoveDelta(deltaY, bounds.Top, bounds.Bottom, _layer.Height);
         if (Math.Abs(deltaX) < 0.0001 && Math.Abs(deltaY) < 0.0001)
         {
             return false;
@@ -437,8 +458,8 @@ internal sealed class CaptureAnnotationController
                 {
                     var deltaX = current.X - _start.X;
                     var deltaY = current.Y - _start.Y;
-                    deltaX = Math.Clamp(deltaX, -_moveBounds.Left, _layer.Width - _moveBounds.Right);
-                    deltaY = Math.Clamp(deltaY, -_moveBounds.Top, _layer.Height - _moveBounds.Bottom);
+                    deltaX = ClampMoveDelta(deltaX, _moveBounds.Left, _moveBounds.Right, _layer.Width);
+                    deltaY = ClampMoveDelta(deltaY, _moveBounds.Top, _moveBounds.Bottom, _layer.Height);
                     Canvas.SetLeft(_workingElement, _moveOrigin.X + deltaX);
                     Canvas.SetTop(_workingElement, _moveOrigin.Y + deltaY);
                 }
@@ -1228,8 +1249,8 @@ internal sealed class CaptureAnnotationController
 
         var deltaX = current.X - _start.X;
         var deltaY = current.Y - _start.Y;
-        deltaX = Math.Clamp(deltaX, -_moveBounds.Left, _layer.Width - _moveBounds.Right);
-        deltaY = Math.Clamp(deltaY, -_moveBounds.Top, _layer.Height - _moveBounds.Bottom);
+        deltaX = ClampMoveDelta(deltaX, _moveBounds.Left, _moveBounds.Right, _layer.Width);
+        deltaY = ClampMoveDelta(deltaY, _moveBounds.Top, _moveBounds.Bottom, _layer.Height);
         foreach (var element in _selectedElements)
         {
             if (!_moveOrigins.TryGetValue(element, out var origin))
@@ -1684,7 +1705,7 @@ internal sealed class CaptureAnnotationController
                 .ToArray();
             _copiedAnnotations = selected.Length == 0
                 ? null
-                : new CopiedAnnotationGroup(selected);
+                : new CopiedAnnotationGroup(selected, _coordinateOffset);
         }
         catch (Exception exception)
         {
@@ -1708,6 +1729,7 @@ internal sealed class CaptureAnnotationController
             foreach (var clone in clones)
             {
                 clone.IsHitTestVisible = false;
+                OffsetElement(clone, _coordinateOffset - copied.CoordinateOffset);
                 Canvas.SetLeft(clone, SafeCanvasPosition(Canvas.GetLeft(clone)) + 12);
                 Canvas.SetTop(clone, SafeCanvasPosition(Canvas.GetTop(clone)) + 12);
                 _layer.Children.Add(clone);
@@ -1918,7 +1940,8 @@ internal sealed class CaptureAnnotationController
                 _strokeThickness,
                 _fontSize,
                 _textBold,
-                _textShadow);
+                _textShadow,
+                _coordinateOffset);
         }
         catch (Exception exception)
         {
@@ -1976,6 +1999,7 @@ internal sealed class CaptureAnnotationController
             foreach (var annotation in restored)
             {
                 annotation.IsHitTestVisible = false;
+                OffsetElement(annotation, _coordinateOffset - snapshot.CoordinateOffset);
                 _layer.Children.Add(annotation);
                 _annotations.Add(annotation);
             }
@@ -2025,7 +2049,8 @@ internal sealed class CaptureAnnotationController
         double StrokeThickness,
         double FontSize,
         bool TextBold,
-        bool TextShadow)
+        bool TextShadow,
+        Vector CoordinateOffset)
     {
         public bool IsEquivalentTo(AnnotationDocumentSnapshot other) =>
             SelectedIndices.SequenceEqual(other.SelectedIndices) &&
@@ -2035,10 +2060,24 @@ internal sealed class CaptureAnnotationController
             Math.Abs(FontSize - other.FontSize) < 0.001 &&
             TextBold == other.TextBold &&
             TextShadow == other.TextShadow &&
+            CoordinateOffset == other.CoordinateOffset &&
             Elements.SequenceEqual(other.Elements);
     }
 
-    private sealed record CopiedAnnotationGroup(AnnotationElementSnapshot[] Elements);
+    private sealed record CopiedAnnotationGroup(AnnotationElementSnapshot[] Elements, Vector CoordinateOffset);
+
+    private static void OffsetElement(FrameworkElement element, Vector offset)
+    {
+        if (offset.X == 0 && offset.Y == 0) return;
+        Canvas.SetLeft(element, SafeCanvasPosition(Canvas.GetLeft(element)) + offset.X);
+        Canvas.SetTop(element, SafeCanvasPosition(Canvas.GetTop(element)) + offset.Y);
+    }
+
+    private static double ClampMoveDelta(double delta, double start, double end, double extent) =>
+        // A smaller crop may clip an annotation on either side. Preserve the old
+        // limits for contained objects; clipped objects may move inward without
+        // snapping or producing an inverted Math.Clamp interval.
+        Math.Clamp(delta, Math.Min(0, -start), Math.Max(0, extent - end));
 
     private sealed record AnnotationElementSnapshot(
         string? Xaml,

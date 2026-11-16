@@ -1,0 +1,56 @@
+<Window x:Class="QingSnap.App.Views.TranslationSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:QingSnap.App.Controls"
+        Title="QingSnap · 百度翻译设置（试验版）" Icon="/QingSnap;component/Assets/QingSnap.ico"
+        Width="650" Height="730" MinWidth="560" MinHeight="480" WindowStartupLocation="CenterOwner"
+        WindowStyle="None" ResizeMode="CanResizeWithGrip" Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}" UseLayoutRounding="True" PreviewKeyDown="OnPreviewKeyDown">
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Themes/SharedStyles.xaml" /><ResourceDictionary Source="TranslationStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <Border Background="{DynamicResource ThemeWindowBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="*" /><RowDefinition Height="66" /></Grid.RowDefinitions>
+            <Border Background="{DynamicResource ThemeChromeBrush}" MouseLeftButtonDown="OnTitleDrag">
+                <Grid><TextBlock Text="百度翻译设置 · 独立试验版" Margin="22,0" VerticalAlignment="Center" FontWeight="SemiBold" />
+                    <Button Style="{StaticResource TranslationClose}" HorizontalAlignment="Right" Click="OnCloseClick"><icons:QingSnapIcon Kind="Close" Width="13" Height="13" /></Button>
+                </Grid>
+            </Border>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="22,18">
+                    <TextBlock Text="使用你自己的百度翻译账户" FontSize="20" FontWeight="SemiBold" />
+                    <TextBlock Text="贴图右键选择目标语言，再按 Ctrl+T 原位翻译，支持中英互译。原文自动识别；仅主动翻译时发送文字，不上传图片。" Margin="0,8,0,17" Foreground="{DynamicResource ThemeMutedTextBrush}" />
+                    <CheckBox x:Name="EnabledCheck" Content="启用百度在线翻译（默认关闭）" />
+                    <TextBlock Style="{StaticResource TranslationLabel}" Text="APPID" Margin="0,20,0,7" />
+                    <TextBox x:Name="AppIdBox" MaxLength="40" />
+                    <TextBlock Style="{StaticResource TranslationLabel}" Text="密钥  /  不会写入普通设置或反馈日志" Margin="0,15,0,7" />
+                    <PasswordBox x:Name="SecretBox" MaxLength="256" />
+                    <TextBlock Text="由 Windows 为当前用户加密保存在本机。换电脑、换 Windows 用户后需要重新填写。" FontSize="10.5" Foreground="{DynamicResource ThemeSubtleTextBrush}" Margin="0,6,0,0" />
+                    <TextBlock Style="{StaticResource TranslationLabel}" Text="默认目标语言" Margin="0,16,0,7" />
+                    <ComboBox x:Name="TargetCombo" DisplayMemberPath="Name" SelectedValuePath="Code" />
+                    <TextBlock Text="新贴图使用此默认语言；也可在每张贴图的右键菜单中单独切换，选语言本身不发送请求。" FontSize="10.5" Foreground="{DynamicResource ThemeSubtleTextBrush}" Margin="0,6,0,0" />
+                    <Border Margin="0,18,0,14" Padding="12" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="6">
+                        <StackPanel>
+                            <TextBlock Text="先确认服务条款与账户额度" FontWeight="SemiBold" />
+                            <TextBlock Text="百度官方提醒勿将密钥填入第三方软件；同一 IP 使用多个 APPID 也可能触发限制。本功能仅供独立试用，请先确认你的账号允许此用法，不代表已获百度授权。" FontSize="11" Foreground="{DynamicResource ThemeMutedTextBrush}" Margin="0,7,0,10" />
+                            <CheckBox x:Name="ConsentCheck" VerticalContentAlignment="Top">
+                                <TextBlock Text="我已了解并同意文字发送、账户额度和服务规则。" FontSize="11" />
+                            </CheckBox>
+                        </StackPanel>
+                    </Border>
+                    <WrapPanel>
+                        <Button Style="{StaticResource TranslationButton}" Content="申请与接入说明" Margin="0,0,8,8" Click="OnDocsClick" />
+                        <Button x:Name="TestButton" Style="{StaticResource TranslationButton}" Content="测试连接" Margin="0,0,8,8" Click="OnTestClick" ToolTip="只在点击后，使用当前填写的账号发送 Hello 作为测试文字" />
+                        <Button x:Name="DeleteButton" Style="{StaticResource TranslationButton}" Content="移除已存密钥" Margin="0,0,0,8" Click="OnDeleteClick" />
+                    </WrapPanel>
+                    <TextBlock x:Name="StatusText" Text="测试连接会发送 Hello，并消耗少量账户额度；保存设置本身不发送请求。" FontSize="11" Foreground="{DynamicResource ThemeMutedTextBrush}" Margin="0,3,0,0" />
+                </StackPanel>
+            </ScrollViewer>
+            <Border Grid.Row="2" Background="{DynamicResource ThemeChromeBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,1,0,0">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="22,0">
+                    <Button Style="{StaticResource TranslationButton}" Content="关闭" Margin="0,0,8,0" Click="OnCloseClick" />
+                    <Button x:Name="SaveButton" Style="{StaticResource TranslationPrimary}" Content="保存翻译设置" Click="OnSaveClick" />
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

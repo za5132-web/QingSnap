@@ -34,7 +34,10 @@ public sealed class AppSettingsService
         var temporaryPath = _settingsPath + ".tmp";
         File.WriteAllText(temporaryPath, JsonSerializer.Serialize(normalized, JsonOptions));
         File.Move(temporaryPath, _settingsPath, true);
-        ApplyStartupSetting(normalized.StartWithWindows);
+        if (!TranslationTrialEnvironment.IsTrial)
+        {
+            ApplyStartupSetting(normalized.StartWithWindows);
+        }
         Current = normalized;
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -73,6 +76,7 @@ public sealed class AppSettingsService
             : OcrModelManager.NormalizeModel(settings.OcrModel);
         return settings with
         {
+            TranslationTargetLanguage = TranslationLanguages.Normalize(settings.TranslationTargetLanguage),
             Theme = ThemeService.NormalizePreference(settings.Theme),
             Hotkeys = hotkeys,
             CaptureHotkey = FindGesture(hotkeys, HotkeyAction.RegionCapture),
@@ -223,7 +227,9 @@ public sealed class AppSettingsService
         }
     }
 
-    private static string ResolveDataDirectory() =>
+    private static string ResolveDataDirectory() => TranslationTrialEnvironment.IsTrial
+        ? TranslationTrialEnvironment.DataDirectory
+        :
         File.Exists(Path.Combine(AppContext.BaseDirectory, "portable.flag"))
             ? Path.Combine(AppContext.BaseDirectory, "Data")
             : Path.Combine(

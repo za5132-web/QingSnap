@@ -73,6 +73,8 @@ public partial class StickyImageWindow : Window
     private NativeMethods.NativeRectangle? _collapsedDockRestingBounds;
     private bool _isDockTransitioning;
 
+    private readonly TranslationCoordinator? _translation;
+
     public StickyImageWindow(
         BitmapSource image,
         string sourceName,
@@ -82,7 +84,8 @@ public partial class StickyImageWindow : Window
         DrawingRectangle? initialRegion = null,
         DrawingPoint? initialPosition = null,
         Task<OcrRecognitionResult>? prefetchedOcr = null,
-        QrCodeService? qrCodeService = null)
+        QrCodeService? qrCodeService = null,
+        TranslationCoordinator? translation = null)
     {
         if (image.CanFreeze && !image.IsFrozen)
         {
@@ -91,6 +94,7 @@ public partial class StickyImageWindow : Window
 
         _image = image;
         _clipboardService = clipboardService;
+        _translation = translation;
         _ocrService = ocrService;
         _qrCodeService = qrCodeService ?? new QrCodeService();
         _sourceName = sourceName;
@@ -107,6 +111,7 @@ public partial class StickyImageWindow : Window
 
         InitializeComponent();
         InitializePinAnnotations(settings);
+        InitializePinTranslation();
         QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         LongQrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         Title = $"QingSnap 贴图 — {Path.GetFileName(sourceName)}";
@@ -156,6 +161,7 @@ public partial class StickyImageWindow : Window
         Closed += (_, _) =>
         {
             _isPinClosed = true;
+            DisposePinTranslation();
             ClosePinAnnotationToolbar();
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
@@ -379,6 +385,12 @@ public partial class StickyImageWindow : Window
 
     private void ApplyOcrResult(OcrRecognitionResult result)
     {
+        if (_pinTranslationVisible && _pinTranslationDocument is not null &&
+            !ReferenceEquals(result, _pinTranslationDocument.SelectionResult))
+        {
+            _pinTranslationOriginalOcr = result;
+            return;
+        }
         _ocrResult = result;
         _ocrWords = OcrTextLayoutService.Get(result).Lines
             .SelectMany(line => line.Source.Words.OrderBy(word => word.Index))
@@ -649,10 +661,18 @@ public partial class StickyImageWindow : Window
             ? Visibility.Visible : Visibility.Collapsed;
         CopySelectedOcrMenuItem.Visibility = visibility;
         CopyRawSelectedOcrMenuItem.Visibility = visibility;
+        TranslateSelectedOcrMenuItem.Visibility = _translation is null ? Visibility.Collapsed : visibility;
+        if (_pinTranslationVisible) TranslateSelectedOcrMenuItem.Visibility = Visibility.Collapsed;
+        UpdatePinTranslationMenus();
     }
 
     private void OnCopySelectedOcrClick(object sender, RoutedEventArgs e) => CopySelectedText();
     private void OnCopyRawSelectedOcrClick(object sender, RoutedEventArgs e) => CopySelectedText(true);
+
+    private void OnTranslateSelectedOcrClick(object sender, RoutedEventArgs e)
+    {
+        _ = TranslatePinAsync(selectedOnly: true);
+    }
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
@@ -738,6 +758,7 @@ public partial class StickyImageWindow : Window
         }
         if (HandlePinAnnotationKey(e)) return;
         var key = ResolveShortcutKey(e);
+        if (HandlePinTranslationShortcut(key, Keyboard.Modifiers)) { e.Handled = true; return; }
         // Space is a held pan modifier in reading mode, not a page-down command.
         if (_isLongReaderMode && key == Key.Space)
         {

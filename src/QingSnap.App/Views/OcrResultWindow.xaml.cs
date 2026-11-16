@@ -14,6 +14,7 @@ public partial class OcrResultWindow : Window
     private readonly OcrService _ocrService;
     private readonly ClipboardService _clipboardService;
     private readonly Action<string>? _recognizedTextAvailable;
+    private readonly TranslationCoordinator? _translation;
     private Task<OcrRecognitionResult>? _prefetchedRecognition;
     private CancellationTokenSource? _recognitionCancellation;
     private string _recognitionStats = "等待识别";
@@ -25,7 +26,8 @@ public partial class OcrResultWindow : Window
         OcrService ocrService,
         ClipboardService clipboardService,
         Task<OcrRecognitionResult>? prefetchedRecognition = null,
-        Action<string>? recognizedTextAvailable = null)
+        Action<string>? recognizedTextAvailable = null,
+        TranslationCoordinator? translation = null)
     {
         _imagePath = imagePath;
         _sourceImage = sourceImage;
@@ -33,7 +35,9 @@ public partial class OcrResultWindow : Window
         _clipboardService = clipboardService;
         _recognizedTextAvailable = recognizedTextAvailable;
         _prefetchedRecognition = prefetchedRecognition;
+        _translation = translation;
         InitializeComponent();
+        TranslateButton.Visibility = translation is null ? Visibility.Collapsed : Visibility.Visible;
 
         SourceImage.Source = sourceImage;
         SourceNameText.Text = Path.GetFileName(imagePath);
@@ -131,6 +135,13 @@ public partial class OcrResultWindow : Window
     }
 
     private void OnRetryClick(object sender, RoutedEventArgs e) => _ = RecognizeAsync();
+
+    private void OnTranslateClick(object sender, RoutedEventArgs e)
+    {
+        var text = OcrTextBox.SelectionLength > 0 ? OcrTextBox.SelectedText : OcrTextBox.Text;
+        if (string.IsNullOrWhiteSpace(text)) { FooterStatusText.Text = "请先识别或选择要翻译的文字。"; return; }
+        _translation?.Open(text);
+    }
 
     private async void OnCopyAllClick(object sender, RoutedEventArgs e)
     {

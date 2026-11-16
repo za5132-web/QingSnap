@@ -39,6 +39,16 @@
 
   <ItemGroup>
     <Resource Include="Assets\QingSnap.ico" />
+    <None Include="..\..\docs\BAIDU_TRANSLATION_TRIAL.md"
+          Link="BAIDU_TRANSLATION_TRIAL.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\PIN_INLINE_TRANSLATION_TRIAL_REPORT.md"
+          Link="PIN_INLINE_TRANSLATION_TRIAL_REPORT.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\PIN_MULTILINGUAL_TRANSLATION_TRIAL_REPORT.md"
+          Link="PIN_MULTILINGUAL_TRANSLATION_TRIAL_REPORT.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\TRIAL_HOTKEY_SESSION.md"
+          Link="TRIAL_HOTKEY_SESSION.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\docs\images\translation-trial\*.png"
+          Link="images\translation-trial\%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\images\qingsnap-v1.1.8-guide.png"
           Link="docs\images\qingsnap-v1.1.8-guide.png" CopyToPublishDirectory="PreserveNewest" />
     <None Include="..\..\docs\RELEASE_NOTES_v1.1.8.md"

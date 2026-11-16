@@ -1,0 +1,56 @@
+<Window x:Class="QingSnap.App.Views.TranslationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:QingSnap.App.Controls"
+        Title="QingSnap · 百度翻译试验版" Icon="/QingSnap;component/Assets/QingSnap.ico"
+        Width="880" Height="610" MinWidth="700" MinHeight="460" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="CanResizeWithGrip" Background="{DynamicResource ThemeWindowBrush}"
+        Foreground="{DynamicResource ThemeTextBrush}" UseLayoutRounding="True" PreviewKeyDown="OnPreviewKeyDown">
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="../Themes/SharedStyles.xaml" /><ResourceDictionary Source="TranslationStyles.xaml" /></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <Border Background="{DynamicResource ThemeWindowBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="48" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="64" /></Grid.RowDefinitions>
+            <Border Background="{DynamicResource ThemeChromeBrush}" MouseLeftButtonDown="OnTitleDrag">
+                <Grid>
+                    <StackPanel Orientation="Horizontal" Margin="18,0" VerticalAlignment="Center">
+                        <icons:QingSnapIcon Kind="Text" Width="18" Height="18" Foreground="{DynamicResource ThemeAccentBrush}" />
+                        <TextBlock Text="百度翻译" Margin="10,0" FontWeight="SemiBold" />
+                        <TextBlock x:Name="TrialModeText" Foreground="{DynamicResource ThemeMutedTextBrush}" FontSize="10.5" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Style="{StaticResource TranslationClose}" HorizontalAlignment="Right" Click="OnCloseClick"><icons:QingSnapIcon Kind="Close" Width="13" Height="13" /></Button>
+                </Grid>
+            </Border>
+            <Grid Grid.Row="1" Margin="22,18,22,14">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="190" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <StackPanel><TextBlock Text="把图片中的文字，接着用起来" FontSize="18" FontWeight="SemiBold" /><TextBlock Text="自动识别原文语言 → 翻译为" Margin="0,7,0,0" Foreground="{DynamicResource ThemeMutedTextBrush}" FontSize="11" /></StackPanel>
+                <ComboBox x:Name="TargetCombo" Grid.Column="1" Margin="8,0" VerticalAlignment="Center" DisplayMemberPath="Name" SelectedValuePath="Code" SelectionChanged="OnInputChanged" />
+                <Button Grid.Column="2" Style="{StaticResource TranslationButton}" VerticalAlignment="Center" Content="翻译设置" Click="OnSettingsClick" />
+            </Grid>
+            <Grid Grid.Row="2" Margin="22,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="16" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource TranslationLabel}" Text="原文  /  可编辑" />
+                    <TextBox x:Name="SourceBox" Grid.Row="1" AcceptsReturn="True" AcceptsTab="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxLength="20000" TextChanged="OnInputChanged" />
+                </Grid>
+                <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                    <TextBlock Style="{StaticResource TranslationLabel}" Text="译文  /  百度通用文本翻译" />
+                    <TextBox x:Name="ResultBox" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                </Grid>
+            </Grid>
+            <StackPanel Grid.Row="3" Margin="22,12,22,12">
+                <TextBlock x:Name="StatusText" Text="默认关闭。先到翻译设置填写自己的 APPID 和密钥。" Foreground="{DynamicResource ThemeMutedTextBrush}" FontSize="11" />
+                <TextBlock Text="仅主动翻译时发送文字至百度；图片不上传。不保存译文记录，使用你自己的账户额度。" Margin="0,6,0,0" FontSize="10.5" Foreground="{DynamicResource ThemeSubtleTextBrush}" />
+            </StackPanel>
+            <Border Grid.Row="4" Background="{DynamicResource ThemeChromeBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,1,0,0">
+                <Grid Margin="22,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock VerticalAlignment="Center" FontSize="10.5" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="Ctrl+Enter 翻译 · Ctrl+Shift+C 复制译文" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="CancelButton" Style="{StaticResource TranslationButton}" Content="取消请求" Margin="0,0,8,0" IsEnabled="False" Click="OnCancelClick" />
+                        <Button x:Name="CopyButton" Style="{StaticResource TranslationButton}" Content="复制译文" Margin="0,0,8,0" IsEnabled="False" Click="OnCopyClick" />
+                        <Button x:Name="TranslateButton" Style="{StaticResource TranslationPrimary}" Content="翻译" Click="OnTranslateClick" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

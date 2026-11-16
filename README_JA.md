@@ -1,5 +1,7 @@
 # QingSnap
 
+> **翻訳実験ブランチです。安定版の更新ではありません。** [プレビューをダウンロード](https://github.com/za5132-web/QingSnap/releases/tag/translation-preview-20261116) · [試用ガイド](docs/BAIDU_TRANSLATION_TRIAL.md)。既定ではトレイから操作します。翻訳には利用者自身の Baidu アカウントが必要で、明示操作時のみテキストを送信します。安定版は main / Latest にあります。
+
 [<kbd>简体中文</kbd>](README.md)　[<kbd>English</kbd>](README_EN.md)　[<kbd>繁體中文</kbd>](README_ZH_TW.md)　[<kbd>日本語</kbd>](README_JA.md)　[<kbd>한국어</kbd>](README_KO.md)
 
 > 正確に切り取り、長くつなぎ、デスクトップに残す。OCR は必要なときだけオフラインで追加できます。

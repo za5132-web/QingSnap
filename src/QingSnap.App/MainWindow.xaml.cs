@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private readonly HistoryOcrIndexingService _historyOcrIndexer;
     private readonly ClipboardService _clipboardService;
     private readonly UpdateService _updateService;
+    private readonly TranslationCoordinator _translation;
     private GlobalHotkeyService? _hotkeys;
     private IReadOnlyList<HotkeyRegistrationFailure> _hotkeyRegistrationFailures = [];
     private bool _hotkeysSuspended;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
         _updateService = new UpdateService(_settingsService.DataDirectory);
         var captureService = new ScreenCaptureService();
         _clipboardService = new ClipboardService();
+        _translation = new TranslationCoordinator(_settingsService, _clipboardService);
         var stateStore = new AppStateStore();
         _historyService = new CaptureHistoryService(_settingsService);
         _ocrService = new OcrService(_settingsService);
@@ -48,13 +50,14 @@ public partial class MainWindow : Window
             _historyOcrIndexer,
             _ocrService,
             _qrCodeService,
-            _settingsService);
+            _settingsService,
+            _translation);
 
         SourceInitialized += OnSourceInitialized;
         ContentRendered += (_, _) =>
         {
             Hide();
-            if (!_settingsService.Current.HasCompletedFirstRunTutorial)
+            if (!TranslationTrialEnvironment.IsTrial && !_settingsService.Current.HasCompletedFirstRunTutorial)
             {
                 Dispatcher.BeginInvoke(() => OpenTutorialWindow(markCompletedOnClose: true));
             }
@@ -83,6 +86,8 @@ public partial class MainWindow : Window
 
     public void RecognizeLatestCapture() => _captureCoordinator.RecognizeLatestCapture();
 
+    public void OpenTranslationWindow() => _translation.Open();
+
     public void OpenSettingsWindow()
     {
         if (_settingsWindow is not null)
@@ -97,7 +102,8 @@ public partial class MainWindow : Window
             _updateService,
             () => OpenTutorialWindow(markCompletedOnClose: false),
             () => _hotkeyRegistrationFailures,
-            SetHotkeyCaptureMode);
+            SetHotkeyCaptureMode,
+            _translation);
         _settingsWindow.Closed += (_, _) => _settingsWindow = null;
         _settingsWindow.Show();
     }
@@ -207,11 +213,17 @@ public partial class MainWindow : Window
         _hotkeys = null;
         _hotkeyRegistrationFailures = [];
 
+        if (!TranslationTrialEnvironment.GlobalHotkeysEnabled) return;
+
         try
         {
             _hotkeys = new GlobalHotkeyService(this, _settingsService.Current.Hotkeys);
             _hotkeys.ActionRequested += OnHotkeyActionRequested;
             _hotkeyRegistrationFailures = _hotkeys.Register();
+            var registered = HotkeyCatalog.Definitions
+                .Where(definition => _hotkeys.IsRegistered(definition.Action))
+                .Select(definition => HotkeyCatalog.GetBinding(_settingsService.Current, definition.Action).Gesture);
+            DiagnosticLog.Info("Hotkeys", $"Registered global gestures: {string.Join(", ", registered)}.");
             if (_hotkeysSuspended && !_hotkeys.IsRegistered(HotkeyAction.ToggleGlobalHotkeys))
             {
                 _hotkeysSuspended = false;
@@ -295,7 +307,8 @@ public partial class MainWindow : Window
     private void ConfigureTray()
     {
         _tray?.Dispose();
-        _tray = new TrayIconService(_captureCoordinator, _settingsService, OpenSettingsWindow, _themeService);
+        _tray = new TrayIconService(_captureCoordinator, _settingsService, OpenSettingsWindow, _themeService,
+            OpenTranslationWindow);
         _tray.ExitRequested += (_, _) => CloseApplication();
     }
 
@@ -305,6 +318,12 @@ public partial class MainWindow : Window
         var previous = _lastAppliedSettings;
         _lastAppliedSettings = current;
         _themeService.Apply(current.Theme);
+        if ((current with
+            {
+                TranslationEnabled = previous.TranslationEnabled,
+                TranslationCloudConsent = previous.TranslationCloudConsent,
+                TranslationTargetLanguage = previous.TranslationTargetLanguage
+            }) == previous) return;
         if ((current with { Theme = previous.Theme, Hotkeys = previous.Hotkeys }) == previous &&
             current.Hotkeys.SequenceEqual(previous.Hotkeys))
         {
@@ -319,7 +338,7 @@ public partial class MainWindow : Window
 
     private async Task CheckForUpdatesInBackgroundAsync()
     {
-        if (!_settingsService.Current.AutoCheckUpdates)
+        if (TranslationTrialEnvironment.IsTrial || !_settingsService.Current.AutoCheckUpdates)
         {
             return;
         }
@@ -372,6 +391,7 @@ public partial class MainWindow : Window
         _historyService.Dispose();
         _ocrService.Dispose();
         _updateService.Dispose();
+        _translation.Dispose();
         _clipboardService.Dispose();
         _settingsService.SettingsChanged -= OnSettingsChanged;
     }

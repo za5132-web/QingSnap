@@ -67,9 +67,11 @@ public sealed class OcrModelManager
 
     public OcrModelManager(string? dataDirectory = null)
     {
-        var resolvedDataDirectory = dataDirectory ?? Path.Combine(
+        var resolvedDataDirectory = dataDirectory ?? (TranslationTrialEnvironment.IsTrial
+            ? TranslationTrialEnvironment.DataDirectory
+            : Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "QingSnap");
+                "QingSnap"));
         RootDirectory = Path.Combine(
             resolvedDataDirectory,
             "Ocr",

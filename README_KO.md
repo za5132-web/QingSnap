@@ -1,5 +1,7 @@
 # QingSnap
 
+> **번역 실험 브랜치이며 정식 업데이트가 아닙니다.** [미리 보기 다운로드](https://github.com/za5132-web/QingSnap/releases/tag/translation-preview-20261116) · [체험 안내](docs/BAIDU_TRANSLATION_TRIAL.md). 기본적으로 트레이에서 실행하며, 번역에는 본인의 Baidu 계정이 필요합니다. 직접 요청할 때만 텍스트를 전송합니다. 정식 버전은 main / Latest에서 받으세요.
+
 [<kbd>简体中文</kbd>](README.md)　[<kbd>English</kbd>](README_EN.md)　[<kbd>繁體中文</kbd>](README_ZH_TW.md)　[<kbd>日本語</kbd>](README_JA.md)　[<kbd>한국어</kbd>](README_KO.md)
 
 > 정확하게 캡처하고, 길게 이어 붙이고, 바탕 화면에 고정합니다. OCR은 필요할 때만 오프라인으로 설치하세요.

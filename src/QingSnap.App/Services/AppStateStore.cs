@@ -25,6 +25,11 @@ public sealed class AppStateStore
 
     private static string GetDefaultStatePath()
     {
+        if (TranslationTrialEnvironment.IsTrial)
+        {
+            return Path.Combine(TranslationTrialEnvironment.DataDirectory, "state.json");
+        }
+
         var dataDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "QingSnap");

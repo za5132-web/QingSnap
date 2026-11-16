@@ -511,7 +511,7 @@
                                     <TextBlock Grid.Column="3" FontSize="9.5" Foreground="{DynamicResource ThemeSubtleTextBrush}" Text="说明" />
                                 </Grid>
                             </Border>
-                            <ItemsControl ItemsSource="{Binding HotkeyRows}">
+                            <ItemsControl x:Name="HotkeyList" ItemsSource="{Binding HotkeyRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <Border BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="0,0,0,1">
@@ -570,6 +570,18 @@
                                        Foreground="{DynamicResource ThemeDangerBrush}"
                                        TextWrapping="Wrap"
                                        Visibility="Collapsed" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="TranslationSection" Padding="18" Margin="0,0,0,14" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="TRANSLATION  /  百度翻译（试验版）" />
+                            <TextBlock Text="贴图右键“翻译为中文”或按 Ctrl+T，中文直接覆盖原位；使用自己的 APPID 与密钥，默认关闭。" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource ThemeMutedTextBrush}" />
+                            <WrapPanel Margin="0,12,0,0">
+                                <Button Style="{StaticResource ActionButton}" Content="配置百度翻译" Click="OnTranslationSettingsClick" />
+                                <Button Style="{StaticResource ActionButton}" Content="文字对照（辅助）" Click="OnOpenTranslationClick" />
+                            </WrapPanel>
+                            <TextBlock x:Name="TrialHotkeyHintText" TextWrapping="Wrap" FontSize="10.5" Margin="0,10,0,0" Foreground="{DynamicResource ThemeSubtleTextBrush}" />
                         </StackPanel>
                     </Border>
 
