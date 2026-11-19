@@ -9,9 +9,14 @@ public sealed class AppSettingsService
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private readonly string _settingsPath;
+    private readonly Action<bool> _applyStartupSetting;
 
-    public AppSettingsService(string? dataDirectory = null)
+    public AppSettingsService(string? dataDirectory = null) : this(dataDirectory, ApplyStartupSetting) { }
+
+    internal AppSettingsService(string? dataDirectory, Action<bool> applyStartupSetting)
     {
+        ArgumentNullException.ThrowIfNull(applyStartupSetting);
+        _applyStartupSetting = applyStartupSetting;
         DataDirectory = string.IsNullOrWhiteSpace(dataDirectory)
             ? ResolveDataDirectory()
             : Path.GetFullPath(dataDirectory);
@@ -34,7 +39,7 @@ public sealed class AppSettingsService
         var temporaryPath = _settingsPath + ".tmp";
         File.WriteAllText(temporaryPath, JsonSerializer.Serialize(normalized, JsonOptions));
         File.Move(temporaryPath, _settingsPath, true);
-        ApplyStartupSetting(normalized.StartWithWindows);
+        _applyStartupSetting(normalized.StartWithWindows);
         Current = normalized;
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -87,6 +92,7 @@ public sealed class AppSettingsService
                 : "PNG",
             JpegQuality = Math.Clamp(settings.JpegQuality, 50, 100),
             CaptureDelaySeconds = Math.Clamp(settings.CaptureDelaySeconds, 0, 10),
+            PinDockHoverPreviewOpacity = Math.Clamp(settings.PinDockHoverPreviewOpacity, 20, 100),
             CloseInteraction = string.Equals(
                 settings.CloseInteraction,
                 "Button",

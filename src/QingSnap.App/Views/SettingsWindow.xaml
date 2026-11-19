@@ -4,7 +4,7 @@
         xmlns:icons="clr-namespace:QingSnap.App.Controls"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="QingSnap 设置"
-        Icon="/Assets/QingSnap.ico"
+        Icon="/QingSnap;component/Assets/QingSnap.ico"
         Width="780" Height="740"
         MinWidth="720" MinHeight="620"
         WindowStartupLocation="CenterScreen"
@@ -339,6 +339,38 @@
                     <Setter Property="Background" Value="{DynamicResource ThemeAccentPressedBrush}" />
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PinPreviewSlider" TargetType="Slider">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid Background="Transparent" Margin="7,0">
+                            <Track x:Name="PART_Track" VerticalAlignment="Center"
+                                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                                   Value="{Binding Value, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="{DynamicResource ThemeAccentBrush}" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="14" Height="14" Cursor="Hand">
+                                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Border CornerRadius="7" Background="{DynamicResource ThemeAccentBrush}" BorderBrush="{DynamicResource ThemeBorderStrongBrush}" BorderThickness="1" /></ControlTemplate></Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Height="4" CornerRadius="2" Background="{DynamicResource ThemeBorderStrongBrush}" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger></ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="WindowButton" TargetType="Button">
@@ -677,6 +709,27 @@
                                 <StackPanel Grid.Column="4"><TextBlock Style="{StaticResource FieldLabel}" Text="线条粗细"/><TextBox x:Name="AnnotationThicknessBox"/></StackPanel>
                                 <StackPanel Grid.Column="6"><TextBlock Style="{StaticResource FieldLabel}" Text="文字大小"/><TextBox x:Name="AnnotationFontSizeBox"/></StackPanel>
                             </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border x:Name="PinHoverPreviewSection" Padding="18" Margin="0,0,0,14" Background="{DynamicResource ThemePanelBrush}" BorderBrush="{DynamicResource ThemeBorderBrush}" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionLabel}" Text="PIN  /  贴图收纳" />
+                            <CheckBox x:Name="PinHoverPreviewCheck" Content="悬停缩略图，预览原位置的贴图" />
+                            <TextBlock Margin="0,7,0,12" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource ThemeMutedTextBrush}"
+                                       Text="移开鼠标即收回预览；缩略图始终保留。预览中单击缩略图直接恢复，不重复播放动画。" />
+                            <Grid IsEnabled="{Binding IsChecked, ElementName=PinHoverPreviewCheck}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="130" /><ColumnDefinition /><ColumnDefinition Width="55" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="预览不透明度" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                                <Slider x:Name="PinHoverOpacitySlider" Grid.Column="1" Minimum="20" Maximum="100" Value="80"
+                                        SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Style="{StaticResource PinPreviewSlider}" AutomationProperties.Name="收纳预览不透明度" />
+                                <TextBlock x:Name="PinHoverOpacityText" Grid.Column="2" Text="{Binding Value, ElementName=PinHoverOpacitySlider, StringFormat={}{0:0}%}"
+                                           FontFamily="{StaticResource DataFont}" Foreground="{DynamicResource ThemeAccentBrush}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock Margin="0,6,0,0" FontSize="10.5" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="只影响悬停预览，不改变正式贴图的不透明度。默认关闭。" />
                         </StackPanel>
                     </Border>
 

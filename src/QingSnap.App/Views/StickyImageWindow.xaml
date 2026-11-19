@@ -395,6 +395,7 @@
                     MouseLeave="OnCollapsedDockMouseLeave"
                     MouseLeftButtonDown="OnCollapsedDockMouseLeftButtonDown"
                     MouseMove="OnCollapsedDockMouseMove"
+                    LostMouseCapture="OnCollapsedDockLostMouseCapture"
                     MouseLeftButtonUp="OnCollapsedDockMouseLeftButtonUp">
                 <Grid ClipToBounds="True">
                     <Image x:Name="CollapsedThumbnail"

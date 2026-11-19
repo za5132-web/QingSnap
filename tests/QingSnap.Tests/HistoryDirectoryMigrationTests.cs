@@ -19,7 +19,7 @@ public sealed class HistoryDirectoryMigrationTests
         Directory.CreateDirectory(secondHistory);
         try
         {
-            var settings = new AppSettingsService(dataDirectory);
+            var settings = new AppSettingsService(dataDirectory, _ => { });
             settings.Save(settings.Current with { HistoryDirectory = firstHistory, OutputFormat = "PNG" });
             using var history = new CaptureHistoryService(settings);
             await history.WaitForMigrationAsync();

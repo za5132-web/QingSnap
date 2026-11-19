@@ -82,7 +82,8 @@ public partial class StickyImageWindow : Window
         DrawingRectangle? initialRegion = null,
         DrawingPoint? initialPosition = null,
         Task<OcrRecognitionResult>? prefetchedOcr = null,
-        QrCodeService? qrCodeService = null)
+        QrCodeService? qrCodeService = null,
+        AppSettingsService? settingsService = null)
     {
         if (image.CanFreeze && !image.IsFrozen)
         {
@@ -107,6 +108,7 @@ public partial class StickyImageWindow : Window
 
         InitializeComponent();
         InitializePinAnnotations(settings);
+        InitializeDockHoverPreview(settings, settingsService);
         QrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         LongQrCodeHotspotLayer.ResultInvoked += OnQrCodeHotspotInvoked;
         Title = $"QingSnap 贴图 — {Path.GetFileName(sourceName)}";
@@ -138,7 +140,7 @@ public partial class StickyImageWindow : Window
             {
                 SetCollapsedDockRevealed(false);
             }
-            else if (_isCollapsed && _isCollapsedDockRevealed && !_isDraggingCollapsedDock &&
+            else if (_isCollapsed && (_isCollapsedDockRevealed || _dockHoverPreview is not null) && !_isDraggingCollapsedDock &&
                      !CollapsedDock.IsMouseOver)
             {
                 // MouseLeave is not raised a second time after leaving the small
@@ -159,6 +161,8 @@ public partial class StickyImageWindow : Window
             ClosePinAnnotationToolbar();
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
+            DisposeDockHoverPreview();
+            if (_dockHoverSettingsService is not null) _dockHoverSettingsService.SettingsChanged -= OnDockHoverSettingsChanged;
             StopPinMotion();
             EndContentPan();
             DisposeZoomPresentation();
@@ -1010,6 +1014,7 @@ public partial class StickyImageWindow : Window
         _collapsedDockDragMoved |= Math.Abs(offsetX) > 3 || Math.Abs(offsetY) > 3;
         if (_collapsedDockDragMoved)
         {
+            DisposeDockHoverPreview();
             var handle = new WindowInteropHelper(this).Handle;
             NativeMethods.SetWindowPos(
                 handle,
@@ -1049,6 +1054,11 @@ public partial class StickyImageWindow : Window
         {
             SnapCollapsedDockToNearestEdge();
         }
+    }
+
+    private void OnCollapsedDockLostMouseCapture(object sender, WpfMouseEventArgs e)
+    {
+        if (_isDraggingCollapsedDock) EndCollapsedDockDrag(false);
     }
 
     private void SnapCollapsedDockToNearestEdge()
@@ -1098,6 +1108,12 @@ public partial class StickyImageWindow : Window
 
     private void SetCollapsedDockRevealed(bool reveal)
     {
+        if (_dockHoverPreviewEnabled && _isCollapsed)
+        {
+            if (reveal) BeginDockHoverPreview();
+            else HideDockHoverPreview();
+            return;
+        }
         if (!_isCollapsed || _isCollapsedDockRevealed == reveal)
         {
             return;
@@ -1238,6 +1254,8 @@ public partial class StickyImageWindow : Window
 
     private void PrepareCollapsedVisualState()
     {
+        DisposeDockHoverPreview();
+        RememberDockHoverViewport();
         EndContentPan();
         ResetPinZoomAnchor();
         _isCollapsed = true;
@@ -1259,11 +1277,12 @@ public partial class StickyImageWindow : Window
         NativeMethods.NativeRectangle from,
         NativeMethods.NativeRectangle to,
         Action? completed = null,
-        bool revealOnly = false)
+        bool revealOnly = false,
+        bool hoverPreview = false)
     {
-        _isDockTransitioning = !revealOnly;
+        _isDockTransitioning = !revealOnly && !hoverPreview;
         var previous = from;
-        StartPinMotion(revealOnly ? PinMotionKind.Reveal : PinMotionKind.Dock,
+        StartPinMotion(hoverPreview ? PinMotionKind.DockHoverPreview : revealOnly ? PinMotionKind.Reveal : PinMotionKind.Dock,
             revealOnly ? 120 : 190, progress =>
         {
             var eased = PinMotionMath.EaseOut(progress);
@@ -1297,6 +1316,7 @@ public partial class StickyImageWindow : Window
     private void ToggleCollapsed()
     {
         if (_isEditingPin) FinishPinAnnotations();
+        if (_isCollapsed && TryCommitDockHoverPreview()) return;
         if (_isDockTransitioning)
         {
             return;
@@ -1388,6 +1408,12 @@ public partial class StickyImageWindow : Window
 
     private void RestoreFromDock()
     {
+        if (TryCommitDockHoverPreview()) return;
+        RestoreFromDockCore(animate: true);
+    }
+
+    private void RestoreFromDockCore(bool animate)
+    {
         var handle = new WindowInteropHelper(this).Handle;
         if (_isDockTransitioning || !_isCollapsed || handle == nint.Zero ||
             _expandedBounds is not { } expandedBounds ||
@@ -1408,7 +1434,7 @@ public partial class StickyImageWindow : Window
         Frame.BorderThickness = new Thickness(1);
         Frame.CornerRadius = new CornerRadius(0);
         UpdateLayout();
-        AnimateWindowBounds(handle, collapsedBounds, expandedBounds, () =>
+        void Restored()
         {
             if (_isLongReaderMode)
             {
@@ -1423,7 +1449,15 @@ public partial class StickyImageWindow : Window
             {
                 ShowPinCloseButton(true);
             }
-        });
+        }
+        if (animate) AnimateWindowBounds(handle, collapsedBounds, expandedBounds, Restored);
+        else
+        {
+            NativeMethods.SetWindowPos(handle, nint.Zero, expandedBounds.Left, expandedBounds.Top,
+                expandedBounds.Width, expandedBounds.Height,
+                NativeMethods.SwpNoActivate | NativeMethods.SwpNoZOrder | NativeMethods.SwpNoOwnerZOrder);
+            Restored();
+        }
     }
 
     private void OnCloseClick(object sender, RoutedEventArgs e) => Close();

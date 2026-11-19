@@ -10,7 +10,7 @@ namespace QingSnap.App.Views;
 
 public partial class StickyImageWindow
 {
-    private enum PinMotionKind { None, Zoom, Dock, Reveal, ContentZoom }
+    private enum PinMotionKind { None, Zoom, Dock, Reveal, ContentZoom, DockHoverPreview }
 
     private Action<double>? _pinMotionFrame;
     private Action? _pinMotionCompleted;
@@ -248,6 +248,10 @@ public partial class StickyImageWindow
         if (!NativeMethods.GetCursorPos(out var cursor) ||
             !NativeMethods.GetWindowRect(handle, out var bounds)) return false;
         var tolerance = Math.Max(2, (int)Math.Round(3 * VisualTreeHelper.GetDpi(this).DpiScaleX));
+        if (_dockHoverPreviewEnabled)
+            return cursor.X >= Math.Max(_collapsedDockWorkArea.Left, bounds.Left) - tolerance &&
+                   cursor.X <= Math.Min(_collapsedDockWorkArea.Right, bounds.Right) + tolerance &&
+                   cursor.Y >= bounds.Top - tolerance && cursor.Y <= bounds.Bottom + tolerance;
         return PinMotionMath.IsInsideDockZone(cursor.X, cursor.Y,
             _collapsedDockWorkArea.Left, _collapsedDockWorkArea.Right,
             bounds.Top, bounds.Width, bounds.Height, _collapsedDockUsesLeftEdge, tolerance);

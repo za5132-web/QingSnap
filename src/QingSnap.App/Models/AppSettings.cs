@@ -34,6 +34,10 @@ public sealed record AppSettings
 
     public bool ShowQuickCaptureTags { get; init; } = true;
 
+    public bool PinDockHoverPreviewEnabled { get; init; }
+
+    public int PinDockHoverPreviewOpacity { get; init; } = 80;
+
     public string CloseInteraction { get; init; } = "Escape";
 
     public string OcrEngine { get; init; } = "None";

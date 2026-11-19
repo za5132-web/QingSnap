@@ -839,7 +839,7 @@ public sealed class CaptureCoordinator
             _settingsService.Current,
             item.PreferredRegion?.ToRectangle(),
             initialPosition,
-            qrCodeService: _qrCodeService);
+            qrCodeService: _qrCodeService, settingsService: _settingsService);
         stickyWindow.Show();
     }
 
@@ -861,7 +861,7 @@ public sealed class CaptureCoordinator
                 _settingsService.Current,
                 initialRegion,
                 prefetchedOcr: prefetchedOcr,
-                qrCodeService: _qrCodeService);
+                qrCodeService: _qrCodeService, settingsService: _settingsService);
             if (firstFrameReady is not null)
             {
                 stickyWindow.FirstFramePresented += (_, _) => firstFrameReady();
