@@ -38,6 +38,8 @@ public sealed record AppSettings
 
     public int PinDockHoverPreviewOpacity { get; init; } = 80;
 
+    public int PinDockHoverPreviewDelayMs { get; init; } = 500;
+
     public string CloseInteraction { get; init; } = "Escape";
 
     public string OcrEngine { get; init; } = "None";

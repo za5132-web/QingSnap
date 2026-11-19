@@ -27,7 +27,11 @@ public partial class StickyImageWindow
     private EventHandler? _dockHoverHandoffRendering;
     private DispatcherOperation? _dockHoverHandoffOperation;
     private bool _dockHoverAfterReveal;
-    private readonly DispatcherTimer _dockHoverStartTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly DispatcherTimer _dockHoverStartTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private double _dockHoverViewportHeightDip;
+    private MatrixTransform? _dockHoverReaderTransform;
+    private double _dockHoverReaderFit;
+    private Rect _dockHoverReaderTarget;
 
     private void InitializeDockHoverPreview(AppSettings settings, AppSettingsService? service)
     {
@@ -69,6 +73,7 @@ public partial class StickyImageWindow
 
     private void ApplyDockHoverSettings(AppSettings settings)
     {
+        _dockHoverStartTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(settings.PinDockHoverPreviewDelayMs, 100, 2000));
         _dockHoverPreviewEnabled = settings.PinDockHoverPreviewEnabled;
         _dockHoverOpacity = Math.Clamp(settings.PinDockHoverPreviewOpacity, 20, 100) / 100D;
         if (!_dockHoverPreviewEnabled)
@@ -84,6 +89,7 @@ public partial class StickyImageWindow
     private void RememberDockHoverViewport()
     {
         _dockHoverSourceRect = new Rect(0, 0, _image.PixelWidth, _image.PixelHeight);
+        _dockHoverViewportHeightDip = LongImageScroller.ViewportHeight;
         if (!_isLongReaderMode || LongPinnedImage.ActualWidth <= 0 || LongPinnedImage.ActualHeight <= 0) return;
         var x = Math.Max(0, LongImageScroller.HorizontalOffset / LongPinnedImage.ActualWidth * _image.PixelWidth);
         var y = Math.Max(0, LongImageScroller.VerticalOffset / LongPinnedImage.ActualHeight * _image.PixelHeight);
@@ -125,6 +131,68 @@ public partial class StickyImageWindow
         return bitmap;
     }
 
+    // Reading previews keep the existing bitmap/annotation visuals behind one
+    // clipped drawing. Wheel input changes only a matrix, not a new long bitmap.
+    private DrawingImage CreateDockHoverReaderDrawing(NativeMethods.NativeRectangle expanded)
+    {
+        var ratio = Math.Min(1, 2048D / Math.Max(expanded.Width, expanded.Height));
+        var width = Math.Max(1, (int)Math.Round(expanded.Width * ratio));
+        var height = Math.Max(1, (int)Math.Round(expanded.Height * ratio));
+        if (_dockHoverSourceRect.Width <= 0 || _dockHoverSourceRect.Height <= 0)
+            _dockHoverSourceRect = new Rect(0, 0, _image.PixelWidth, _image.PixelHeight);
+        var source = _dockHoverSourceRect;
+        _dockHoverReaderFit = Math.Min(width / source.Width, height / source.Height);
+        _dockHoverReaderTarget = new Rect((width - source.Width * _dockHoverReaderFit) / 2,
+            (height - source.Height * _dockHoverReaderFit) / 2,
+            source.Width * _dockHoverReaderFit, source.Height * _dockHoverReaderFit);
+        _dockHoverReaderTransform = new MatrixTransform();
+        UpdateDockHoverReaderTransform();
+        var drawing = new DrawingGroup();
+        using (var context = drawing.Open())
+        {
+            context.DrawRectangle((Brush?)TryFindResource("ThemeImageBackdropBrush") ?? Brushes.Transparent, null,
+                new Rect(0, 0, width, height));
+            context.PushClip(new RectangleGeometry(_dockHoverReaderTarget));
+            context.PushTransform(_dockHoverReaderTransform);
+            var imageBounds = new Rect(0, 0, _image.PixelWidth, _image.PixelHeight);
+            context.DrawImage(_image, imageBounds);
+            if (_pinAnnotations?.HasAnnotations == true)
+            {
+                _pinAnnotationLayer.Measure(new Size(_image.PixelWidth, _image.PixelHeight));
+                _pinAnnotationLayer.Arrange(imageBounds);
+                context.DrawRectangle(new VisualBrush(_pinAnnotationLayer)
+                { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = imageBounds, AutoLayoutContent = false, Stretch = Stretch.Fill },
+                    null, imageBounds);
+            }
+            context.Pop(); context.Pop();
+        }
+        return new DrawingImage(drawing);
+    }
+
+    private void UpdateDockHoverReaderTransform()
+    {
+        if (_dockHoverReaderTransform is null) return;
+        _dockHoverReaderTransform.Matrix = new Matrix(_dockHoverReaderFit, 0, 0, _dockHoverReaderFit,
+            _dockHoverReaderTarget.Left - _dockHoverSourceRect.Left * _dockHoverReaderFit,
+            _dockHoverReaderTarget.Top - _dockHoverSourceRect.Top * _dockHoverReaderFit);
+    }
+
+    private bool TryScrollDockHoverPreview(int delta)
+    {
+        if (!_isCollapsed || !_dockHoverPreviewEnabled || !_isLongReaderMode || _dockHoverCommitted ||
+            _dockHoverReturning || _isDraggingCollapsedDock || _dockHoverPreview is not { IsReady: true } ||
+            _dockHoverReaderTransform is null || _dockHoverSourceRect.Height <= 0) return false;
+        var maximum = Math.Max(0, _image.PixelHeight - _dockHoverSourceRect.Height);
+        var viewportDip = _dockHoverViewportHeightDip > 0 ? _dockHoverViewportHeightDip
+            : Math.Max(1, _readerViewportHeight);
+        var step = -Math.Clamp(delta, -480, 480) * 0.82 * _dockHoverSourceRect.Height / viewportDip;
+        var y = Math.Clamp(_dockHoverSourceRect.Y + step, 0, maximum);
+        _dockHoverSourceRect = new Rect(_dockHoverSourceRect.X, y, _dockHoverSourceRect.Width, _dockHoverSourceRect.Height);
+        _readerOffsetRatio = maximum <= 0 ? 0 : y / maximum;
+        UpdateDockHoverReaderTransform();
+        return true;
+    }
+
     private void BeginDockHoverPreview(bool showWindow = true)
     {
         if (!_dockHoverPreviewEnabled || !_isCollapsed || _isPinClosed || _isDraggingCollapsedDock ||
@@ -138,7 +206,8 @@ public partial class StickyImageWindow
             if (_dockHoverPreview is null)
             {
                 if (!NativeMethods.GetWindowRect(new WindowInteropHelper(this).Handle, out var dock)) { _dockHoverWanted = false; return; }
-                var preview = new PinDockHoverPreviewWindow(CreateDockHoverSnapshot(expanded), dock, _dockHoverOpacity);
+                ImageSource content = _isLongReaderMode ? CreateDockHoverReaderDrawing(expanded) : CreateDockHoverSnapshot(expanded);
+                var preview = new PinDockHoverPreviewWindow(content, dock, _dockHoverOpacity);
                 _dockHoverPreview = preview;
                 preview.Ready += OnDockHoverPreviewReady;
                 preview.Closed += OnDockHoverPreviewClosed;
@@ -265,6 +334,7 @@ public partial class StickyImageWindow
         _dockHoverHandoffOperation?.Abort();
         _dockHoverHandoffOperation = null;
         _dockHoverHandingOff = false;
+        _dockHoverReaderTransform = null;
         var preview = _dockHoverPreview;
         _dockHoverPreview = null;
         _dockHoverWanted = _dockHoverCommitted = _dockHoverReturning = false;

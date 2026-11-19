@@ -661,6 +661,7 @@ public partial class StickyImageWindow : Window
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
+        if (TryScrollDockHoverPreview(e.Delta)) { e.Handled = true; return; }
         if (_isSelectingText || _isPinDrawing || IsPinTextEditing || _isContentPanning)
         {
             e.Handled = true;
@@ -1472,8 +1473,11 @@ public partial class StickyImageWindow : Window
                 LongImageScroller.ScrollToHorizontalOffset(readerHorizontalRatio * LongImageScroller.ScrollableWidth);
                 UpdateScrollProgress();
             }
-            Activate();
-            Focus();
+            if (IsVisible && Opacity > 0)
+            {
+                Activate();
+                Focus();
+            }
             if (_usesCloseButton)
             {
                 ShowPinCloseButton(true);

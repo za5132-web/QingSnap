@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -26,6 +27,7 @@ public sealed class PinDockHoverPreviewTests
         var legacy = JsonSerializer.Deserialize<AppSettings>("{}")!;
         Assert.False(legacy.PinDockHoverPreviewEnabled);
         Assert.Equal(80, legacy.PinDockHoverPreviewOpacity);
+        Assert.Equal(500, legacy.PinDockHoverPreviewDelayMs);
         var settings = legacy with { PinDockHoverPreviewEnabled = true, PinDockHoverPreviewOpacity = 55 };
         var result = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
         Assert.True(result.PinDockHoverPreviewEnabled);
@@ -47,10 +49,11 @@ public sealed class PinDockHoverPreviewTests
         try
         {
             var service = new AppSettingsService(directory, _ => calls++);
-            service.Save(service.Current with { PinDockHoverPreviewEnabled = true, PinDockHoverPreviewOpacity = 45 });
+            service.Save(service.Current with { PinDockHoverPreviewEnabled = true, PinDockHoverPreviewOpacity = 45, PinDockHoverPreviewDelayMs = 300 });
             var reloaded = new AppSettingsService(directory, _ => throw new InvalidOperationException("Loading must not change startup."));
             Assert.True(reloaded.Current.PinDockHoverPreviewEnabled);
             Assert.Equal(45, reloaded.Current.PinDockHoverPreviewOpacity);
+            Assert.Equal(300, reloaded.Current.PinDockHoverPreviewDelayMs);
             Assert.Equal(1, calls);
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
@@ -152,13 +155,13 @@ public sealed class PinDockHoverPreviewTests
 
     [Theory]
     [InlineData(false)][InlineData(true)]
-    public void ActualHoverRouteRevealsFullThumbnailThenWaitsOneSecondBeforePreview(bool leftEdge) => Run(() =>
+    public void ActualHoverRouteRevealsFullThumbnailThenWaitsConfiguredDelayBeforePreview(bool leftEdge) => Run(() =>
     {
         using var fixture = new Fixture(true);
         var revealed = BeginRealThumbnailHover(fixture, leftEdge);
         var timer = Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer");
         Assert.True(timer.IsEnabled);
-        Assert.Equal(TimeSpan.FromSeconds(1), timer.Interval);
+        Assert.Equal(TimeSpan.FromMilliseconds(500), timer.Interval);
         Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
         AssertBounds(revealed, fixture.Pin);
         Call(fixture.Pin, "ScheduleDockHoverPreview");
@@ -179,7 +182,7 @@ public sealed class PinDockHoverPreviewTests
     });
 
     [Fact]
-    public void ClickDuringOneSecondDelayRestoresImmediatelyAndCannotOpenLatePreview() => Run(() =>
+    public void ClickDuringDelayRestoresImmediatelyAndCannotOpenLatePreview() => Run(() =>
     {
         using var fixture = new Fixture(true);
         BeginRealThumbnailHover(fixture, false);
@@ -218,6 +221,70 @@ public sealed class PinDockHoverPreviewTests
         Assert.False(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
         Call(fixture.Pin, "OnDockHoverDelayElapsed", true, false);
         Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+    });
+
+    [Theory]
+    [InlineData(-1, 100)][InlineData(300, 300)][InlineData(500, 500)][InlineData(99999, 2000)]
+    public void DelaySettingsNormalizeAndApplyImmediately(int configured, int expected) => Run(() =>
+    {
+        var settings = AppSettingsService.Normalize(new AppSettings { PinDockHoverPreviewEnabled = true, PinDockHoverPreviewDelayMs = configured });
+        Assert.Equal(expected, settings.PinDockHoverPreviewDelayMs);
+        using var fixture = new Fixture(true);
+        fixture.SetSettings(settings);
+        BeginRealThumbnailHover(fixture, false);
+        Assert.Equal(TimeSpan.FromMilliseconds(expected), Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").Interval);
+    });
+
+    [Fact]
+    public void LongPreviewWheelReusesDrawingChangesVisibleContentAndClampsSavedReadingPosition() => Run(() =>
+    {
+        using var fixture = new Fixture(true, longImage: true);
+        Set(fixture.Pin, "_isLongReaderMode", true);
+        Set(fixture.Pin, "_dockHoverSourceRect", new Rect(0, 500, 800, 400));
+        Set(fixture.Pin, "_dockHoverViewportHeightDip", 400D);
+        var preview = fixture.OpenPreview();
+        Call(fixture.Pin, "CompletePinMotion", true);
+        var image = Get<Image>(preview, "_image");
+        var content = Assert.IsType<DrawingImage>(image.Source);
+        var transform = Get<MatrixTransform>(fixture.Pin, "_dockHoverReaderTransform");
+        var before = Draw(content);
+        var motionVersion = Get<int>(fixture.Pin, "_pinMotionVersion");
+        var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120) { RoutedEvent = Mouse.PreviewMouseWheelEvent };
+        Call(fixture.Pin, "OnPreviewMouseWheel", fixture.Pin, wheel);
+        Assert.True(wheel.Handled);
+        Call(fixture.Pin, "TryScrollDockHoverPreview", -120);
+        var after = Draw(content);
+        Assert.NotEqual(Pixel(before, 300, 200), Pixel(after, 300, 200));
+        for (var i = 0; i < 20; i++) Call(fixture.Pin, "TryScrollDockHoverPreview", -480);
+        Assert.Equal(1200D, Get<Rect>(fixture.Pin, "_dockHoverSourceRect").Y);
+        Assert.Equal(1D, Get<double>(fixture.Pin, "_readerOffsetRatio"));
+        for (var i = 0; i < 20; i++) Call(fixture.Pin, "TryScrollDockHoverPreview", 480);
+        Assert.Equal(0D, Get<Rect>(fixture.Pin, "_dockHoverSourceRect").Y);
+        Assert.Equal(0D, Get<double>(fixture.Pin, "_readerOffsetRatio"));
+        Assert.Same(transform, Get<MatrixTransform>(fixture.Pin, "_dockHoverReaderTransform"));
+        Assert.Same(content, image.Source);
+        Assert.Equal(motionVersion, Get<int>(fixture.Pin, "_pinMotionVersion"));
+        AssertBounds(fixture.Dock, fixture.Pin);
+        Call(fixture.Pin, "HideDockHoverPreview"); Call(fixture.Pin, "CompletePinMotion", true);
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverReaderTransform"));
+
+        static BitmapSource Draw(ImageSource source)
+        {
+            var visual = new DrawingVisual();
+            using (var drawing = visual.RenderOpen()) drawing.DrawImage(source, new Rect(0, 0, 600, 400));
+            var bitmap = new RenderTargetBitmap(600, 400, 96, 96, PixelFormats.Pbgra32); bitmap.Render(visual); return bitmap;
+        }
+    });
+
+    [Fact]
+    public void WheelBeforePreviewAndOnOrdinaryPinNeverChangesScale() => Run(() =>
+    {
+        using var fixture = new Fixture(true);
+        var scale = Get<double>(fixture.Pin, "_scale");
+        Assert.False((bool)Call(fixture.Pin, "TryScrollDockHoverPreview", -120)!);
+        fixture.OpenPreview(); Call(fixture.Pin, "CompletePinMotion", true);
+        Assert.False((bool)Call(fixture.Pin, "TryScrollDockHoverPreview", -120)!);
+        Assert.Equal(scale, Get<double>(fixture.Pin, "_scale"));
     });
 
     private static NativeMethods.NativeRectangle BeginRealThumbnailHover(Fixture fixture, bool leftEdge)
@@ -395,6 +462,14 @@ public sealed class PinDockHoverPreviewTests
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.DataBind);
             Assert.Equal(45, ((Track)slider.Template.FindName("PART_Track", slider)).Value);
             Assert.Equal("45%", ((TextBlock)window.FindName("PinHoverOpacityText")).Text);
+            var delay = (Slider)window.FindName("PinHoverDelaySlider");
+            Assert.Equal(0.1, delay.Minimum); Assert.Equal(2, delay.Maximum); Assert.Equal(0.5, delay.Value);
+            delay.ApplyTemplate();
+            Assert.NotNull(delay.Template.FindName("PART_Track", delay));
+            delay.Value = 0.3;
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.DataBind);
+            Assert.Contains("0.3", ((TextBlock)window.FindName("PinHoverDelayText")).Text);
+            root.UpdateLayout();
             var card = (Border)window.FindName("PinHoverPreviewSection");
             Assert.True(card.ActualWidth > 500);
             var visual = new DrawingVisual();
@@ -414,6 +489,7 @@ public sealed class PinDockHoverPreviewTests
             }
             check.IsChecked = false;
             Assert.False(slider.IsEnabled);
+            Assert.False(delay.IsEnabled);
         }
         finally { window.Close(); }
     });
@@ -427,17 +503,18 @@ public sealed class PinDockHoverPreviewTests
         public StickyImageWindow Pin { get; }
         public NativeMethods.NativeRectangle Dock { get; } = new() { Left = -10100, Top = -10100, Right = -10042, Bottom = -10056 };
         public NativeMethods.NativeRectangle Expanded { get; } = new() { Left = -10800, Top = -10500, Right = -10200, Bottom = -10100 };
-        public Fixture(bool enabled, int dpi = 96)
+        public Fixture(bool enabled, int dpi = 96, bool longImage = false)
         {
             Directory.CreateDirectory(DirectoryPath);
             File.WriteAllText(Path.Combine(DirectoryPath, "settings.json"), JsonSerializer.Serialize(
                 new AppSettings { PinDockHoverPreviewEnabled = enabled }));
             Settings = new AppSettingsService(DirectoryPath);
             Ocr = new OcrService(Settings);
-            var pixels = new byte[800 * 600 * 4]; Array.Fill(pixels, (byte)255);
-            for (var y = 300; y < 600; y++)
+            var height = longImage ? 1600 : 600;
+            var pixels = new byte[800 * height * 4]; Array.Fill(pixels, (byte)255);
+            for (var y = height / 2; y < height; y++)
                 for (var x = 0; x < 800; x++) { var i = (y * 800 + x) * 4; pixels[i + 1] = 80; pixels[i + 2] = 30; }
-            var image = BitmapSource.Create(800, 600, dpi, dpi, PixelFormats.Bgra32, null, pixels, 800 * 4); image.Freeze();
+            var image = BitmapSource.Create(800, height, dpi, dpi, PixelFormats.Bgra32, null, pixels, 800 * 4); image.Freeze();
             Pin = new StickyImageWindow(image, "synthetic-dock", Clipboard, Ocr, Settings.Current,
                 settingsService: Settings);
             Pin.Resources.MergedDictionaries.Add(ThemeService.LoadDictionary("Dark"));

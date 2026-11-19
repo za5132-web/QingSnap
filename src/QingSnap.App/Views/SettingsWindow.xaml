@@ -718,9 +718,19 @@
                             <CheckBox x:Name="PinHoverPreviewCheck" Content="悬停缩略图，预览原位置的贴图" />
                             <TextBlock Margin="0,7,0,12" FontSize="11" TextWrapping="Wrap"
                                        Foreground="{DynamicResource ThemeMutedTextBrush}"
-                                       Text="完整缩略图停留 1 秒后预览；点击可立即恢复，移开即收回。预览期间保留缩略图，不重复播放恢复动画。" />
+                                       Text="先展开完整缩略图，停留后预览；等待时点击可立即恢复，移开即收回。预览期间保留缩略图。" />
+                            <Grid Margin="0,0,0,5" IsEnabled="{Binding IsChecked, ElementName=PinHoverPreviewCheck}">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="130" /><ColumnDefinition /><ColumnDefinition Width="65" /></Grid.ColumnDefinitions>
+                                <TextBlock Text="预览等待" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
+                                <Slider x:Name="PinHoverDelaySlider" Grid.Column="1" Minimum="0.1" Maximum="2" Value="0.5"
+                                        SmallChange="0.1" LargeChange="0.2" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                                        Style="{StaticResource PinPreviewSlider}" AutomationProperties.Name="收纳预览等待时间" />
+                                <TextBlock x:Name="PinHoverDelayText" Grid.Column="2" Text="{Binding Value, ElementName=PinHoverDelaySlider, StringFormat={}{0:0.0} 秒}"
+                                           FontFamily="{StaticResource DataFont}" Foreground="{DynamicResource ThemeAccentBrush}"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
                             <Grid IsEnabled="{Binding IsChecked, ElementName=PinHoverPreviewCheck}">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="130" /><ColumnDefinition /><ColumnDefinition Width="55" /></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="130" /><ColumnDefinition /><ColumnDefinition Width="65" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="预览不透明度" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />
                                 <Slider x:Name="PinHoverOpacitySlider" Grid.Column="1" Minimum="20" Maximum="100" Value="80"
                                         SmallChange="1" LargeChange="5" TickFrequency="1" IsSnapToTickEnabled="True"
@@ -729,7 +739,7 @@
                                            FontFamily="{StaticResource DataFont}" Foreground="{DynamicResource ThemeAccentBrush}"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" />
                             </Grid>
-                            <TextBlock Margin="0,6,0,0" FontSize="10.5" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="只影响悬停预览，不改变正式贴图的不透明度。默认关闭。" />
+                            <TextBlock Margin="0,6,0,0" FontSize="10.5" TextWrapping="Wrap" Foreground="{DynamicResource ThemeMutedTextBrush}" Text="长图预览可在缩略图上滚轮翻页，点击后保留阅读位置。预览不透明度不影响正式贴图，功能默认关闭。" />
                         </StackPanel>
                     </Border>
 

@@ -21,7 +21,7 @@ internal sealed class PinDockHoverPreviewWindow : Window
     internal bool IsReady { get; private set; }
     internal event EventHandler? Ready;
 
-    internal PinDockHoverPreviewWindow(BitmapSource image, NativeMethods.NativeRectangle initialBounds, double opacity)
+    internal PinDockHoverPreviewWindow(ImageSource image, NativeMethods.NativeRectangle initialBounds, double opacity)
     {
         _initialBounds = initialBounds;
         _previewOpacity = opacity;

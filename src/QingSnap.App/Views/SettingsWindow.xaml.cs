@@ -96,6 +96,7 @@ public partial class SettingsWindow : Window
         QuickCaptureTagsCheck.IsChecked = settings.ShowQuickCaptureTags;
         PinHoverPreviewCheck.IsChecked = settings.PinDockHoverPreviewEnabled;
         PinHoverOpacitySlider.Value = settings.PinDockHoverPreviewOpacity;
+        PinHoverDelaySlider.Value = settings.PinDockHoverPreviewDelayMs / 1000D;
         SelectComboByTag(CloseInteractionCombo, settings.CloseInteraction);
         SelectComboByTag(
             OcrModelCombo,
@@ -131,6 +132,7 @@ public partial class SettingsWindow : Window
                 ShowQuickCaptureTags = QuickCaptureTagsCheck.IsChecked == true,
                 PinDockHoverPreviewEnabled = PinHoverPreviewCheck.IsChecked == true,
                 PinDockHoverPreviewOpacity = (int)Math.Round(PinHoverOpacitySlider.Value),
+                PinDockHoverPreviewDelayMs = (int)Math.Round(PinHoverDelaySlider.Value * 1000),
                 CloseInteraction = SelectedTag(CloseInteractionCombo, "Escape"),
                 OcrEngine = SelectedOcrModel() == OcrModelManager.NoModel ? "None" : "Advanced",
                 OcrModel = SelectedOcrModel(),

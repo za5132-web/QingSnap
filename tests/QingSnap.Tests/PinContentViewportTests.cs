@@ -223,6 +223,40 @@ public sealed class PinContentViewportTests
         Assert.Equal(yRatio, scroller.VerticalOffset / scroller.ScrollableHeight, 4);
     });
 
+    [Theory]
+    [InlineData(false)][InlineData(true)]
+    public void DockPreviewWheelRestoresActualReaderAtNewOffset(bool longImage) => Run(longImage, window =>
+    {
+        // A never-shown Window has a zero-sized ScrollViewer. Realize layout
+        // invisibly, keeping both opacity zero and the initial native cloak.
+        var firstFrame = (EventHandler)Delegate.CreateDelegate(typeof(EventHandler), window,
+            typeof(StickyImageWindow).GetMethod("OnFirstContentRendered", Flags)!);
+        window.ContentRendered -= firstFrame;
+        window.Opacity = 0;
+        window.ShowActivated = false;
+        window.Show(); window.UpdateLayout();
+        if (!longImage) Call(window, "EnterFixedViewport");
+        Call(window, "SetReaderScale", 2D, false); Call(window, "CompletePinMotion", true);
+        var scroller = (ScrollViewer)window.FindName("LongImageScroller");
+        scroller.ScrollToVerticalOffset(140); window.UpdateLayout();
+        Call(window, "ApplyDockHoverSettings", new AppSettings { PinDockHoverPreviewEnabled = true });
+        Call(window, "CollapseToDock"); Call(window, "CompletePinMotion", true);
+        Call(window, "BeginDockHoverPreview", false);
+        var preview = Get<PinDockHoverPreviewWindow>(window, "_dockHoverPreview");
+        new WindowInteropHelper(preview).EnsureHandle();
+        Call(preview, "OnFirstContentRendered", preview, EventArgs.Empty);
+        Call(window, "CompletePinMotion", true);
+        var before = Get<double>(window, "_readerOffsetRatio");
+        Call(window, "TryScrollDockHoverPreview", -120);
+        var expected = Get<double>(window, "_readerOffsetRatio");
+        Assert.True(expected > before, $"before={before}, after={expected}, rect={Get<Rect>(window, "_dockHoverSourceRect")}, viewport={Get<double>(window, "_dockHoverViewportHeightDip")}, mode={Get<bool>(window, "_isLongReaderMode")}, transform={Get<object?>(window, "_dockHoverReaderTransform")}, ready={preview.IsReady}, returning={Get<bool>(window, "_dockHoverReturning")}");
+        Call(window, "RestoreFromDock"); Call(window, "CompletePinMotion", true);
+        window.UpdateLayout();
+        Assert.False(Get<bool>(window, "_isCollapsed"));
+        Assert.Equal(expected, scroller.VerticalOffset / scroller.ScrollableHeight, 4);
+        Call(window, "FinishDockHoverHandoff");
+    });
+
     [Fact]
     public void ClosingDuringZoomReleasesMotionWithoutReplacingBitmap() => Run(false, window =>
     {

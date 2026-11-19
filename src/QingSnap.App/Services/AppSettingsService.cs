@@ -93,6 +93,7 @@ public sealed class AppSettingsService
             JpegQuality = Math.Clamp(settings.JpegQuality, 50, 100),
             CaptureDelaySeconds = Math.Clamp(settings.CaptureDelaySeconds, 0, 10),
             PinDockHoverPreviewOpacity = Math.Clamp(settings.PinDockHoverPreviewOpacity, 20, 100),
+            PinDockHoverPreviewDelayMs = Math.Clamp(settings.PinDockHoverPreviewDelayMs, 100, 2000),
             CloseInteraction = string.Equals(
                 settings.CloseInteraction,
                 "Button",

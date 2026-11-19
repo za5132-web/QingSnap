@@ -307,7 +307,8 @@ public partial class MainWindow : Window
         _themeService.Apply(current.Theme);
         if ((current with { Theme = previous.Theme, Hotkeys = previous.Hotkeys,
                 PinDockHoverPreviewEnabled = previous.PinDockHoverPreviewEnabled,
-                PinDockHoverPreviewOpacity = previous.PinDockHoverPreviewOpacity }) == previous &&
+                PinDockHoverPreviewOpacity = previous.PinDockHoverPreviewOpacity,
+                PinDockHoverPreviewDelayMs = previous.PinDockHoverPreviewDelayMs }) == previous &&
             current.Hotkeys.SequenceEqual(previous.Hotkeys))
         {
             // A palette-only save must not interrupt registered hotkeys or OCR work.
