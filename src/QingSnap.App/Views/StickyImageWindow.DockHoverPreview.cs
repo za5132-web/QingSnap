@@ -150,16 +150,29 @@ public partial class StickyImageWindow
         AnimateWindowBounds(handle, from, expanded ? expandedBounds : dock, () =>
         {
             if (_dockHoverCommitted) PromoteDockHoverPreview();
-            else if (!_dockHoverWanted) DisposeDockHoverPreview();
+            else if (!_dockHoverWanted)
+            {
+                DisposeDockHoverPreview();
+                SetCollapsedThumbnailRevealed(false);
+            }
         }, hoverPreview: true);
     }
 
     private void HideDockHoverPreview()
     {
-        if (_dockHoverCommitted || !_dockHoverWanted) return;
+        if (_dockHoverCommitted) return;
+        if (!_dockHoverWanted)
+        {
+            if (_dockHoverPreview is null) SetCollapsedThumbnailRevealed(false);
+            return;
+        }
         _dockHoverWanted = false;
         if (_dockHoverPreview is { IsReady: true }) AnimateDockHoverPreview(false);
-        else DisposeDockHoverPreview();
+        else
+        {
+            DisposeDockHoverPreview();
+            SetCollapsedThumbnailRevealed(false);
+        }
     }
 
     private bool TryCommitDockHoverPreview()

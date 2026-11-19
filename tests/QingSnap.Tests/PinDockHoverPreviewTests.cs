@@ -93,6 +93,38 @@ public sealed class PinDockHoverPreviewTests
     });
 
     [Theory]
+    [InlineData(true, false, false)][InlineData(true, true, false)]
+    [InlineData(false, false, false)][InlineData(false, true, false)]
+    [InlineData(true, false, true)][InlineData(true, true, true)]
+    public void EdgeDropRetractsThumbnailWithOrWithoutEverOpeningPreview(bool enabled, bool leftEdge, bool previewOpened) => Run(() =>
+    {
+        using var fixture = new Fixture(enabled);
+        var work = new System.Drawing.Rectangle(-11000, -11000, 1000, 1000);
+        var cursor = new NativeMethods.NativePoint { X = leftEdge ? work.Left : work.Right - 1, Y = -10500 };
+        Call(fixture.Pin, "CollapseToDockAtEdge", fixture.Expanded, fixture.Expanded, cursor, work, leftEdge);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Assert.True(Get<bool>(fixture.Pin, "_isCollapsedDockRevealed"));
+        Assert.True(NativeMethods.GetWindowRect(new WindowInteropHelper(fixture.Pin).Handle, out var revealed));
+        if (previewOpened)
+        {
+            fixture.OpenPreview();
+            Call(fixture.Pin, "CompletePinMotion", true);
+            AssertBounds(revealed, fixture.Pin); // The hover anchor remains stationary.
+        }
+        Call(fixture.Pin, "SetCollapsedDockRevealed", false); // Same route as leave timer.
+        Call(fixture.Pin, "CompletePinMotion", true); // Return preview if one exists.
+        Call(fixture.Pin, "CompletePinMotion", true); // Then retract the permanent dock.
+        var resting = Get<NativeMethods.NativeRectangle>(fixture.Pin, "_collapsedDockRestingBounds");
+        AssertBounds(resting, fixture.Pin);
+        Assert.False(Get<bool>(fixture.Pin, "_isCollapsedDockRevealed"));
+        Assert.True(Get<bool>(fixture.Pin, "_isCollapsed"));
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        var exposed = leftEdge ? resting.Right - work.Left : work.Right - resting.Left;
+        Assert.InRange(exposed, 1, resting.Width - 1);
+        Assert.Equal(fixture.Expanded, Get<NativeMethods.NativeRectangle>(fixture.Pin, "_expandedBounds"));
+    });
+
+    [Theory]
     [InlineData(false)][InlineData(true)]
     public void ClickPromotesCompletedOrInFlightPreviewWithoutRestartingOutwardMotion(bool inFlight) => Run(() =>
     {

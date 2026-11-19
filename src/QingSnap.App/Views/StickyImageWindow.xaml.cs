@@ -1114,6 +1114,13 @@ public partial class StickyImageWindow : Window
             else HideDockHoverPreview();
             return;
         }
+        SetCollapsedThumbnailRevealed(reveal);
+    }
+
+    // The permanent thumbnail still has its own edge-retraction lifecycle,
+    // independent of whether the optional full-size preview was ever opened.
+    private void SetCollapsedThumbnailRevealed(bool reveal)
+    {
         if (!_isCollapsed || _isCollapsedDockRevealed == reveal)
         {
             return;

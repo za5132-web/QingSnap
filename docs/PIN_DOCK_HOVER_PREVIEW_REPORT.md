@@ -88,3 +88,17 @@
 - 签名后 EXE SHA256：`8A77F0A0ECF830EC6B5F4AEBB515F86298135D6FE243845E22AAFE69C5F14AE0`。
 - 发布 ZIP 位于本分支忽略目录 `artifacts/pin-hover-preview/QingSnap-v1.1.8-pin-hover-preview-20261119-win-x64.zip`，附 SHA256。只含程序、说明和合成设置区图片，不含用户数据。
 - GitHub 正式版及翻译版均未修改。主工作区已有的未提交修改未动；翻译版目录与 Data 均保留。
+
+## 侧边缩略图不收起：用户反馈后的追加修复
+
+原因：开启悬停预览后，统一的“移开”入口转交给大图预览，但边缘投放先生成的是完整展开的缩略图。如果大图预览从未打开，关闭请求会直接返回；即使打开过，返回完成也没有继续收起缩略图。
+
+修复：将缩略图原有 Reveal/Resting 动画独立为 `SetCollapsedThumbnailRevealed`。没有打开过大图预览时，移开直接走缩略图收起；打开过时，先完成预览返回，再收起永久缩略图。预览期间热区不移动，点击正式恢复不受影响；关闭模式沿用原行为。
+
+新增 6 项左/右边缘投放回归，分别覆盖预览开关、从未预览、预览后移开；检查原位置保存、最终露边宽度与资源释放。修复只涉及 `StickyImageWindow.xaml.cs`、`StickyImageWindow.DockHoverPreview.cs` 和对应测试。
+
+本机修复采用备份后替换相同试用程序路径，避免已有启动入口仍指向旧功能版；不修改用户设置、图片或 GitHub 下载包。最终复测及签名文件校验记录以同目录修复包为准。
+
+追加修复回归：全量 470/470 通过，0 失败/跳过；Release 编译 0 Warning / 0 Error。新增 6 项测试，定向贴图运动与预览测试 34/34 通过。备份位于 `LocalTrials\Backups\pin-hover-preview-before-retract-fix-20261119\QingSnap.exe`，备份校验与原功能版一致。
+
+修复版已在原试用路径替换并独立启动，Normal / BasePriority 8，版本仍 v1.1.8。新签名 EXE SHA256：`0FD99DC959CC3FEDC15BB4B43531AF2FFB152E4BF80CDBFFF3D51BCD7E3B36C5`。修复包为 `artifacts/pin-hover-preview/QingSnap-v1.1.8-pin-hover-retract-fix-20261119-win-x64.zip`，未上传。
