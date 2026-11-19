@@ -26,12 +26,39 @@ public partial class StickyImageWindow
     private bool _dockHoverHandingOff;
     private EventHandler? _dockHoverHandoffRendering;
     private DispatcherOperation? _dockHoverHandoffOperation;
+    private bool _dockHoverAfterReveal;
+    private readonly DispatcherTimer _dockHoverStartTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private void InitializeDockHoverPreview(AppSettings settings, AppSettingsService? service)
     {
         _dockHoverSettingsService = service;
+        _dockHoverStartTimer.Tick += OnDockHoverStartTimer;
         ApplyDockHoverSettings(settings);
         if (service is not null) service.SettingsChanged += OnDockHoverSettingsChanged;
+    }
+
+    private void CancelDockHoverDelay()
+    {
+        _dockHoverAfterReveal = false;
+        _dockHoverStartTimer.Stop();
+    }
+
+    private void ScheduleDockHoverPreview()
+    {
+        if (_dockHoverPreviewEnabled && _dockHoverAfterReveal && _isCollapsed && _isCollapsedDockRevealed &&
+            !_isDraggingCollapsedDock && !_isDockTransitioning && _dockHoverPreview is null && !_dockHoverStartTimer.IsEnabled)
+            _dockHoverStartTimer.Start();
+    }
+
+    private void OnDockHoverStartTimer(object? sender, EventArgs e) =>
+        OnDockHoverDelayElapsed(IsCursorInCollapsedDockZone(), showWindow: true);
+
+    private void OnDockHoverDelayElapsed(bool pointerInside, bool showWindow)
+    {
+        var requested = _dockHoverAfterReveal;
+        CancelDockHoverDelay();
+        if (requested && pointerInside && _dockHoverPreviewEnabled && _isCollapsedDockRevealed)
+            BeginDockHoverPreview(showWindow);
     }
 
     private void OnDockHoverSettingsChanged(object? sender, EventArgs e)
@@ -103,6 +130,7 @@ public partial class StickyImageWindow
         if (!_dockHoverPreviewEnabled || !_isCollapsed || _isPinClosed || _isDraggingCollapsedDock ||
             _isDockTransitioning || _expandedBounds is not { } expanded || expanded.Width <= 0 || expanded.Height <= 0) return;
         if (_dockHoverWanted || _dockHoverCommitted) return;
+        CancelDockHoverDelay();
         if (_pinMotionKind == PinMotionKind.Reveal) CompletePinMotion();
         _dockHoverWanted = true;
         try
@@ -160,6 +188,7 @@ public partial class StickyImageWindow
 
     private void HideDockHoverPreview()
     {
+        CancelDockHoverDelay();
         if (_dockHoverCommitted) return;
         if (!_dockHoverWanted)
         {
@@ -229,6 +258,7 @@ public partial class StickyImageWindow
 
     private void DisposeDockHoverPreview()
     {
+        CancelDockHoverDelay();
         if (_pinMotionKind == PinMotionKind.DockHoverPreview) StopPinMotion();
         if (_dockHoverHandoffRendering is not null) CompositionTarget.Rendering -= _dockHoverHandoffRendering;
         _dockHoverHandoffRendering = null;

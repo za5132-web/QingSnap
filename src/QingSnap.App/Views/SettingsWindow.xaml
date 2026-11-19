@@ -718,7 +718,7 @@
                             <CheckBox x:Name="PinHoverPreviewCheck" Content="悬停缩略图，预览原位置的贴图" />
                             <TextBlock Margin="0,7,0,12" FontSize="11" TextWrapping="Wrap"
                                        Foreground="{DynamicResource ThemeMutedTextBrush}"
-                                       Text="移开鼠标即收回预览；缩略图始终保留。预览中单击缩略图直接恢复，不重复播放动画。" />
+                                       Text="完整缩略图停留 1 秒后预览；点击可立即恢复，移开即收回。预览期间保留缩略图，不重复播放恢复动画。" />
                             <Grid IsEnabled="{Binding IsChecked, ElementName=PinHoverPreviewCheck}">
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="130" /><ColumnDefinition /><ColumnDefinition Width="55" /></Grid.ColumnDefinitions>
                                 <TextBlock Text="预览不透明度" Style="{StaticResource FieldLabel}" VerticalAlignment="Center" />

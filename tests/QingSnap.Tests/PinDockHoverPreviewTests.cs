@@ -150,6 +150,98 @@ public sealed class PinDockHoverPreviewTests
         Assert.Null(Get<object?>(fixture.Pin, "_dockHoverHandoffRendering"));
     });
 
+    [Theory]
+    [InlineData(false)][InlineData(true)]
+    public void ActualHoverRouteRevealsFullThumbnailThenWaitsOneSecondBeforePreview(bool leftEdge) => Run(() =>
+    {
+        using var fixture = new Fixture(true);
+        var revealed = BeginRealThumbnailHover(fixture, leftEdge);
+        var timer = Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer");
+        Assert.True(timer.IsEnabled);
+        Assert.Equal(TimeSpan.FromSeconds(1), timer.Interval);
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        AssertBounds(revealed, fixture.Pin);
+        Call(fixture.Pin, "ScheduleDockHoverPreview");
+        Assert.Same(timer, Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer"));
+        Call(fixture.Pin, "OnDockHoverDelayElapsed", true, false);
+        Assert.False(timer.IsEnabled);
+        var preview = Get<PinDockHoverPreviewWindow>(fixture.Pin, "_dockHoverPreview");
+        new WindowInteropHelper(preview).EnsureHandle();
+        Call(preview, "OnFirstContentRendered", preview, EventArgs.Empty);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        AssertBounds(fixture.Expanded, preview);
+        AssertBounds(revealed, fixture.Pin);
+        Assert.Equal(Visibility.Visible, ((Border)fixture.Pin.FindName("CollapsedDock")).Visibility);
+        Call(fixture.Pin, "SetCollapsedDockRevealed", false);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        AssertBounds(Get<NativeMethods.NativeRectangle>(fixture.Pin, "_collapsedDockRestingBounds"), fixture.Pin);
+    });
+
+    [Fact]
+    public void ClickDuringOneSecondDelayRestoresImmediatelyAndCannotOpenLatePreview() => Run(() =>
+    {
+        using var fixture = new Fixture(true);
+        BeginRealThumbnailHover(fixture, false);
+        Assert.True(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
+        Call(fixture.Pin, "RestoreFromDock");
+        Assert.False(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
+        Assert.False(Get<bool>(fixture.Pin, "_isCollapsed"));
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Call(fixture.Pin, "OnDockHoverDelayElapsed", true, false);
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        AssertBounds(fixture.Expanded, fixture.Pin);
+    });
+
+    [Theory]
+    [InlineData(false)][InlineData(true)]
+    public void LeavingOrDisablingDuringDelayCancelsPreview(bool disable) => Run(() =>
+    {
+        using var fixture = new Fixture(true);
+        BeginRealThumbnailHover(fixture, false);
+        if (disable) fixture.SetSettings(new AppSettings());
+        else Call(fixture.Pin, "SetCollapsedDockRevealed", false);
+        Assert.False(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
+        Call(fixture.Pin, "OnDockHoverDelayElapsed", true, false);
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Assert.True(Get<bool>(fixture.Pin, "_isCollapsed"));
+    });
+
+    [Fact]
+    public void ClosingDuringDelayStopsTimerAndLateTickIsHarmless() => Run(() =>
+    {
+        using var fixture = new Fixture(true);
+        BeginRealThumbnailHover(fixture, false);
+        fixture.Pin.Close();
+        Assert.False(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
+        Call(fixture.Pin, "OnDockHoverDelayElapsed", true, false);
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+    });
+
+    private static NativeMethods.NativeRectangle BeginRealThumbnailHover(Fixture fixture, bool leftEdge)
+    {
+        var work = new System.Drawing.Rectangle(-11000, -11000, 1000, 1000);
+        var cursor = new NativeMethods.NativePoint { X = leftEdge ? work.Left : work.Right - 1, Y = -10500 };
+        Call(fixture.Pin, "CollapseToDockAtEdge", fixture.Expanded, fixture.Expanded, cursor, work, leftEdge);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Call(fixture.Pin, "SetCollapsedDockRevealed", false);
+        Call(fixture.Pin, "CompletePinMotion", true);
+        Call(fixture.Pin, "SetCollapsedDockRevealed", true); // Production MouseEnter route, not the preview helper.
+        Assert.Null(Get<object?>(fixture.Pin, "_dockHoverPreview"));
+        Assert.False(Get<DispatcherTimer>(fixture.Pin, "_dockHoverStartTimer").IsEnabled);
+        // Complete the real reveal frame, supplying a synthetic inside-pointer
+        // result instead of moving the user's cursor to this invisible test HWND.
+        var frame = Get<Action<double>?>(fixture.Pin, "_pinMotionFrame");
+        if (frame is not null) { frame(1); Call(fixture.Pin, "StopPinMotion"); }
+        Set(fixture.Pin, "_dockHoverAfterReveal", true);
+        Call(fixture.Pin, "OnCollapsedThumbnailRevealCompleted", true, true);
+        Assert.True(NativeMethods.GetWindowRect(new WindowInteropHelper(fixture.Pin).Handle, out var revealed));
+        Assert.Equal(leftEdge ? work.Left : work.Right - revealed.Width, revealed.Left);
+        return revealed;
+    }
+
     [Fact]
     public void RapidLeaveReenterRetargetsCurrentPreviewWithoutMovingThumbnail() => Run(() =>
     {

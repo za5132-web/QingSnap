@@ -162,6 +162,7 @@ public partial class StickyImageWindow : Window
             _feedbackTimer.Stop();
             _collapsedDockHideTimer.Stop();
             DisposeDockHoverPreview();
+            _dockHoverStartTimer.Tick -= OnDockHoverStartTimer;
             if (_dockHoverSettingsService is not null) _dockHoverSettingsService.SettingsChanged -= OnDockHoverSettingsChanged;
             StopPinMotion();
             EndContentPan();
@@ -966,6 +967,7 @@ public partial class StickyImageWindow : Window
 
     private void OnCollapsedDockMouseLeave(object sender, WpfMouseEventArgs e)
     {
+        CancelDockHoverDelay();
         if (_isCollapsed && !_isDraggingCollapsedDock && !_isDockTransitioning)
         {
             _collapsedDockHideTimer.Stop();
@@ -975,6 +977,7 @@ public partial class StickyImageWindow : Window
 
     private void OnCollapsedDockMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        CancelDockHoverDelay();
         if (_pinMotionKind == PinMotionKind.Reveal) CompletePinMotion();
         var handle = new WindowInteropHelper(this).Handle;
         if (_isDockTransitioning || e.ChangedButton != MouseButton.Left || handle == nint.Zero ||
@@ -1110,7 +1113,15 @@ public partial class StickyImageWindow : Window
     {
         if (_dockHoverPreviewEnabled && _isCollapsed)
         {
-            if (reveal) BeginDockHoverPreview();
+            if (reveal)
+            {
+                if (_dockHoverPreview is not null) BeginDockHoverPreview();
+                else
+                {
+                    _dockHoverAfterReveal = true;
+                    SetCollapsedThumbnailRevealed(true);
+                }
+            }
             else HideDockHoverPreview();
             return;
         }
@@ -1123,6 +1134,7 @@ public partial class StickyImageWindow : Window
     {
         if (!_isCollapsed || _isCollapsedDockRevealed == reveal)
         {
+            if (_isCollapsed && reveal && _pinMotionKind != PinMotionKind.Reveal) ScheduleDockHoverPreview();
             return;
         }
 
@@ -1151,11 +1163,18 @@ public partial class StickyImageWindow : Window
             Left = left, Top = bounds.Top,
             Right = left + bounds.Width, Bottom = bounds.Top + bounds.Height
         };
-        AnimateWindowBounds(handle, bounds, destination, () =>
+        AnimateWindowBounds(handle, bounds, destination,
+            () => OnCollapsedThumbnailRevealCompleted(reveal, IsCursorInCollapsedDockZone()), revealOnly: true);
+    }
+
+    private void OnCollapsedThumbnailRevealCompleted(bool reveal, bool pointerInside)
+    {
+        if (_isCollapsed && reveal && !pointerInside)
         {
-            if (_isCollapsed && reveal && !IsCursorInCollapsedDockZone())
-                _collapsedDockHideTimer.Start();
-        }, revealOnly: true);
+            CancelDockHoverDelay();
+            _collapsedDockHideTimer.Start();
+        }
+        else if (reveal) ScheduleDockHoverPreview();
     }
 
     private void UpdateCollapsedDockBadgePosition()
@@ -1256,6 +1275,7 @@ public partial class StickyImageWindow : Window
                 _collapsedDockHideTimer.Stop();
                 _collapsedDockHideTimer.Start();
             }
+            else if (_isCollapsed && _dockHoverPreviewEnabled) SetCollapsedDockRevealed(true);
         });
     }
 
@@ -1323,6 +1343,7 @@ public partial class StickyImageWindow : Window
     private void ToggleCollapsed()
     {
         if (_isEditingPin) FinishPinAnnotations();
+        if (_isCollapsed) CancelDockHoverDelay();
         if (_isCollapsed && TryCommitDockHoverPreview()) return;
         if (_isDockTransitioning)
         {
@@ -1415,6 +1436,7 @@ public partial class StickyImageWindow : Window
 
     private void RestoreFromDock()
     {
+        CancelDockHoverDelay();
         if (TryCommitDockHoverPreview()) return;
         RestoreFromDockCore(animate: true);
     }
