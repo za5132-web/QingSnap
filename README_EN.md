@@ -17,8 +17,8 @@ QingSnap is a lightweight screenshot utility for Windows 10 and 11. It combines 
 
 ## Download
 
-- [Download QingSnap v1.1.8](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
-- [v1.1.8 release notes](docs/RELEASE_NOTES_v1.1.8.md)
+- [Download QingSnap v1.1.9](https://github.com/za5132-web/QingSnap/releases/download/v1.1.9/QingSnap-v1.1.9.zip)
+- [v1.1.9 release notes](docs/RELEASE_NOTES_v1.1.9.md)
 - [Complete feature list (Chinese)](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 Extract the ZIP and run `QingSnap.exe`. The portable package requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0).
@@ -89,6 +89,15 @@ The seven-step animated guide opens on first launch and can be replayed from Set
 - List/grid layouts, multi-select, batch favorite/tag/path copy, and recycle-bin deletion.
 - Re-pin a saved image or recapture its original physical screen region.
 - Rebuild metadata by scanning the image directory if the database is damaged.
+
+## What is new in v1.1.9
+
+- Optional dock hover preview, off by default: reveal the thumbnail, then preview at the saved desktop position.
+- Adjustable delay (0.5 s default, 0.1–2 s) and preview opacity (20–100%).
+- The thumbnail remains visible; leave to retract or click to restore without replaying the animation.
+- Scroll long-image reading previews over the thumbnail and retain the position on restore.
+
+![v1.1.9 dock hover preview](docs/images/qingsnap-v1.1.9-guide.png)
 
 ## What is new in v1.1.8
 

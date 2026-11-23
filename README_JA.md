@@ -16,8 +16,8 @@ QingSnap は Windows 10/11 向けの軽量スクリーンショットツール�
 
 ## ダウンロード
 
-- [QingSnap v1.1.8 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
-- [v1.1.8 リリースノート](docs/RELEASE_NOTES_v1.1.8.md)
+- [QingSnap v1.1.9 をダウンロード](https://github.com/za5132-web/QingSnap/releases/download/v1.1.9/QingSnap-v1.1.9.zip)
+- [v1.1.9 リリースノート](docs/RELEASE_NOTES_v1.1.9.md)
 - [全機能一覧（中国語）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) が必要です。リリースは自己署名のため、GitHub Release から取得し SHA-256 を確認してください。
@@ -43,6 +43,15 @@ ZIP を展開して `QingSnap.exe` を実行してください。[.NET 8 Desktop
 - **オフライン OCR / QR**：OCR は Tiny/Small を必要時にワンクリック導入。QR は OCR と独立して完全オフライン動作。
 - **全履歴検索**：SQLite メタデータ、タグ、取得元、ページング、仮想化、複数選択、一括操作、再キャプチャ。
 - **マルチモニター**：Per-Monitor V2、異なる DPI、負の仮想座標に対応。
+
+## v1.1.9
+
+- 任意設定の収納ホバープレビューを追加（初期状態は無効）。サムネイル展開後、元の位置にプレビューします。
+- 待ち時間は既定 0.5 秒、0.1～2 秒で調整可能。透明度は 20～100%。
+- サムネイルは保持され、離れると収納、クリックでアニメーションを繰り返さず復元します。
+- 長い画像の閲覧プレビューをサムネイル上のホイールでスクロールし、復元後も閲覧位置を維持します。
+
+![v1.1.9 収納プレビュー](docs/images/qingsnap-v1.1.9-guide.png)
 
 ## v1.1.8
 

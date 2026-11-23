@@ -3,6 +3,17 @@
 本文件记录 QingSnap 各公开预览版本的重要变化。
 This file documents notable changes in each public QingSnap preview release.
 
+## [1.1.9] - 2026-11-23
+
+### 收纳预览 / Dock hover preview
+
+- 新增可选的原位置贴图预览：露边标签 → 完整缩略图 → 延迟后预览。默认关闭，旧配置行为不变。 Optional original-position hover preview, off by default, retaining existing behavior for older settings.
+- 设置中调整等待时间（默认 0.5 秒，0.1～2 秒）与预览不透明度（20～100%）。 Configure preview delay (default 0.5 s, 0.1–2 s) and opacity (20–100%).
+- 预览时缩略图保留为鼠标热区；移开收回，点击直接转正式贴图，避免重复恢复动画。 Keep the thumbnail as an input anchor; leave to retract, click to promote without replaying the restore animation.
+- 长图阅读预览支持在缩略图上滚轮浏览，点击恢复后保留阅读位置；复用图层变换，不逐滚轮生成快照。 Scroll a long-image reading preview over its thumbnail and retain the reading position on restore, without per-wheel bitmap allocation.
+- 修复新预览模式下侧边缩略图不收起及跳过完整缩略图的问题；隔离历史迁移测试的开机启动副作用。 Fix thumbnail retraction/reveal sequencing and isolate migration tests from real Windows Startup settings.
+- 延续旧设置、历史、OCR 和便携数据兼容；翻译实验版未合入。 Preserve settings, history, OCR and portable data; the translation experiment remains separate.
+
 ## [1.1.8] - 2026-11-14
 
 ### 截图完成与复制 / Capture completion

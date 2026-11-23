@@ -16,8 +16,8 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 
 ## 下載
 
-- [下載 QingSnap v1.1.8](https://github.com/za5132-web/QingSnap/releases/download/v1.1.8/QingSnap-v1.1.8.zip)
-- [v1.1.8 發布說明](docs/RELEASE_NOTES_v1.1.8.md)
+- [下載 QingSnap v1.1.9](https://github.com/za5132-web/QingSnap/releases/download/v1.1.9/QingSnap-v1.1.9.zip)
+- [v1.1.9 發布說明](docs/RELEASE_NOTES_v1.1.9.md)
 - [完整功能清單（簡體中文）](docs/QINGSNAP_COMPLETE_FEATURE_LIST.md)
 
 解壓 ZIP 後執行 `QingSnap.exe`。便攜包需要 [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。目前使用自簽名憑證，請只從本倉庫 Release 下載並核對 SHA-256。
@@ -43,6 +43,15 @@ QingSnap 是一款適用於 Windows 10/11 的輕量截圖工具，將智慧截�
 - **離線 OCR / QR**：OCR 按需一鍵安裝 Tiny 或 Small；QR 基礎功能完全離線且不依賴 OCR。
 - **完整歷史**：SQLite 元資料、全量搜尋、標籤、來源資訊、分頁、虛擬化、多選、批次操作與再次截取。
 - **多螢幕**：支援 Per-Monitor V2、混合 DPI 與負座標顯示器。
+
+## v1.1.9 更新
+
+- 可選「收納懸停預覽」，預設關閉；先展開縮圖，再於原位置預覽。
+- 等待預設 0.5 秒，可調 0.1～2 秒；預覽不透明度可調 20～100%。
+- 縮圖保持顯示，移開收回，點擊直接恢復，不重播動畫。
+- 在縮圖上滾輪瀏覽長圖閱讀預覽，恢復後保留閱讀位置。
+
+![v1.1.9 收納預覽](docs/images/qingsnap-v1.1.9-guide.png)
 
 ## v1.1.8 更新
 
